@@ -1,3 +1,21 @@
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatTime } from "@/engine/scoring";
 import type { Player, TurnResult } from "@/types/game";
 
@@ -12,8 +30,6 @@ interface RoundSummaryProps {
 
 /**
  * Shows a compact summary after every player has finished the current round.
- * Multiplayer stays fair because each player in the same round receives the
- * same target and the same board before this screen appears.
  */
 export default function RoundSummary({
   round,
@@ -27,79 +43,89 @@ export default function RoundSummary({
     .filter((result) => result.round === round)
     .sort((a, b) => a.finalTimeMs - b.finalTimeMs);
 
-  const ranking = [...players].sort(
-    (a, b) => a.totalTimeMs - b.totalTimeMs
-  );
-
+  const ranking = [...players].sort((a, b) => a.totalTimeMs - b.totalTimeMs);
   const isFinalRound = round >= totalRounds;
 
   return (
-    <section className="game-panel p-3 h-100 d-flex flex-column">
-      <div className="text-center mb-2">
-        <h1 className="compact-title mb-1">Round {round} Complete</h1>
-        <p className="compact-small text-muted-game mb-0">
-          {isFinalRound ? "Final round finished." : `Next up: Round ${round + 1}`}
-        </p>
-      </div>
+    <section className="flex h-full items-center justify-center px-1">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
+        <CardHeader className="border-b text-center">
+          <CardDescription>
+            {isFinalRound ? "Final round finished" : `Next up: Round ${round + 1}`}
+          </CardDescription>
+          <CardTitle className="text-3xl tracking-tight sm:text-5xl">
+            Round {round} Complete
+          </CardTitle>
+        </CardHeader>
 
-      <div className="row g-2 flex-grow-1 min-h-0">
-        <div className="col-12 col-md-6 d-flex flex-column min-h-0">
-          <h2 className="compact-small text-muted-game mb-1">Round result</h2>
-          <div className="score-table-wrap flex-grow-1">
-            <table className="table table-dark table-striped table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Time</th>
-                  <th>Wrong</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roundResults.map((result, index) => (
-                  <tr key={result.id}>
-                    <td>{index + 1}</td>
-                    <td>{result.playerName}</td>
-                    <td>{formatTime(result.finalTimeMs)}</td>
-                    <td>{result.wrongTaps}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
+              <CardHeader className="px-4">
+                <CardTitle className="text-base">Round result</CardTitle>
+                <CardDescription>Fastest player this round appears first.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Player</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Wrong</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {roundResults.map((result, index) => (
+                      <TableRow key={result.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{result.playerName}</TableCell>
+                        <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
+                        <TableCell>{result.wrongTaps}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
+              <CardHeader className="px-4">
+                <CardTitle className="text-base">Overall ranking</CardTitle>
+                <CardDescription>Total time across every completed turn.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Player</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ranking.map((player, index) => (
+                      <TableRow key={player.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{player.name}</TableCell>
+                        <TableCell>{formatTime(player.totalTimeMs)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
-        </div>
+        </CardContent>
 
-        <div className="col-12 col-md-6 d-flex flex-column min-h-0">
-          <h2 className="compact-small text-muted-game mb-1">Overall ranking</h2>
-          <div className="score-table-wrap flex-grow-1">
-            <table className="table table-dark table-striped table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((player, index) => (
-                  <tr key={player.id}>
-                    <td>{index + 1}</td>
-                    <td>{player.name}</td>
-                    <td>{formatTime(player.totalTimeMs)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+        <Separator />
 
-      <button
-        className="btn btn-primary fw-bold mt-2"
-        onClick={isFinalRound ? onFinishGame : onNextRound}
-      >
-        {isFinalRound ? "See Final Results" : "Start Next Round"}
-      </button>
+        <CardFooter className="justify-end p-4 sm:p-6">
+          <Button onClick={isFinalRound ? onFinishGame : onNextRound}>
+            {isFinalRound ? "See Final Results" : "Start Next Round"}
+          </Button>
+        </CardFooter>
+      </Card>
     </section>
   );
 }
