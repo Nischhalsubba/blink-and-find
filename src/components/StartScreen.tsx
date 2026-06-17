@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +11,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
 import type { Difficulty, GameConfig, GameMode } from "@/types/game";
 
@@ -30,8 +38,7 @@ interface StartScreenProps {
 
 /**
  * Setup screen for Blink & Find.
- * This now uses real shadcn-style component files and Tailwind utility classes,
- * while Bootstrap remains available elsewhere in the app where it already works.
+ * Uses official shadcn-style primitives for form controls and layout.
  */
 export default function StartScreen({
   mode,
@@ -78,9 +85,9 @@ export default function StartScreen({
     <section className="flex h-full items-center justify-center px-1">
       <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
         <CardHeader className="border-b text-center">
-          <div className="mx-auto w-fit rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+          <Badge variant="secondary" className="mx-auto">
             Memory speed challenge
-          </div>
+          </Badge>
           <CardTitle className="text-4xl font-bold tracking-tight sm:text-6xl">
             Blink &amp; Find
           </CardTitle>
@@ -101,33 +108,38 @@ export default function StartScreen({
 
               <CardContent className="grid gap-4 px-5 sm:grid-cols-6">
                 <div className="grid gap-2 sm:col-span-3">
-                  <label className="text-sm font-medium" htmlFor="mode">Mode</label>
-                  <NativeSelect
-                    id="mode"
-                    value={mode}
-                    onChange={(event) => onModeChange(event.target.value as GameMode)}
-                  >
-                    <option value="single">Single Player</option>
-                    <option value="multiplayer">Multiplayer</option>
-                  </NativeSelect>
+                  <Label htmlFor="mode">Mode</Label>
+                  <Select value={mode} onValueChange={(value) => onModeChange(value as GameMode)}>
+                    <SelectTrigger id="mode">
+                      <SelectValue placeholder="Choose mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single">Single Player</SelectItem>
+                      <SelectItem value="multiplayer">Multiplayer</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-2 sm:col-span-1">
-                  <label className="text-sm font-medium" htmlFor="players">Players</label>
-                  <NativeSelect
-                    id="players"
-                    value={mode === "single" ? 1 : playerNames.length}
+                  <Label htmlFor="players">Players</Label>
+                  <Select
+                    value={String(mode === "single" ? 1 : playerNames.length)}
                     disabled={mode === "single"}
-                    onChange={(event) => updatePlayerCount(Number(event.target.value))}
+                    onValueChange={(value) => updatePlayerCount(Number(value))}
                   >
-                    {[2, 3, 4, 5, 6].map((count) => (
-                      <option key={count} value={count}>{count}</option>
-                    ))}
-                  </NativeSelect>
+                    <SelectTrigger id="players">
+                      <SelectValue placeholder="Players" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2, 3, 4, 5, 6].map((count) => (
+                        <SelectItem key={count} value={String(count)}>{count}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-2 sm:col-span-2">
-                  <label className="text-sm font-medium" htmlFor="rounds">Rounds</label>
+                  <Label htmlFor="rounds">Rounds</Label>
                   <Input
                     id="rounds"
                     min={1}
@@ -139,22 +151,23 @@ export default function StartScreen({
                 </div>
 
                 <div className="grid gap-2 sm:col-span-4">
-                  <label className="text-sm font-medium" htmlFor="difficulty">Difficulty</label>
-                  <NativeSelect
-                    id="difficulty"
-                    value={difficulty}
-                    onChange={(event) => onDifficultyChange(event.target.value as Difficulty)}
-                  >
-                    {DIFFICULTIES.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label} - {item.description}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                  <Label htmlFor="difficulty">Difficulty</Label>
+                  <Select value={difficulty} onValueChange={(value) => onDifficultyChange(value as Difficulty)}>
+                    <SelectTrigger id="difficulty">
+                      <SelectValue placeholder="Choose difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DIFFICULTIES.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.label} - {item.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-2 sm:col-span-2">
-                  <label className="text-sm font-medium" htmlFor="penalty">Wrong tap penalty</label>
+                  <Label htmlFor="penalty">Wrong tap penalty</Label>
                   <Input
                     id="penalty"
                     min={0}
@@ -174,16 +187,16 @@ export default function StartScreen({
                     <CardTitle className="text-base">Players</CardTitle>
                     <CardDescription>Names are saved locally on this device.</CardDescription>
                   </div>
-                  <div className="rounded-md border bg-background px-2 py-1 text-xs font-medium">
+                  <Badge variant="outline">
                     {mode === "single" ? 1 : playerNames.length}
-                  </div>
+                  </Badge>
                 </div>
               </CardHeader>
 
               <CardContent className="grid gap-2 px-5 sm:grid-cols-2 lg:grid-cols-1">
                 {playerNames.map((name, index) => (
                   <div className="grid gap-2" key={index}>
-                    <label className="sr-only" htmlFor={`player-${index}`}>Player {index + 1}</label>
+                    <Label className="sr-only" htmlFor={`player-${index}`}>Player {index + 1}</Label>
                     <Input
                       id={`player-${index}`}
                       value={name}
