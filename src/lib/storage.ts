@@ -11,6 +11,8 @@ export interface SavedGameSettings {
   totalRounds: number;
   difficulty: Difficulty;
   penaltySeconds: number;
+  isMuted?: boolean;
+  autoContinue?: boolean;
 }
 
 export interface SavedScore {
