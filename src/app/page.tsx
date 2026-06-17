@@ -10,6 +10,14 @@ import Timer from "@/components/Timer";
 import { generateZigZagBoard } from "@/engine/board";
 import { applyTurnResultToPlayers, createTurnResult, formatTime } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
+import {
+  createScoreSnapshot,
+  getBestScore,
+  loadGameSettings,
+  saveBestScore,
+  saveGameSettings,
+  type SavedScore,
+} from "@/lib/storage";
 import type { Difficulty, GameConfig, GameMode, GamePhase, Player, TurnResult } from "@/types/game";
 
 const DEFAULT_CONFIG: GameConfig = {
@@ -37,7 +45,6 @@ function createPlayers(names: string[]): Player[] {
 /**
  * Builds one complete round board and target.
  * Every player in a multiplayer round gets this exact same board and target.
- * Fairness, what a radical concept. Civilization may yet recover.
  */
 function createRound(boardSize: number): { board: number[]; target: number } {
   const board = generateZigZagBoard(boardSize);
@@ -52,6 +59,7 @@ function createRound(boardSize: number): { board: number[]; target: number } {
  */
 export default function HomePage() {
   const previewTimeoutRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
 
   const [mode, setMode] = useState<GameMode>("multiplayer");
   const [playerNames, setPlayerNames] = useState<string[]>(["Player 1", "Player 2"]);
@@ -69,24 +77,64 @@ export default function HomePage() {
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [previewCountdown, setPreviewCountdown] = useState(0);
   const [currentWrongTaps, setCurrentWrongTaps] = useState(0);
   const [lastSelectedNumber, setLastSelectedNumber] = useState<number | null>(null);
   const [lastSelectionWasWrong, setLastSelectionWasWrong] = useState(false);
   const [results, setResults] = useState<TurnResult[]>([]);
   const [lastResult, setLastResult] = useState<TurnResult | null>(null);
+  const [bestScore, setBestScore] = useState<SavedScore | null>(null);
+  const [latestScore, setLatestScore] = useState<SavedScore | null>(null);
+  const [isNewBest, setIsNewBest] = useState(false);
 
   const currentPlayer = players[currentPlayerIndex] ?? null;
 
   /**
-   * Clears any pending preview timeout on unmount.
+   * Clears pending preview timers.
+   */
+  function clearPreviewTimers() {
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+
+    if (countdownIntervalRef.current !== null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  }
+
+  /**
+   * Loads saved setup choices and best score once the browser is ready.
    */
   useEffect(() => {
-    return () => {
-      if (previewTimeoutRef.current !== null) {
-        window.clearTimeout(previewTimeoutRef.current);
-      }
-    };
+    const savedSettings = loadGameSettings();
+
+    if (savedSettings) {
+      setMode(savedSettings.mode);
+      setPlayerNames(savedSettings.playerNames.length > 0 ? savedSettings.playerNames : ["Player 1", "Player 2"]);
+      setTotalRounds(savedSettings.totalRounds);
+      setDifficulty(savedSettings.difficulty);
+      setPenaltySeconds(savedSettings.penaltySeconds);
+    }
+
+    setBestScore(getBestScore());
+
+    return () => clearPreviewTimers();
   }, []);
+
+  /**
+   * Saves setup choices automatically. The browser gets a memory now. Dangerous times.
+   */
+  useEffect(() => {
+    saveGameSettings({
+      mode,
+      playerNames,
+      totalRounds,
+      difficulty,
+      penaltySeconds,
+    });
+  }, [mode, playerNames, totalRounds, difficulty, penaltySeconds]);
 
   /**
    * Keeps the live timer moving only while a turn is active.
@@ -108,9 +156,9 @@ export default function HomePage() {
    * then hiding it and starting the timer.
    */
   function startTurn(nextBoard: number[], nextTarget: number, turnConfig: GameConfig = config) {
-    if (previewTimeoutRef.current !== null) {
-      window.clearTimeout(previewTimeoutRef.current);
-    }
+    clearPreviewTimers();
+
+    const previewEndsAt = Date.now() + turnConfig.flashDurationMs;
 
     setBoard(nextBoard);
     setTargetNumber(nextTarget);
@@ -120,9 +168,22 @@ export default function HomePage() {
     setLastSelectionWasWrong(false);
     setElapsedMs(0);
     setTurnStartedAt(null);
+    setPreviewCountdown(Math.max(1, Math.ceil(turnConfig.flashDurationMs / 1000)));
     setPhase("preview");
 
+    countdownIntervalRef.current = window.setInterval(() => {
+      const remainingSeconds = Math.max(0, Math.ceil((previewEndsAt - Date.now()) / 1000));
+      setPreviewCountdown(remainingSeconds);
+    }, 100);
+
     previewTimeoutRef.current = window.setTimeout(() => {
+      if (countdownIntervalRef.current !== null) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+
+      previewTimeoutRef.current = null;
+      setPreviewCountdown(0);
       setTargetHidden(true);
       setTurnStartedAt(Date.now());
       setPhase("playing");
@@ -148,6 +209,8 @@ export default function HomePage() {
     setCurrentPlayerIndex(0);
     setResults([]);
     setLastResult(null);
+    setLatestScore(null);
+    setIsNewBest(false);
     setTurnStartedAt(null);
 
     startTurn(firstRound.board, firstRound.target, safeConfig);
@@ -218,12 +281,23 @@ export default function HomePage() {
   }
 
   /**
+   * Saves the finished game and opens the final results screen.
+   */
+  function finishGame() {
+    const scoreSnapshot = createScoreSnapshot(config, players, results);
+    const saveResult = saveBestScore(scoreSnapshot);
+
+    setLatestScore(scoreSnapshot);
+    setBestScore(saveResult.bestScore);
+    setIsNewBest(saveResult.isNewBest);
+    setPhase("finished");
+  }
+
+  /**
    * Resets the full app back to the setup screen.
    */
   function resetGame() {
-    if (previewTimeoutRef.current !== null) {
-      window.clearTimeout(previewTimeoutRef.current);
-    }
+    clearPreviewTimers();
 
     setPhase("setup");
     setPlayers([]);
@@ -234,6 +308,7 @@ export default function HomePage() {
     setCurrentPlayerIndex(0);
     setTurnStartedAt(null);
     setElapsedMs(0);
+    setPreviewCountdown(0);
     setCurrentWrongTaps(0);
     setLastSelectedNumber(null);
     setLastSelectionWasWrong(false);
@@ -270,7 +345,7 @@ export default function HomePage() {
           players={players}
           results={results}
           onNextRound={startNextRound}
-          onFinishGame={() => setPhase("finished")}
+          onFinishGame={finishGame}
         />
       </main>
     );
@@ -279,7 +354,14 @@ export default function HomePage() {
   if (phase === "finished") {
     return (
       <main className="app-shell">
-        <ResultScreen players={players} results={results} onPlayAgain={resetGame} />
+        <ResultScreen
+          players={players}
+          results={results}
+          bestScore={bestScore}
+          latestScore={latestScore}
+          isNewBest={isNewBest}
+          onPlayAgain={resetGame}
+        />
       </main>
     );
   }
@@ -322,7 +404,11 @@ export default function HomePage() {
         </section>
 
         <section className="game-panel p-2 text-center compact-small">
-          {phase === "preview" && "Memorize the target..."}
+          {phase === "preview" && (
+            <span>
+              Memorize the target. Hiding in <span className="badge text-bg-light ms-1">{previewCountdown}</span>
+            </span>
+          )}
           {phase === "playing" && (
             <span>
               Find the hidden target number.
