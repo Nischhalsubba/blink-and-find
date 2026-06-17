@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -74,11 +74,6 @@ function createCandidate(number: number, index: number, attempt: number, tileSiz
   };
 }
 
-/**
- * Creates deterministic free-form scattered positions.
- * This removes the visible grid while keeping every same-round player on the
- * exact same board. Random-looking, not unfair. Miracles do happen.
- */
 function getScatteredStyles(numbers: number[]): Map<number, NumberTileStyle> {
   const tileSize = getTileSize(numbers.length);
   const placed: PlacedTile[] = [];
@@ -118,9 +113,17 @@ function getScatteredStyles(numbers: number[]): Map<number, NumberTileStyle> {
   return styles;
 }
 
-/**
- * Dynamic scattered board that avoids strict columns while keeping hit targets usable.
- */
+function focusTile(event: KeyboardEvent<HTMLButtonElement>, nextIndex: number) {
+  const buttons = Array.from(
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button") ?? []
+  );
+  const target = buttons[nextIndex];
+
+  if (target) {
+    target.focus();
+  }
+}
+
 export default function NumberGrid({
   numbers,
   targetNumber,
@@ -156,10 +159,32 @@ export default function NumberGrid({
     };
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (["ArrowRight", "ArrowDown"].includes(event.key)) {
+      event.preventDefault();
+      focusTile(event, Math.min(index + 1, numbers.length - 1));
+    }
+
+    if (["ArrowLeft", "ArrowUp"].includes(event.key)) {
+      event.preventDefault();
+      focusTile(event, Math.max(index - 1, 0));
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusTile(event, 0);
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      focusTile(event, numbers.length - 1);
+    }
+  }
+
   return (
     <div className="flex min-h-0 items-center justify-center">
-      <div className="number-grid" aria-label="Scattered number board">
-        {numbers.map((number) => {
+      <div className="number-grid" role="group" aria-label="Scattered number board">
+        {numbers.map((number, index) => {
           const tile = getTileState(number);
 
           return (
@@ -171,6 +196,7 @@ export default function NumberGrid({
               style={scatteredStyles.get(number)}
               disabled={disabled}
               aria-label={`Number ${number}`}
+              onKeyDown={(event) => handleKeyDown(event, index)}
               onClick={() => onSelect?.(number)}
             >
               {number}
