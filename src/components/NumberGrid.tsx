@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
-import { getGridColumns } from "@/engine/board";
 import { cn } from "@/lib/utils";
 
 interface NumberGridProps {
@@ -16,38 +15,111 @@ type NumberTileStyle = CSSProperties & {
   "--tile-rotate": string;
 };
 
+interface PlacedTile {
+  centerX: number;
+  centerY: number;
+  size: number;
+}
+
 function seededFraction(seed: number): number {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
 }
 
-/**
- * Creates deterministic scattered positions.
- * The board looks random, but the same board stays identical for every player
- * in the same round. Fairness survives. Barely, but it survives.
- */
-function getTileStyle(number: number, index: number, columns: number): NumberTileStyle {
-  const safeColumns = Math.max(columns, 1);
-  const cellSize = 100 / safeColumns;
-  const row = Math.floor(index / safeColumns);
-  const column = index % safeColumns;
-  const tileSize = cellSize * 0.72;
-  const jitterRoom = cellSize - tileSize;
-  const jitterX = seededFraction(number * 17 + index * 31) * jitterRoom;
-  const jitterY = seededFraction(number * 43 + index * 11) * jitterRoom;
-  const rotation = (seededFraction(number * 7 + index * 13) - 0.5) * 7;
+function getTileSize(count: number): number {
+  if (count <= 25) {
+    return 9.5;
+  }
+
+  if (count <= 100) {
+    return 5.35;
+  }
+
+  return 4.3;
+}
+
+function overlaps(candidate: PlacedTile, placed: PlacedTile[]): boolean {
+  return placed.some((tile) => {
+    const minDistance = (candidate.size + tile.size) * 0.52;
+    const dx = Math.abs(candidate.centerX - tile.centerX);
+    const dy = Math.abs(candidate.centerY - tile.centerY);
+
+    return dx < minDistance && dy < minDistance;
+  });
+}
+
+function scoreCandidate(candidate: PlacedTile, placed: PlacedTile[]): number {
+  if (placed.length === 0) {
+    return 100;
+  }
+
+  return Math.min(
+    ...placed.map((tile) => {
+      const dx = candidate.centerX - tile.centerX;
+      const dy = candidate.centerY - tile.centerY;
+      return Math.sqrt(dx * dx + dy * dy);
+    })
+  );
+}
+
+function createCandidate(number: number, index: number, attempt: number, tileSize: number): PlacedTile {
+  const usableArea = 100 - tileSize;
+  const x = seededFraction(number * 97 + index * 131 + attempt * 17) * usableArea + tileSize / 2;
+  const y = seededFraction(number * 193 + index * 53 + attempt * 29) * usableArea + tileSize / 2;
 
   return {
-    left: `${column * cellSize + jitterX}%`,
-    top: `${row * cellSize + jitterY}%`,
-    width: `${tileSize}%`,
-    height: `${tileSize}%`,
-    "--tile-rotate": `${rotation.toFixed(2)}deg`,
+    centerX: x,
+    centerY: y,
+    size: tileSize,
   };
 }
 
 /**
- * Dynamic scattered board that avoids rigid columns while keeping hit targets usable.
+ * Creates deterministic free-form scattered positions.
+ * This removes the visible grid while keeping every same-round player on the
+ * exact same board. Random-looking, not unfair. Miracles do happen.
+ */
+function getScatteredStyles(numbers: number[]): Map<number, NumberTileStyle> {
+  const tileSize = getTileSize(numbers.length);
+  const placed: PlacedTile[] = [];
+  const styles = new Map<number, NumberTileStyle>();
+
+  numbers.forEach((number, index) => {
+    let bestCandidate = createCandidate(number, index, 0, tileSize);
+    let bestScore = -1;
+
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      const candidate = createCandidate(number, index, attempt, tileSize);
+      const candidateScore = scoreCandidate(candidate, placed);
+
+      if (!overlaps(candidate, placed)) {
+        bestCandidate = candidate;
+        break;
+      }
+
+      if (candidateScore > bestScore) {
+        bestCandidate = candidate;
+        bestScore = candidateScore;
+      }
+    }
+
+    placed.push(bestCandidate);
+
+    const rotation = (seededFraction(number * 7 + index * 13) - 0.5) * 16;
+    styles.set(number, {
+      left: `${bestCandidate.centerX - tileSize / 2}%`,
+      top: `${bestCandidate.centerY - tileSize / 2}%`,
+      width: `${tileSize}%`,
+      height: `${tileSize}%`,
+      "--tile-rotate": `${rotation.toFixed(2)}deg`,
+    });
+  });
+
+  return styles;
+}
+
+/**
+ * Dynamic scattered board that avoids strict columns while keeping hit targets usable.
  */
 export default function NumberGrid({
   numbers,
@@ -57,7 +129,7 @@ export default function NumberGrid({
   disabled = false,
   onSelect,
 }: NumberGridProps) {
-  const columns = getGridColumns(numbers.length);
+  const scatteredStyles = getScatteredStyles(numbers);
 
   function getTileState(number: number) {
     const isSelected = selectedNumber === number;
@@ -87,7 +159,7 @@ export default function NumberGrid({
   return (
     <div className="flex min-h-0 items-center justify-center">
       <div className="number-grid" aria-label="Scattered number board">
-        {numbers.map((number, index) => {
+        {numbers.map((number) => {
           const tile = getTileState(number);
 
           return (
@@ -96,7 +168,7 @@ export default function NumberGrid({
               variant={tile.variant}
               size="icon"
               className={cn("number-tile", tile.className)}
-              style={getTileStyle(number, index, columns)}
+              style={scatteredStyles.get(number)}
               disabled={disabled}
               aria-label={`Number ${number}`}
               onClick={() => onSelect?.(number)}
