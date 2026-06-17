@@ -1,3 +1,21 @@
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatTime } from "@/engine/scoring";
 import { calculateGameStats } from "@/engine/stats";
 import type { SavedScore } from "@/lib/storage";
@@ -13,7 +31,7 @@ interface ResultScreenProps {
 }
 
 /**
- * Final screen with ranking, saved best score, and round-by-round history.
+ * Final screen with ranking, saved best score, share text, and round history.
  */
 export default function ResultScreen({
   players,
@@ -25,6 +43,7 @@ export default function ResultScreen({
 }: ResultScreenProps) {
   const ranking = [...players].sort((a, b) => a.totalTimeMs - b.totalTimeMs);
   const stats = calculateGameStats(results);
+  const winner = ranking[0] ?? null;
   const history = [...results].sort((a, b) => {
     if (a.round !== b.round) {
       return a.round - b.round;
@@ -33,105 +52,135 @@ export default function ResultScreen({
     return a.finalTimeMs - b.finalTimeMs;
   });
 
+  function copyResult() {
+    if (!winner || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    const text = `I played Blink & Find. Winner: ${winner.name}, time: ${formatTime(winner.totalTimeMs)}, accuracy: ${stats.accuracyPercent.toFixed(0)}%, wrong taps: ${stats.totalWrongTaps}.`;
+    void navigator.clipboard.writeText(text);
+  }
+
   return (
-    <section className="game-panel p-3 h-100 d-flex flex-column">
-      <div className="text-center mb-2">
-        <h1 className="compact-title mb-1">Game Over</h1>
-        <p className="text-muted-game compact-small mb-0">
-          Winner: {ranking[0]?.name ?? "Nobody"}
-        </p>
-      </div>
+    <section className="flex h-full items-center justify-center px-1">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-hidden">
+        <CardHeader className="border-b text-center">
+          <CardDescription>{isNewBest ? "New best score saved" : "Game complete"}</CardDescription>
+          <CardTitle className="text-3xl tracking-tight sm:text-5xl">
+            {winner?.name ?? "Nobody"} wins
+          </CardTitle>
+        </CardHeader>
 
-      <div className="row g-2 mb-2 compact-small">
-        <div className="col-6 col-md-3">
-          <div className="stat-card"><span>Average</span><strong>{formatTime(stats.averageTurnMs)}</strong></div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="stat-card"><span>Accuracy</span><strong>{stats.accuracyPercent.toFixed(0)}%</strong></div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="stat-card"><span>Fastest</span><strong>{stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-"}</strong></div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="stat-card"><span>Penalty</span><strong>{formatTime(stats.totalPenaltyMs)}</strong></div>
-        </div>
-      </div>
-
-      <div className="game-panel p-2 mb-2 compact-small">
-        <div className="d-flex flex-column flex-sm-row justify-content-between gap-1">
-          <span>
-            {isNewBest ? "New best score saved." : "Best score"}
-          </span>
-          <strong>
-            {bestScore ? `${bestScore.winnerName} - ${formatTime(bestScore.winnerTimeMs)}` : "No saved score yet"}
-          </strong>
-        </div>
-        {latestScore && !isNewBest && (
-          <div className="text-muted-game mt-1">
-            Current run: {latestScore.winnerName} - {formatTime(latestScore.winnerTimeMs)}
+        <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
+          <div className="grid gap-2 sm:grid-cols-4">
+            <Card className="gap-1 bg-muted/20 p-3 shadow-none">
+              <div className="text-xs text-muted-foreground">Average</div>
+              <div className="font-semibold">{formatTime(stats.averageTurnMs)}</div>
+            </Card>
+            <Card className="gap-1 bg-muted/20 p-3 shadow-none">
+              <div className="text-xs text-muted-foreground">Accuracy</div>
+              <div className="font-semibold">{stats.accuracyPercent.toFixed(0)}%</div>
+            </Card>
+            <Card className="gap-1 bg-muted/20 p-3 shadow-none">
+              <div className="text-xs text-muted-foreground">Fastest</div>
+              <div className="font-semibold">{stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-"}</div>
+            </Card>
+            <Card className="gap-1 bg-muted/20 p-3 shadow-none">
+              <div className="text-xs text-muted-foreground">Penalty</div>
+              <div className="font-semibold">{formatTime(stats.totalPenaltyMs)}</div>
+            </Card>
           </div>
-        )}
-      </div>
 
-      <div className="row g-2 flex-grow-1 min-h-0">
-        <div className="col-12 col-md-5 d-flex flex-column min-h-0">
-          <h2 className="compact-small text-muted-game mb-1">Final ranking</h2>
-          <div className="score-table-wrap flex-grow-1">
-            <table className="table table-dark table-striped table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Player</th>
-                  <th>Time</th>
-                  <th>Wrong</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((player, index) => (
-                  <tr key={player.id}>
-                    <td>{index + 1}</td>
-                    <td>{player.name}</td>
-                    <td>{formatTime(player.totalTimeMs)}</td>
-                    <td>{player.wrongTaps}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-3 rounded-lg border bg-muted/20 p-3 text-sm">
+            <div className="flex flex-col justify-between gap-1 sm:flex-row">
+              <span className="text-muted-foreground">
+                {isNewBest ? "Best score updated" : "Best score"}
+              </span>
+              <strong>
+                {bestScore ? `${bestScore.winnerName} - ${formatTime(bestScore.winnerTimeMs)}` : "No saved score yet"}
+              </strong>
+            </div>
+            {latestScore && !isNewBest && (
+              <div className="mt-1 text-muted-foreground">
+                Current run: {latestScore.winnerName} - {formatTime(latestScore.winnerTimeMs)}
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="col-12 col-md-7 d-flex flex-column min-h-0">
-          <h2 className="compact-small text-muted-game mb-1">Round history</h2>
-          <div className="score-table-wrap flex-grow-1">
-            <table className="table table-dark table-striped table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Round</th>
-                  <th>Player</th>
-                  <th>Target</th>
-                  <th>Time</th>
-                  <th>Wrong</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((result) => (
-                  <tr key={result.id}>
-                    <td>{result.round}</td>
-                    <td>{result.playerName}</td>
-                    <td>{result.targetNumber}</td>
-                    <td>{formatTime(result.finalTimeMs)}</td>
-                    <td>{result.wrongTaps}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
+              <CardHeader className="px-4">
+                <CardTitle className="text-base">Final ranking</CardTitle>
+                <CardDescription>Lowest total time wins.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Player</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Wrong</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ranking.map((player, index) => (
+                      <TableRow key={player.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{player.name}</TableCell>
+                        <TableCell>{formatTime(player.totalTimeMs)}</TableCell>
+                        <TableCell>{player.wrongTaps}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
+              <CardHeader className="px-4">
+                <CardTitle className="text-base">Round history</CardTitle>
+                <CardDescription>Every completed turn, because evidence matters.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Round</TableHead>
+                      <TableHead>Player</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Wrong</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {history.map((result) => (
+                      <TableRow key={result.id}>
+                        <TableCell>{result.round}</TableCell>
+                        <TableCell>{result.playerName}</TableCell>
+                        <TableCell>{result.targetNumber}</TableCell>
+                        <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
+                        <TableCell>{result.wrongTaps}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </div>
+        </CardContent>
 
-      <button className="btn btn-primary fw-bold mt-2" onClick={onPlayAgain}>
-        Play Again
-      </button>
+        <Separator />
+
+        <CardFooter className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end sm:p-6">
+          <Button variant="outline" onClick={copyResult}>
+            Copy Result
+          </Button>
+          <Button onClick={onPlayAgain}>
+            Play Again
+          </Button>
+        </CardFooter>
+      </Card>
     </section>
   );
 }
