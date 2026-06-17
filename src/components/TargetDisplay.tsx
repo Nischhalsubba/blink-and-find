@@ -1,3 +1,6 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+
 interface TargetDisplayProps {
   targetNumber: number | null;
   hidden?: boolean;
@@ -12,14 +15,16 @@ export default function TargetDisplay({
   hidden = false,
 }: TargetDisplayProps) {
   return (
-    <div className="game-panel p-3 text-center target-card">
-      <div className="compact-small text-muted-game mb-1">
-        TARGET
-      </div>
+    <Card className="h-full gap-2 overflow-hidden py-3 text-center">
+      <CardContent className="flex h-full flex-col items-center justify-center px-3">
+        <Badge variant="outline" className="mb-2">
+          Target
+        </Badge>
 
-      <div className={hidden ? "target-number target-hidden" : "target-number target-pulse"}>
-        {hidden ? "?" : targetNumber ?? "-"}
-      </div>
-    </div>
+        <div className={hidden ? "target-number target-hidden" : "target-number target-pulse"}>
+          {hidden ? "?" : targetNumber ?? "-"}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
