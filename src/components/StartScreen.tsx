@@ -37,8 +37,7 @@ interface StartScreenProps {
 }
 
 /**
- * Setup screen for Blink & Find.
- * Uses official shadcn-style primitives for form controls and layout.
+ * Minimal setup screen. Keep the menu quiet so the game board can be the focus.
  */
 export default function StartScreen({
   mode,
@@ -82,144 +81,127 @@ export default function StartScreen({
   }
 
   return (
-    <section className="flex h-full items-center justify-center px-1">
-      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
-        <CardHeader className="border-b text-center">
-          <Badge variant="secondary" className="mx-auto">
-            Memory speed challenge
-          </Badge>
-          <CardTitle className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Blink &amp; Find
-          </CardTitle>
-          <CardDescription className="mx-auto max-w-2xl">
-            Memorize the target, wait for it to disappear, then find it faster than everyone else. Wrong taps add penalty time.
-          </CardDescription>
+    <section className="flex h-full items-center justify-center px-2">
+      <Card className="w-full max-w-xl overflow-hidden">
+        <CardHeader className="border-b pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <Badge variant="secondary" className="mb-3">
+                Blink &amp; Find
+              </Badge>
+              <CardTitle className="text-3xl font-semibold tracking-tight">
+                Game setup
+              </CardTitle>
+              <CardDescription className="mt-2">
+                Choose the basics, then start.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
 
-        <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
-          <div className="grid gap-4 lg:grid-cols-[1.45fr_0.9fr]">
-            <Card className="gap-4 bg-muted/20 py-5 shadow-none">
-              <CardHeader className="px-5">
-                <CardTitle className="text-base">Game setup</CardTitle>
-                <CardDescription>
-                  Choose the mode, difficulty, and penalty rules before the grid starts being rude.
-                </CardDescription>
-              </CardHeader>
+        <CardContent className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="mode">Mode</Label>
+              <Select value={mode} onValueChange={(value) => onModeChange(value as GameMode)}>
+                <SelectTrigger id="mode">
+                  <SelectValue placeholder="Choose mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single Player</SelectItem>
+                  <SelectItem value="multiplayer">Multiplayer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <CardContent className="grid gap-4 px-5 sm:grid-cols-6">
-                <div className="grid gap-2 sm:col-span-3">
-                  <Label htmlFor="mode">Mode</Label>
-                  <Select value={mode} onValueChange={(value) => onModeChange(value as GameMode)}>
-                    <SelectTrigger id="mode">
-                      <SelectValue placeholder="Choose mode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Single Player</SelectItem>
-                      <SelectItem value="multiplayer">Multiplayer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2 sm:col-span-1">
-                  <Label htmlFor="players">Players</Label>
-                  <Select
-                    value={String(mode === "single" ? 1 : playerNames.length)}
-                    disabled={mode === "single"}
-                    onValueChange={(value) => updatePlayerCount(Number(value))}
-                  >
-                    <SelectTrigger id="players">
-                      <SelectValue placeholder="Players" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[2, 3, 4, 5, 6].map((count) => (
-                        <SelectItem key={count} value={String(count)}>{count}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="rounds">Rounds</Label>
-                  <Input
-                    id="rounds"
-                    min={1}
-                    max={20}
-                    type="number"
-                    value={totalRounds}
-                    onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
-                  />
-                </div>
-
-                <div className="grid gap-2 sm:col-span-4">
-                  <Label htmlFor="difficulty">Difficulty</Label>
-                  <Select value={difficulty} onValueChange={(value) => onDifficultyChange(value as Difficulty)}>
-                    <SelectTrigger id="difficulty">
-                      <SelectValue placeholder="Choose difficulty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DIFFICULTIES.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.label} - {item.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2 sm:col-span-2">
-                  <Label htmlFor="penalty">Wrong tap penalty</Label>
-                  <Input
-                    id="penalty"
-                    min={0}
-                    max={10}
-                    type="number"
-                    value={penaltySeconds}
-                    onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="gap-4 bg-muted/20 py-5 shadow-none">
-              <CardHeader className="px-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-base">Players</CardTitle>
-                    <CardDescription>Names are saved locally on this device.</CardDescription>
-                  </div>
-                  <Badge variant="outline">
-                    {mode === "single" ? 1 : playerNames.length}
-                  </Badge>
-                </div>
-              </CardHeader>
-
-              <CardContent className="grid gap-2 px-5 sm:grid-cols-2 lg:grid-cols-1">
-                {playerNames.map((name, index) => (
-                  <div className="grid gap-2" key={index}>
-                    <Label className="sr-only" htmlFor={`player-${index}`}>Player {index + 1}</Label>
-                    <Input
-                      id={`player-${index}`}
-                      value={name}
-                      aria-label={`Player ${index + 1} name`}
-                      onChange={(event) => updatePlayerName(index, event.target.value)}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col items-stretch justify-between gap-3 border-t sm:flex-row sm:items-center">
-          <div className="text-sm">
-            <div className="font-medium">{selectedDifficulty.label}</div>
-            <div className="text-muted-foreground">
-              {selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview
+            <div className="grid gap-2">
+              <Label htmlFor="difficulty">Difficulty</Label>
+              <Select value={difficulty} onValueChange={(value) => onDifficultyChange(value as Difficulty)}>
+                <SelectTrigger id="difficulty">
+                  <SelectValue placeholder="Choose difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DIFFICULTIES.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label} - {item.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <Button size="lg" onClick={handleStart}>
-            Start Game
+          <div className="grid grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="players">Players</Label>
+              <Select
+                value={String(mode === "single" ? 1 : playerNames.length)}
+                disabled={mode === "single"}
+                onValueChange={(value) => updatePlayerCount(Number(value))}
+              >
+                <SelectTrigger id="players">
+                  <SelectValue placeholder="Players" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1</SelectItem>
+                  {[2, 3, 4, 5, 6].map((count) => (
+                    <SelectItem key={count} value={String(count)}>{count}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="rounds">Rounds</Label>
+              <Input
+                id="rounds"
+                min={1}
+                max={20}
+                type="number"
+                value={totalRounds}
+                onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="penalty">Penalty</Label>
+              <Input
+                id="penalty"
+                min={0}
+                max={10}
+                type="number"
+                value={penaltySeconds}
+                onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
+              />
+            </div>
+          </div>
+
+          {mode === "multiplayer" && (
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Player names</Label>
+                <Badge variant="outline">{playerNames.length}</Badge>
+              </div>
+              <div className="grid max-h-36 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                {playerNames.map((name, index) => (
+                  <Input
+                    key={index}
+                    value={name}
+                    aria-label={`Player ${index + 1} name`}
+                    onChange={(event) => updatePlayerName(index, event.target.value)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex items-center justify-between gap-3 border-t p-4 sm:p-5">
+          <div className="text-sm text-muted-foreground">
+            {selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview
+          </div>
+          <Button onClick={handleStart}>
+            Start
           </Button>
         </CardFooter>
       </Card>
