@@ -27,10 +27,6 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/*
-  shadcn/ui theme tokens plus a tiny game-specific layer for the number board.
-  The board is intentionally scattered now, closer to the paper prototype.
-*/
 :root {
   --radius: 0.625rem;
   --background: #09090b;
@@ -117,6 +113,13 @@ button:not(:disabled),
   box-shadow: 0 0 0 2px rgba(212, 212, 216, 0.24);
 }
 
+.number-tile:focus-visible {
+  z-index: 4;
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(212, 212, 216, 0.18);
+}
+
 .number-tile:disabled {
   opacity: 0.7;
 }
@@ -179,6 +182,17 @@ button:not(:disabled),
   }
   75% {
     transform: translateX(3px) rotate(var(--tile-rotate, 0deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }
 
