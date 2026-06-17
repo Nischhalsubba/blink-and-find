@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
 import ResultScreen from "@/components/ResultScreen";
 import StartScreen from "@/components/StartScreen";
 import TargetDisplay from "@/components/TargetDisplay";
 import Timer from "@/components/Timer";
-import { generateBoard } from "@/engine/board";
+import { generateZigZagBoard } from "@/engine/board";
 import { applyTurnResultToPlayers, createTurnResult, formatTime } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
 import type { Difficulty, GameConfig, GameMode, GamePhase, Player, TurnResult } from "@/types/game";
@@ -34,11 +34,13 @@ function createPlayers(names: string[]): Player[] {
 }
 
 /**
- * Main game controller.
- * This keeps the first playable version intentionally contained in one file.
- * Later, this can be split into hooks once the gameplay feels right.
+ * Main game controller for Blink & Find.
+ * The game intentionally stays client-side because every interaction is instant,
+ * temporary, and perfect for a lightweight Vercel-hosted web game.
  */
 export default function HomePage() {
+  const previewTimeoutRef = useRef<number | null>(null);
+
   const [mode, setMode] = useState<GameMode>("multiplayer");
   const [playerNames, setPlayerNames] = useState<string[]>(["Player 1", "Player 2"]);
   const [totalRounds, setTotalRounds] = useState(5);
@@ -64,6 +66,18 @@ export default function HomePage() {
   const currentPlayer = players[currentPlayerIndex] ?? null;
 
   /**
+   * Clears any pending preview timeout on unmount.
+   * Tiny thing, big difference. React loves reminding us timers are sharp objects.
+   */
+  useEffect(() => {
+    return () => {
+      if (previewTimeoutRef.current !== null) {
+        window.clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  /**
    * Keeps the live timer moving only while a turn is active.
    */
   useEffect(() => {
@@ -82,7 +96,11 @@ export default function HomePage() {
    * Starts a player turn by flashing the target first,
    * then hiding it and starting the timer.
    */
-  function startTurn(nextBoard: number[], nextTarget: number) {
+  function startTurn(nextBoard: number[], nextTarget: number, turnConfig: GameConfig = config) {
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+    }
+
     setBoard(nextBoard);
     setTargetNumber(nextTarget);
     setTargetHidden(false);
@@ -90,25 +108,33 @@ export default function HomePage() {
     setLastSelectedNumber(null);
     setLastSelectionWasWrong(false);
     setElapsedMs(0);
+    setTurnStartedAt(null);
     setPhase("preview");
 
-    window.setTimeout(() => {
+    previewTimeoutRef.current = window.setTimeout(() => {
       setTargetHidden(true);
       setTurnStartedAt(Date.now());
       setPhase("playing");
-    }, config.flashDurationMs);
+    }, turnConfig.flashDurationMs);
   }
 
   /**
    * Initializes the game from setup settings.
    */
   function handleStart(nextConfig: GameConfig) {
-    const names = nextConfig.mode === "single" ? ["Player 1"] : playerNames;
+    const safeRounds = Math.max(1, Math.min(nextConfig.totalRounds, 20));
+    const safePenaltySeconds = Math.max(0, Math.min(nextConfig.penaltySeconds, 10));
+    const safeConfig = {
+      ...nextConfig,
+      totalRounds: safeRounds,
+      penaltySeconds: safePenaltySeconds,
+    };
+    const names = safeConfig.mode === "single" ? ["Player 1"] : playerNames;
     const nextPlayers = createPlayers(names);
-    const nextBoard = generateBoard(nextConfig.boardSize);
+    const nextBoard = generateZigZagBoard(safeConfig.boardSize);
     const nextTarget = generateTarget(nextBoard);
 
-    setConfig(nextConfig);
+    setConfig(safeConfig);
     setPlayers(nextPlayers);
     setCurrentRound(1);
     setCurrentPlayerIndex(0);
@@ -116,7 +142,7 @@ export default function HomePage() {
     setLastResult(null);
     setTurnStartedAt(null);
 
-    startTurn(nextBoard, nextTarget);
+    startTurn(nextBoard, nextTarget, safeConfig);
   }
 
   /**
@@ -163,7 +189,7 @@ export default function HomePage() {
     const hasNextRound = currentRound < config.totalRounds;
 
     if (hasNextPlayer) {
-      const nextBoard = generateBoard(config.boardSize);
+      const nextBoard = generateZigZagBoard(config.boardSize);
       const nextTarget = generateTarget(nextBoard);
       setCurrentPlayerIndex((index) => index + 1);
       startTurn(nextBoard, nextTarget);
@@ -171,7 +197,7 @@ export default function HomePage() {
     }
 
     if (hasNextRound) {
-      const nextBoard = generateBoard(config.boardSize);
+      const nextBoard = generateZigZagBoard(config.boardSize);
       const nextTarget = generateTarget(nextBoard);
       setCurrentRound((round) => round + 1);
       setCurrentPlayerIndex(0);
@@ -186,6 +212,10 @@ export default function HomePage() {
    * Resets the full app back to the setup screen.
    */
   function resetGame() {
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+    }
+
     setPhase("setup");
     setPlayers([]);
     setBoard([]);
@@ -225,7 +255,7 @@ export default function HomePage() {
   if (phase === "finished") {
     return (
       <main className="app-shell">
-        <ResultScreen players={players} onPlayAgain={resetGame} />
+        <ResultScreen players={players} results={results} onPlayAgain={resetGame} />
       </main>
     );
   }
@@ -257,7 +287,14 @@ export default function HomePage() {
         </div>
 
         <section className="game-panel board-wrap p-2">
-          <NumberGrid numbers={board} onSelect={handleNumberSelect} />
+          <NumberGrid
+            numbers={board}
+            targetNumber={targetNumber}
+            selectedNumber={lastSelectedNumber}
+            isSelectionWrong={lastSelectionWasWrong}
+            disabled={phase !== "playing"}
+            onSelect={handleNumberSelect}
+          />
         </section>
 
         <section className="game-panel p-2 text-center compact-small">
