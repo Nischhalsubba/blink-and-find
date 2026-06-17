@@ -6,7 +6,7 @@ export type GameMode = "single" | "multiplayer";
 /**
  * The visible phase of the game screen.
  */
-export type GamePhase = "setup" | "preview" | "playing" | "turnSummary" | "finished";
+export type GamePhase = "setup" | "preview" | "playing" | "turnSummary" | "roundSummary" | "finished";
 
 /**
  * Difficulty presets are only configuration shortcuts.
