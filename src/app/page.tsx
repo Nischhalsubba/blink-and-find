@@ -2,11 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
+import ReadyScreen from "@/components/ReadyScreen";
 import ResultScreen from "@/components/ResultScreen";
 import RoundSummary from "@/components/RoundSummary";
 import StartScreen from "@/components/StartScreen";
 import TargetDisplay from "@/components/TargetDisplay";
 import Timer from "@/components/Timer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { generateZigZagBoard } from "@/engine/board";
 import { applyTurnResultToPlayers, createTurnResult, formatTime } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
@@ -124,7 +137,7 @@ export default function HomePage() {
   }, []);
 
   /**
-   * Saves setup choices automatically. The browser gets a memory now. Dangerous times.
+   * Saves setup choices automatically.
    */
   useEffect(() => {
     saveGameSettings({
@@ -150,6 +163,25 @@ export default function HomePage() {
 
     return () => window.clearInterval(timer);
   }, [phase, turnStartedAt]);
+
+  /**
+   * Prepares a turn without flashing the target yet.
+   * This creates a clean player handoff screen before each turn.
+   */
+  function prepareTurn(nextBoard: number[], nextTarget: number) {
+    clearPreviewTimers();
+
+    setBoard(nextBoard);
+    setTargetNumber(nextTarget);
+    setTargetHidden(false);
+    setCurrentWrongTaps(0);
+    setLastSelectedNumber(null);
+    setLastSelectionWasWrong(false);
+    setElapsedMs(0);
+    setPreviewCountdown(0);
+    setTurnStartedAt(null);
+    setPhase("ready");
+  }
 
   /**
    * Starts a player turn by flashing the target first,
@@ -191,6 +223,17 @@ export default function HomePage() {
   }
 
   /**
+   * Starts the prepared turn from the ready screen.
+   */
+  function startPreparedTurn() {
+    if (targetNumber === null) {
+      return;
+    }
+
+    startTurn(board, targetNumber);
+  }
+
+  /**
    * Initializes the game from setup settings.
    */
   function handleStart(nextConfig: GameConfig) {
@@ -213,7 +256,7 @@ export default function HomePage() {
     setIsNewBest(false);
     setTurnStartedAt(null);
 
-    startTurn(firstRound.board, firstRound.target, safeConfig);
+    prepareTurn(firstRound.board, firstRound.target);
   }
 
   /**
@@ -260,7 +303,7 @@ export default function HomePage() {
 
     if (hasNextPlayer && targetNumber !== null) {
       setCurrentPlayerIndex((index) => index + 1);
-      startTurn(board, targetNumber);
+      prepareTurn(board, targetNumber);
       return;
     }
 
@@ -277,7 +320,7 @@ export default function HomePage() {
     setCurrentRound(nextRound);
     setCurrentPlayerIndex(0);
     setLastResult(null);
-    startTurn(next.board, next.target);
+    prepareTurn(next.board, next.target);
   }
 
   /**
@@ -316,6 +359,28 @@ export default function HomePage() {
     setLastResult(null);
   }
 
+  const quitDialog = (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          Back to Setup
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Leave this game?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your current round progress will be lost. Saved best scores and settings stay on this device, because we are not complete monsters.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={resetGame}>Leave Game</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (phase === "setup") {
     return (
       <main className="app-shell">
@@ -331,6 +396,22 @@ export default function HomePage() {
           onDifficultyChange={setDifficulty}
           onPenaltySecondsChange={setPenaltySeconds}
           onStart={handleStart}
+        />
+      </main>
+    );
+  }
+
+  if (phase === "ready") {
+    return (
+      <main className="app-shell">
+        <ReadyScreen
+          player={currentPlayer}
+          round={currentRound}
+          totalPlayers={players.length}
+          playerIndex={currentPlayerIndex}
+          config={config}
+          onStartTurn={startPreparedTurn}
+          onBackToSetup={resetGame}
         />
       </main>
     );
@@ -377,9 +458,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="text-end compact-small text-muted-game">
-            Wrong taps: {currentWrongTaps}<br />
-            Penalty: +{config.penaltySeconds}s
+          <div className="d-flex align-items-center gap-2">
+            <div className="text-end compact-small text-muted-game">
+              Wrong taps: {currentWrongTaps}<br />
+              Penalty: +{config.penaltySeconds}s
+            </div>
+            {quitDialog}
           </div>
         </section>
 
@@ -424,9 +508,9 @@ export default function HomePage() {
               <span>
                 {lastResult.playerName}: {formatTime(lastResult.finalTimeMs)}
               </span>
-              <button className="btn btn-sm btn-primary fw-bold" onClick={continueGame}>
+              <Button size="sm" onClick={continueGame}>
                 Continue
-              </button>
+              </Button>
             </div>
           )}
         </section>
