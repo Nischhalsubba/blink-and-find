@@ -54,6 +54,10 @@ select {
   color: var(--app-muted) !important;
 }
 
+.min-h-0 {
+  min-height: 0 !important;
+}
+
 .game-layout {
   height: 100%;
   display: grid;
