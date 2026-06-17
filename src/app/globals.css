@@ -35,7 +35,6 @@ select {
   font: inherit;
 }
 
-/* Main viewport wrapper used by the game page. */
 .app-shell {
   width: 100vw;
   height: 100vh;
@@ -43,7 +42,6 @@ select {
   padding: clamp(0.5rem, 1.5vw, 1rem);
 }
 
-/* Glass-like Bootstrap-friendly panel. */
 .game-panel {
   background: var(--app-panel);
   border: 1px solid var(--app-panel-border);
@@ -56,7 +54,6 @@ select {
   color: var(--app-muted) !important;
 }
 
-/* Keeps the playable screen within the viewport. */
 .game-layout {
   height: 100%;
   display: grid;
@@ -65,7 +62,6 @@ select {
   min-height: 0;
 }
 
-/* The board is square-ish and shrinks to whatever the viewport allows. */
 .board-wrap {
   min-height: 0;
   display: flex;
@@ -90,12 +86,45 @@ select {
   font-size: clamp(0.55rem, 1.8vw, 1rem);
   font-weight: 800;
   line-height: 1;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.number-tile:not(:disabled):hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.number-tile:disabled {
+  opacity: 0.65;
+}
+
+.tile-correct {
+  animation: correct-pop 360ms ease;
+  box-shadow: 0 0 0.8rem rgba(82, 210, 115, 0.95);
+}
+
+.tile-wrong {
+  animation: wrong-shake 260ms ease;
+  box-shadow: 0 0 0.8rem rgba(255, 107, 107, 0.95);
+}
+
+.target-card {
+  overflow: hidden;
 }
 
 .target-number {
   font-size: clamp(1.6rem, 6vw, 4rem);
   font-weight: 900;
   letter-spacing: -0.05em;
+}
+
+.target-pulse {
+  color: var(--app-warning);
+  text-shadow: 0 0 1rem rgba(255, 209, 102, 0.8);
+  animation: target-pulse 600ms ease infinite alternate;
+}
+
+.target-hidden {
+  color: var(--app-muted);
 }
 
 .compact-title {
@@ -111,6 +140,58 @@ select {
 .score-table-wrap {
   max-height: 28vh;
   overflow: auto;
+}
+
+.stat-card {
+  height: 100%;
+  padding: 0.55rem;
+  border: 1px solid var(--app-panel-border);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stat-card span {
+  color: var(--app-muted);
+}
+
+.stat-card strong {
+  color: var(--app-text);
+}
+
+@keyframes target-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes correct-pop {
+  0% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes wrong-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
 }
 
 @media (max-width: 576px) {
