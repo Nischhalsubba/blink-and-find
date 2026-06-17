@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
 import ResultScreen from "@/components/ResultScreen";
+import RoundSummary from "@/components/RoundSummary";
 import StartScreen from "@/components/StartScreen";
 import TargetDisplay from "@/components/TargetDisplay";
 import Timer from "@/components/Timer";
@@ -34,9 +35,20 @@ function createPlayers(names: string[]): Player[] {
 }
 
 /**
+ * Builds one complete round board and target.
+ * Every player in a multiplayer round gets this exact same board and target.
+ * Fairness, what a radical concept. Civilization may yet recover.
+ */
+function createRound(boardSize: number): { board: number[]; target: number } {
+  const board = generateZigZagBoard(boardSize);
+  return {
+    board,
+    target: generateTarget(board),
+  };
+}
+
+/**
  * Main game controller for Blink & Find.
- * The game intentionally stays client-side because every interaction is instant,
- * temporary, and perfect for a lightweight Vercel-hosted web game.
  */
 export default function HomePage() {
   const previewTimeoutRef = useRef<number | null>(null);
@@ -67,7 +79,6 @@ export default function HomePage() {
 
   /**
    * Clears any pending preview timeout on unmount.
-   * Tiny thing, big difference. React loves reminding us timers are sharp objects.
    */
   useEffect(() => {
     return () => {
@@ -122,17 +133,14 @@ export default function HomePage() {
    * Initializes the game from setup settings.
    */
   function handleStart(nextConfig: GameConfig) {
-    const safeRounds = Math.max(1, Math.min(nextConfig.totalRounds, 20));
-    const safePenaltySeconds = Math.max(0, Math.min(nextConfig.penaltySeconds, 10));
-    const safeConfig = {
+    const safeConfig: GameConfig = {
       ...nextConfig,
-      totalRounds: safeRounds,
-      penaltySeconds: safePenaltySeconds,
+      totalRounds: Math.max(1, Math.min(nextConfig.totalRounds, 20)),
+      penaltySeconds: Math.max(0, Math.min(nextConfig.penaltySeconds, 10)),
     };
     const names = safeConfig.mode === "single" ? ["Player 1"] : playerNames;
     const nextPlayers = createPlayers(names);
-    const nextBoard = generateZigZagBoard(safeConfig.boardSize);
-    const nextTarget = generateTarget(nextBoard);
+    const firstRound = createRound(safeConfig.boardSize);
 
     setConfig(safeConfig);
     setPlayers(nextPlayers);
@@ -142,7 +150,7 @@ export default function HomePage() {
     setLastResult(null);
     setTurnStartedAt(null);
 
-    startTurn(nextBoard, nextTarget, safeConfig);
+    startTurn(firstRound.board, firstRound.target, safeConfig);
   }
 
   /**
@@ -182,30 +190,31 @@ export default function HomePage() {
   }
 
   /**
-   * Advances to the next player, next round, or final result.
+   * Continues inside the current round until all players have tried the same target.
    */
   function continueGame() {
     const hasNextPlayer = currentPlayerIndex < players.length - 1;
-    const hasNextRound = currentRound < config.totalRounds;
 
-    if (hasNextPlayer) {
-      const nextBoard = generateZigZagBoard(config.boardSize);
-      const nextTarget = generateTarget(nextBoard);
+    if (hasNextPlayer && targetNumber !== null) {
       setCurrentPlayerIndex((index) => index + 1);
-      startTurn(nextBoard, nextTarget);
+      startTurn(board, targetNumber);
       return;
     }
 
-    if (hasNextRound) {
-      const nextBoard = generateZigZagBoard(config.boardSize);
-      const nextTarget = generateTarget(nextBoard);
-      setCurrentRound((round) => round + 1);
-      setCurrentPlayerIndex(0);
-      startTurn(nextBoard, nextTarget);
-      return;
-    }
+    setPhase("roundSummary");
+  }
 
-    setPhase("finished");
+  /**
+   * Starts the next round with a fresh board and a fresh target.
+   */
+  function startNextRound() {
+    const nextRound = currentRound + 1;
+    const next = createRound(config.boardSize);
+
+    setCurrentRound(nextRound);
+    setCurrentPlayerIndex(0);
+    setLastResult(null);
+    startTurn(next.board, next.target);
   }
 
   /**
@@ -247,6 +256,21 @@ export default function HomePage() {
           onDifficultyChange={setDifficulty}
           onPenaltySecondsChange={setPenaltySeconds}
           onStart={handleStart}
+        />
+      </main>
+    );
+  }
+
+  if (phase === "roundSummary") {
+    return (
+      <main className="app-shell">
+        <RoundSummary
+          round={currentRound}
+          totalRounds={config.totalRounds}
+          players={players}
+          results={results}
+          onNextRound={startNextRound}
+          onFinishGame={() => setPhase("finished")}
         />
       </main>
     );
