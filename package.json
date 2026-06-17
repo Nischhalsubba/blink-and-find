@@ -10,8 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "latest",
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-select": "latest",
+    "@radix-ui/react-separator": "latest",
     "@radix-ui/react-slot": "latest",
     "bootstrap": "latest",
     "bootstrap-icons": "latest",
