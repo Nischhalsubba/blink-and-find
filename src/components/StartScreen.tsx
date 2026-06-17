@@ -1,6 +1,5 @@
 "use client";
 
-import { DIFFICULTIES } from "@/lib/gameDefaults";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { DIFFICULTIES } from "@/lib/gameDefaults";
 import type { Difficulty, GameConfig, GameMode } from "@/types/game";
 
 interface StartScreenProps {
@@ -28,8 +30,8 @@ interface StartScreenProps {
 
 /**
  * Setup screen for Blink & Find.
- * The structure now follows a shadcn-style card composition while still using
- * Bootstrap grid utilities for responsive layout.
+ * This now uses real shadcn-style component files and Tailwind utility classes,
+ * while Bootstrap remains available elsewhere in the app where it already works.
  */
 export default function StartScreen({
   mode,
@@ -73,128 +75,134 @@ export default function StartScreen({
   }
 
   return (
-    <section className="setup-shell h-100 d-flex align-items-center justify-content-center">
-      <Card className="setup-card w-100">
-        <CardHeader className="text-center">
-          <div className="ui-eyebrow mx-auto mb-2">Memory speed challenge</div>
-          <CardTitle>Blink &amp; Find</CardTitle>
-          <CardDescription>
-            Memorize the target, find it after it disappears, and beat everyone else without panic-clicking like a caffeinated squirrel.
+    <section className="flex h-full items-center justify-center px-1">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
+        <CardHeader className="border-b text-center">
+          <div className="mx-auto w-fit rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+            Memory speed challenge
+          </div>
+          <CardTitle className="text-4xl font-bold tracking-tight sm:text-6xl">
+            Blink &amp; Find
+          </CardTitle>
+          <CardDescription className="mx-auto max-w-2xl">
+            Memorize the target, wait for it to disappear, then find it faster than everyone else. Wrong taps add penalty time.
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
-          <div className="row g-3">
-            <div className="col-12 col-lg-7">
-              <div className="ui-section h-100">
-                <div className="ui-section-header">
-                  <div>
-                    <h3>Game setup</h3>
-                    <p>Choose the flow before the grid starts judging your eyesight.</p>
-                  </div>
+        <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
+          <div className="grid gap-4 lg:grid-cols-[1.45fr_0.9fr]">
+            <Card className="gap-4 bg-muted/20 py-5 shadow-none">
+              <CardHeader className="px-5">
+                <CardTitle className="text-base">Game setup</CardTitle>
+                <CardDescription>
+                  Choose the mode, difficulty, and penalty rules before the grid starts being rude.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="grid gap-4 px-5 sm:grid-cols-6">
+                <div className="grid gap-2 sm:col-span-3">
+                  <label className="text-sm font-medium" htmlFor="mode">Mode</label>
+                  <NativeSelect
+                    id="mode"
+                    value={mode}
+                    onChange={(event) => onModeChange(event.target.value as GameMode)}
+                  >
+                    <option value="single">Single Player</option>
+                    <option value="multiplayer">Multiplayer</option>
+                  </NativeSelect>
                 </div>
 
-                <div className="row g-3">
-                  <div className="col-12 col-sm-6">
-                    <label className="form-label">Mode</label>
-                    <select
-                      className="form-select"
-                      value={mode}
-                      onChange={(event) => onModeChange(event.target.value as GameMode)}
-                    >
-                      <option value="single">Single Player</option>
-                      <option value="multiplayer">Multiplayer</option>
-                    </select>
-                  </div>
+                <div className="grid gap-2 sm:col-span-1">
+                  <label className="text-sm font-medium" htmlFor="players">Players</label>
+                  <NativeSelect
+                    id="players"
+                    value={mode === "single" ? 1 : playerNames.length}
+                    disabled={mode === "single"}
+                    onChange={(event) => updatePlayerCount(Number(event.target.value))}
+                  >
+                    {[2, 3, 4, 5, 6].map((count) => (
+                      <option key={count} value={count}>{count}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
 
-                  <div className="col-6 col-sm-3">
-                    <label className="form-label">Players</label>
-                    <select
-                      className="form-select"
-                      value={mode === "single" ? 1 : playerNames.length}
-                      disabled={mode === "single"}
-                      onChange={(event) => updatePlayerCount(Number(event.target.value))}
-                    >
-                      {[2, 3, 4, 5, 6].map((count) => (
-                        <option key={count} value={count}>{count}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="grid gap-2 sm:col-span-2">
+                  <label className="text-sm font-medium" htmlFor="rounds">Rounds</label>
+                  <Input
+                    id="rounds"
+                    min={1}
+                    max={20}
+                    type="number"
+                    value={totalRounds}
+                    onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
+                  />
+                </div>
 
-                  <div className="col-6 col-sm-3">
-                    <label className="form-label">Rounds</label>
-                    <input
-                      className="form-control"
-                      min={1}
-                      max={20}
-                      type="number"
-                      value={totalRounds}
-                      onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
+                <div className="grid gap-2 sm:col-span-4">
+                  <label className="text-sm font-medium" htmlFor="difficulty">Difficulty</label>
+                  <NativeSelect
+                    id="difficulty"
+                    value={difficulty}
+                    onChange={(event) => onDifficultyChange(event.target.value as Difficulty)}
+                  >
+                    {DIFFICULTIES.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label} - {item.description}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+
+                <div className="grid gap-2 sm:col-span-2">
+                  <label className="text-sm font-medium" htmlFor="penalty">Wrong tap penalty</label>
+                  <Input
+                    id="penalty"
+                    min={0}
+                    max={10}
+                    type="number"
+                    value={penaltySeconds}
+                    onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-4 bg-muted/20 py-5 shadow-none">
+              <CardHeader className="px-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Players</CardTitle>
+                    <CardDescription>Names are saved locally on this device.</CardDescription>
+                  </div>
+                  <div className="rounded-md border bg-background px-2 py-1 text-xs font-medium">
+                    {mode === "single" ? 1 : playerNames.length}
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="grid gap-2 px-5 sm:grid-cols-2 lg:grid-cols-1">
+                {playerNames.map((name, index) => (
+                  <div className="grid gap-2" key={index}>
+                    <label className="sr-only" htmlFor={`player-${index}`}>Player {index + 1}</label>
+                    <Input
+                      id={`player-${index}`}
+                      value={name}
+                      aria-label={`Player ${index + 1} name`}
+                      onChange={(event) => updatePlayerName(index, event.target.value)}
                     />
                   </div>
-
-                  <div className="col-12 col-sm-7">
-                    <label className="form-label">Difficulty</label>
-                    <select
-                      className="form-select"
-                      value={difficulty}
-                      onChange={(event) => onDifficultyChange(event.target.value as Difficulty)}
-                    >
-                      {DIFFICULTIES.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.label} - {item.description}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-12 col-sm-5">
-                    <label className="form-label">Wrong tap penalty</label>
-                    <input
-                      className="form-control"
-                      min={0}
-                      max={10}
-                      type="number"
-                      value={penaltySeconds}
-                      onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-12 col-lg-5">
-              <div className="ui-section h-100">
-                <div className="ui-section-header">
-                  <div>
-                    <h3>Players</h3>
-                    <p>Names are saved locally on this device.</p>
-                  </div>
-                  <span className="ui-badge">{mode === "single" ? 1 : playerNames.length}</span>
-                </div>
-
-                <div className="row g-2">
-                  {playerNames.map((name, index) => (
-                    <div className="col-12 col-sm-6 col-lg-12" key={index}>
-                      <label className="form-label visually-hidden">Player {index + 1}</label>
-                      <input
-                        className="form-control"
-                        value={name}
-                        aria-label={`Player ${index + 1} name`}
-                        onChange={(event) => updatePlayerName(index, event.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
 
-        <CardFooter className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3">
-          <div className="ui-meta">
-            <strong>{selectedDifficulty.label}</strong>
-            <span>{selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview</span>
+        <CardFooter className="flex flex-col items-stretch justify-between gap-3 border-t sm:flex-row sm:items-center">
+          <div className="text-sm">
+            <div className="font-medium">{selectedDifficulty.label}</div>
+            <div className="text-muted-foreground">
+              {selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview
+            </div>
           </div>
 
           <Button size="lg" onClick={handleStart}>
