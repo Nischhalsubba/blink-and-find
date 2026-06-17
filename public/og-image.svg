@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Blink and Find social preview">
+  <rect width="1200" height="630" fill="#09090b"/>
+  <rect x="64" y="64" width="1072" height="502" rx="36" fill="#0f0f11" stroke="#27272a" stroke-width="2"/>
+  <text x="112" y="178" fill="#fafafa" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="800">Blink &amp; Find</text>
+  <text x="116" y="236" fill="#a1a1aa" font-family="Arial, Helvetica, sans-serif" font-size="28">Memorize. Hide. Hunt the scattered number.</text>
+  <g fill="#fafafa" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">
+    <rect x="686" y="144" width="86" height="86" rx="18" fill="none" stroke="#fafafa" stroke-width="3" transform="rotate(-6 729 187)"/><text x="712" y="196">34</text>
+    <rect x="831" y="128" width="86" height="86" rx="18" fill="none" stroke="#fafafa" stroke-width="3" transform="rotate(5 874 171)"/><text x="858" y="181">72</text>
+    <rect x="976" y="184" width="86" height="86" rx="18" fill="none" stroke="#fafafa" stroke-width="3" transform="rotate(-10 1019 227)"/><text x="1003" y="237">9</text>
+    <rect x="742" y="296" width="86" height="86" rx="18" fill="none" stroke="#fafafa" stroke-width="3" transform="rotate(7 785 339)"/><text x="769" y="349">18</text>
+    <rect x="918" y="346" width="86" height="86" rx="18" fill="none" stroke="#fafafa" stroke-width="3" transform="rotate(-4 961 389)"/><text x="945" y="399">55</text>
+  </g>
+  <text x="116" y="488" fill="#fafafa" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">A fast scattered-number reaction game</text>
+</svg>
