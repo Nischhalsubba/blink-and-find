@@ -1,7 +1,16 @@
 "use client";
 
-import type { Difficulty, GameConfig, GameMode } from "@/types/game";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type { Difficulty, GameConfig, GameMode } from "@/types/game";
 
 interface StartScreenProps {
   mode: GameMode;
@@ -19,7 +28,8 @@ interface StartScreenProps {
 
 /**
  * Setup screen for Blink & Find.
- * Every control is dynamic so the game can grow without hardcoding player or board limits.
+ * The structure now follows a shadcn-style card composition while still using
+ * Bootstrap grid utilities for responsive layout.
  */
 export default function StartScreen({
   mode,
@@ -63,97 +73,135 @@ export default function StartScreen({
   }
 
   return (
-    <section className="game-panel p-3 p-sm-4 h-100 d-flex flex-column justify-content-center">
-      <div className="text-center mb-3">
-        <h1 className="compact-title mb-1">Blink &amp; Find</h1>
-        <p className="compact-small text-muted-game mb-0">
-          Flash it. Find it. Beat the clock.
-        </p>
-      </div>
+    <section className="setup-shell h-100 d-flex align-items-center justify-content-center">
+      <Card className="setup-card w-100">
+        <CardHeader className="text-center">
+          <div className="ui-eyebrow mx-auto mb-2">Memory speed challenge</div>
+          <CardTitle>Blink &amp; Find</CardTitle>
+          <CardDescription>
+            Memorize the target, find it after it disappears, and beat everyone else without panic-clicking like a caffeinated squirrel.
+          </CardDescription>
+        </CardHeader>
 
-      <div className="row g-2">
-        <div className="col-12 col-md-6">
-          <label className="form-label compact-small">Mode</label>
-          <select
-            className="form-select"
-            value={mode}
-            onChange={(event) => onModeChange(event.target.value as GameMode)}
-          >
-            <option value="single">Single Player</option>
-            <option value="multiplayer">Multiplayer</option>
-          </select>
-        </div>
+        <CardContent>
+          <div className="row g-3">
+            <div className="col-12 col-lg-7">
+              <div className="ui-section h-100">
+                <div className="ui-section-header">
+                  <div>
+                    <h3>Game setup</h3>
+                    <p>Choose the flow before the grid starts judging your eyesight.</p>
+                  </div>
+                </div>
 
-        <div className="col-6 col-md-3">
-          <label className="form-label compact-small">Players</label>
-          <select
-            className="form-select"
-            value={mode === "single" ? 1 : playerNames.length}
-            disabled={mode === "single"}
-            onChange={(event) => updatePlayerCount(Number(event.target.value))}
-          >
-            {[2, 3, 4, 5, 6].map((count) => (
-              <option key={count} value={count}>{count}</option>
-            ))}
-          </select>
-        </div>
+                <div className="row g-3">
+                  <div className="col-12 col-sm-6">
+                    <label className="form-label">Mode</label>
+                    <select
+                      className="form-select"
+                      value={mode}
+                      onChange={(event) => onModeChange(event.target.value as GameMode)}
+                    >
+                      <option value="single">Single Player</option>
+                      <option value="multiplayer">Multiplayer</option>
+                    </select>
+                  </div>
 
-        <div className="col-6 col-md-3">
-          <label className="form-label compact-small">Rounds</label>
-          <input
-            className="form-control"
-            min={1}
-            max={20}
-            type="number"
-            value={totalRounds}
-            onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
-          />
-        </div>
+                  <div className="col-6 col-sm-3">
+                    <label className="form-label">Players</label>
+                    <select
+                      className="form-select"
+                      value={mode === "single" ? 1 : playerNames.length}
+                      disabled={mode === "single"}
+                      onChange={(event) => updatePlayerCount(Number(event.target.value))}
+                    >
+                      {[2, 3, 4, 5, 6].map((count) => (
+                        <option key={count} value={count}>{count}</option>
+                      ))}
+                    </select>
+                  </div>
 
-        <div className="col-12 col-md-6">
-          <label className="form-label compact-small">Difficulty</label>
-          <select
-            className="form-select"
-            value={difficulty}
-            onChange={(event) => onDifficultyChange(event.target.value as Difficulty)}
-          >
-            {DIFFICULTIES.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label} - {item.description}
-              </option>
-            ))}
-          </select>
-        </div>
+                  <div className="col-6 col-sm-3">
+                    <label className="form-label">Rounds</label>
+                    <input
+                      className="form-control"
+                      min={1}
+                      max={20}
+                      type="number"
+                      value={totalRounds}
+                      onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
+                    />
+                  </div>
 
-        <div className="col-12 col-md-6">
-          <label className="form-label compact-small">Wrong tap penalty</label>
-          <input
-            className="form-control"
-            min={0}
-            max={10}
-            type="number"
-            value={penaltySeconds}
-            onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
-          />
-        </div>
-      </div>
+                  <div className="col-12 col-sm-7">
+                    <label className="form-label">Difficulty</label>
+                    <select
+                      className="form-select"
+                      value={difficulty}
+                      onChange={(event) => onDifficultyChange(event.target.value as Difficulty)}
+                    >
+                      {DIFFICULTIES.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.label} - {item.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-      <div className="row g-2 mt-2">
-        {playerNames.map((name, index) => (
-          <div className="col-6 col-md-4" key={index}>
-            <input
-              className="form-control"
-              value={name}
-              aria-label={`Player ${index + 1} name`}
-              onChange={(event) => updatePlayerName(index, event.target.value)}
-            />
+                  <div className="col-12 col-sm-5">
+                    <label className="form-label">Wrong tap penalty</label>
+                    <input
+                      className="form-control"
+                      min={0}
+                      max={10}
+                      type="number"
+                      value={penaltySeconds}
+                      onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-lg-5">
+              <div className="ui-section h-100">
+                <div className="ui-section-header">
+                  <div>
+                    <h3>Players</h3>
+                    <p>Names are saved locally on this device.</p>
+                  </div>
+                  <span className="ui-badge">{mode === "single" ? 1 : playerNames.length}</span>
+                </div>
+
+                <div className="row g-2">
+                  {playerNames.map((name, index) => (
+                    <div className="col-12 col-sm-6 col-lg-12" key={index}>
+                      <label className="form-label visually-hidden">Player {index + 1}</label>
+                      <input
+                        className="form-control"
+                        value={name}
+                        aria-label={`Player ${index + 1} name`}
+                        onChange={(event) => updatePlayerName(index, event.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        </CardContent>
 
-      <button className="btn btn-primary btn-lg mt-3 fw-bold" onClick={handleStart}>
-        Start Game
-      </button>
+        <CardFooter className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3">
+          <div className="ui-meta">
+            <strong>{selectedDifficulty.label}</strong>
+            <span>{selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview</span>
+          </div>
+
+          <Button size="lg" onClick={handleStart}>
+            Start Game
+          </Button>
+        </CardFooter>
+      </Card>
     </section>
   );
 }
