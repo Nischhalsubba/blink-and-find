@@ -15,8 +15,6 @@
     "@radix-ui/react-select": "latest",
     "@radix-ui/react-separator": "latest",
     "@radix-ui/react-slot": "latest",
-    "bootstrap": "latest",
-    "bootstrap-icons": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
     "lucide-react": "latest",
