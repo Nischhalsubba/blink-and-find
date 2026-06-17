@@ -28,9 +28,9 @@
 }
 
 /*
-  Real shadcn/ui expects Tailwind tokens. Bootstrap still exists for the game
-  tables and layout utilities, but the setup screen now uses actual shadcn-style
-  component files and Tailwind classes. Fewer fake-glow rectangles, blessedly.
+  shadcn/ui theme tokens plus a tiny game-specific layer for the number board.
+  No Bootstrap styling hooks remain here. Finally, one design system instead of
+  a committee meeting in CSS form.
 */
 :root {
   --radius: 0.625rem;
@@ -92,37 +92,6 @@ button:not(:disabled),
   padding: clamp(0.5rem, 1.5vw, 1rem);
 }
 
-.game-panel {
-  background: var(--card);
-  color: var(--card-foreground);
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 0.25rem);
-  box-shadow: none;
-}
-
-.text-muted-game {
-  color: var(--muted-foreground) !important;
-}
-
-.min-h-0 {
-  min-height: 0 !important;
-}
-
-.game-layout {
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: clamp(0.35rem, 1vh, 0.75rem);
-  min-height: 0;
-}
-
-.board-wrap {
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .number-grid {
   width: min(96vw, 72vh);
   height: min(96vw, 72vh);
@@ -143,17 +112,6 @@ button:not(:disabled),
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease, background-color 140ms ease;
 }
 
-.number-tile.btn-outline-light {
-  --bs-btn-color: var(--foreground);
-  --bs-btn-border-color: var(--border);
-  --bs-btn-hover-bg: var(--accent);
-  --bs-btn-hover-border-color: var(--ring);
-  --bs-btn-hover-color: var(--accent-foreground);
-  --bs-btn-active-bg: var(--accent);
-  --bs-btn-active-border-color: var(--ring);
-  background: var(--background);
-}
-
 .number-tile:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 0 0 2px rgba(212, 212, 216, 0.24);
@@ -161,73 +119,6 @@ button:not(:disabled),
 
 .number-tile:disabled {
   opacity: 0.7;
-}
-
-.btn-primary {
-  --bs-btn-bg: var(--primary);
-  --bs-btn-border-color: var(--primary);
-  --bs-btn-color: var(--primary-foreground);
-  --bs-btn-hover-bg: #e4e4e7;
-  --bs-btn-hover-border-color: #e4e4e7;
-  --bs-btn-hover-color: var(--primary-foreground);
-  --bs-btn-active-bg: #d4d4d8;
-  --bs-btn-active-border-color: #d4d4d8;
-  border-radius: var(--radius);
-}
-
-.btn-success {
-  --bs-btn-bg: var(--success);
-  --bs-btn-border-color: var(--success);
-  --bs-btn-color: #052e16;
-  --bs-btn-hover-bg: #16a34a;
-  --bs-btn-hover-border-color: #16a34a;
-  --bs-btn-hover-color: #f0fdf4;
-  border-radius: var(--radius);
-}
-
-.badge.text-bg-light {
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
-}
-
-.form-label {
-  color: var(--foreground);
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin-bottom: 0.45rem;
-}
-
-.form-control,
-.form-select {
-  color: var(--foreground);
-  background-color: var(--background);
-  border-color: var(--input);
-  border-radius: var(--radius);
-  min-height: 2.5rem;
-}
-
-.form-control:focus,
-.form-select:focus,
-.btn:focus-visible {
-  border-color: var(--ring);
-  box-shadow: 0 0 0 0.2rem rgba(212, 212, 216, 0.22);
-  outline: none;
-}
-
-.form-control::placeholder {
-  color: var(--muted-foreground);
-}
-
-.form-select option {
-  background-color: var(--popover);
-  color: var(--popover-foreground);
-}
-
-.table-dark {
-  --bs-table-bg: transparent;
-  --bs-table-striped-bg: rgba(255, 255, 255, 0.035);
-  --bs-table-color: var(--foreground);
-  --bs-table-border-color: var(--border);
 }
 
 .tile-correct {
@@ -238,10 +129,6 @@ button:not(:disabled),
 .tile-wrong {
   animation: wrong-shake 220ms ease;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.45);
-}
-
-.target-card {
-  overflow: hidden;
 }
 
 .target-number {
@@ -258,40 +145,6 @@ button:not(:disabled),
 
 .target-hidden {
   color: var(--muted-foreground);
-}
-
-.compact-title {
-  font-size: clamp(1.3rem, 4vw, 2.4rem);
-  font-weight: 800;
-  letter-spacing: -0.05em;
-}
-
-.compact-small {
-  font-size: clamp(0.75rem, 2vw, 0.95rem);
-}
-
-.score-table-wrap {
-  max-height: 28vh;
-  overflow: auto;
-}
-
-.stat-card {
-  height: 100%;
-  padding: 0.55rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--secondary);
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.stat-card span {
-  color: var(--muted-foreground);
-}
-
-.stat-card strong {
-  color: var(--foreground);
 }
 
 @keyframes target-pulse {
