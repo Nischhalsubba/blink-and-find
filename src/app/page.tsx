@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
+import ResultScreen from "@/components/ResultScreen";
 import StartScreen from "@/components/StartScreen";
 import TargetDisplay from "@/components/TargetDisplay";
 import Timer from "@/components/Timer";
 import { generateBoard } from "@/engine/board";
-import { applyTurnResultToPlayers, createTurnResult, formatTime, getWinner } from "@/engine/scoring";
+import { applyTurnResultToPlayers, createTurnResult, formatTime } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
 import type { Difficulty, GameConfig, GameMode, GamePhase, Player, TurnResult } from "@/types/game";
 
@@ -55,11 +56,12 @@ export default function HomePage() {
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [currentWrongTaps, setCurrentWrongTaps] = useState(0);
+  const [lastSelectedNumber, setLastSelectedNumber] = useState<number | null>(null);
+  const [lastSelectionWasWrong, setLastSelectionWasWrong] = useState(false);
   const [results, setResults] = useState<TurnResult[]>([]);
   const [lastResult, setLastResult] = useState<TurnResult | null>(null);
 
   const currentPlayer = players[currentPlayerIndex] ?? null;
-  const winner = useMemo(() => getWinner(players), [players]);
 
   /**
    * Keeps the live timer moving only while a turn is active.
@@ -85,6 +87,8 @@ export default function HomePage() {
     setTargetNumber(nextTarget);
     setTargetHidden(false);
     setCurrentWrongTaps(0);
+    setLastSelectedNumber(null);
+    setLastSelectionWasWrong(false);
     setElapsedMs(0);
     setPhase("preview");
 
@@ -123,10 +127,15 @@ export default function HomePage() {
       return;
     }
 
+    setLastSelectedNumber(value);
+
     if (value !== targetNumber) {
+      setLastSelectionWasWrong(true);
       setCurrentWrongTaps((count) => count + 1);
       return;
     }
+
+    setLastSelectionWasWrong(false);
 
     const rawTimeMs = Date.now() - turnStartedAt;
     const result = createTurnResult({
@@ -187,6 +196,8 @@ export default function HomePage() {
     setTurnStartedAt(null);
     setElapsedMs(0);
     setCurrentWrongTaps(0);
+    setLastSelectedNumber(null);
+    setLastSelectionWasWrong(false);
     setResults([]);
     setLastResult(null);
   }
@@ -214,43 +225,7 @@ export default function HomePage() {
   if (phase === "finished") {
     return (
       <main className="app-shell">
-        <section className="game-panel p-3 h-100 d-flex flex-column">
-          <div className="text-center mb-2">
-            <h1 className="compact-title mb-1">Game Over</h1>
-            <p className="text-muted-game compact-small mb-0">
-              Winner: {winner?.name ?? "Nobody"}
-            </p>
-          </div>
-
-          <div className="score-table-wrap flex-grow-1">
-            <table className="table table-dark table-striped table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th>Total</th>
-                  <th>Wrong</th>
-                  <th>Turns</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...players]
-                  .sort((first, second) => first.totalTimeMs - second.totalTimeMs)
-                  .map((player) => (
-                    <tr key={player.id}>
-                      <td>{player.name}</td>
-                      <td>{formatTime(player.totalTimeMs)}</td>
-                      <td>{player.wrongTaps}</td>
-                      <td>{player.completedTurns}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-
-          <button className="btn btn-primary mt-3 fw-bold" onClick={resetGame}>
-            Play Again
-          </button>
-        </section>
+        <ResultScreen players={players} onPlayAgain={resetGame} />
       </main>
     );
   }
@@ -287,7 +262,16 @@ export default function HomePage() {
 
         <section className="game-panel p-2 text-center compact-small">
           {phase === "preview" && "Memorize the target..."}
-          {phase === "playing" && "Find the hidden target number."}
+          {phase === "playing" && (
+            <span>
+              Find the hidden target number.
+              {lastSelectionWasWrong && lastSelectedNumber !== null && (
+                <span className="text-danger fw-bold ms-2">
+                  {lastSelectedNumber} is wrong. +{config.penaltySeconds}s
+                </span>
+              )}
+            </span>
+          )}
           {phase === "turnSummary" && lastResult && (
             <div className="d-flex justify-content-between align-items-center gap-2">
               <span>
