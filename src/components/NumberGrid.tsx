@@ -1,4 +1,6 @@
+import { Button } from "@/components/ui/button";
 import { getGridColumns } from "@/engine/board";
+import { cn } from "@/lib/utils";
 
 interface NumberGridProps {
   numbers: number[];
@@ -11,7 +13,7 @@ interface NumberGridProps {
 
 /**
  * Dynamic board that scales according to board size.
- * It also shows short feedback for the most recent wrong/correct selection.
+ * Number tiles now use the shadcn Button primitive instead of Bootstrap buttons.
  */
 export default function NumberGrid({
   numbers,
@@ -23,40 +25,55 @@ export default function NumberGrid({
 }: NumberGridProps) {
   const columns = getGridColumns(numbers.length);
 
-  function getTileClass(number: number): string {
+  function getTileState(number: number) {
     const isSelected = selectedNumber === number;
     const isCorrectSelection = isSelected && !isSelectionWrong && targetNumber === number;
     const isWrongSelection = isSelected && isSelectionWrong;
 
     if (isCorrectSelection) {
-      return "btn btn-success number-tile tile-correct";
+      return {
+        variant: "default" as const,
+        className: "tile-correct",
+      };
     }
 
     if (isWrongSelection) {
-      return "btn btn-danger number-tile tile-wrong";
+      return {
+        variant: "destructive" as const,
+        className: "tile-wrong",
+      };
     }
 
-    return "btn btn-outline-light number-tile";
+    return {
+      variant: "outline" as const,
+      className: "",
+    };
   }
 
   return (
-    <div className="board-wrap">
+    <div className="flex min-h-0 items-center justify-center">
       <div
         className="number-grid"
         style={{
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
         }}
       >
-        {numbers.map((number) => (
-          <button
-            key={number}
-            className={getTileClass(number)}
-            disabled={disabled}
-            onClick={() => onSelect?.(number)}
-          >
-            {number}
-          </button>
-        ))}
+        {numbers.map((number) => {
+          const tile = getTileState(number);
+
+          return (
+            <Button
+              key={number}
+              variant={tile.variant}
+              size="icon"
+              className={cn("number-tile", tile.className)}
+              disabled={disabled}
+              onClick={() => onSelect?.(number)}
+            >
+              {number}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
