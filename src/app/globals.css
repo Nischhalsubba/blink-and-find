@@ -1,31 +1,31 @@
 /*
   Blink & Find global styles.
-  The visual system uses Bootstrap components with shadcn-inspired tokens:
-  dark background, subtle borders, rounded cards, muted text, and focus rings.
+  Bootstrap handles layout. The custom layer below mirrors shadcn/ui structure:
+  restrained surfaces, quiet borders, readable spacing, and fewer neon crimes.
 */
 :root {
-  --background: #020817;
-  --foreground: #f8fafc;
-  --card: rgba(15, 23, 42, 0.82);
-  --card-foreground: #f8fafc;
-  --popover: #020817;
-  --popover-foreground: #f8fafc;
-  --primary: #f8fafc;
-  --primary-foreground: #020817;
-  --secondary: rgba(30, 41, 59, 0.92);
-  --secondary-foreground: #f8fafc;
-  --muted: rgba(30, 41, 59, 0.86);
-  --muted-foreground: #94a3b8;
-  --accent: rgba(30, 41, 59, 0.92);
-  --accent-foreground: #f8fafc;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #0f0f11;
+  --card-foreground: #fafafa;
+  --popover: #09090b;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #18181b;
+  --secondary-foreground: #fafafa;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
   --destructive: #ef4444;
-  --destructive-foreground: #f8fafc;
+  --destructive-foreground: #fafafa;
   --success: #22c55e;
-  --warning: #facc15;
-  --border: rgba(148, 163, 184, 0.22);
-  --input: rgba(148, 163, 184, 0.22);
-  --ring: #38bdf8;
-  --radius: 0.9rem;
+  --warning: #eab308;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #a1a1aa;
+  --radius: 0.75rem;
 }
 
 * {
@@ -38,10 +38,7 @@ body {
   height: 100vh;
   margin: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.18), transparent 32%),
-    radial-gradient(circle at 82% 18%, rgba(168, 85, 247, 0.14), transparent 30%),
-    linear-gradient(135deg, #020817 0%, #0f172a 52%, #020817 100%);
+  background: var(--background);
   color: var(--foreground);
 }
 
@@ -62,13 +59,182 @@ select {
   padding: clamp(0.5rem, 1.5vw, 1rem);
 }
 
-.game-panel {
+.setup-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.setup-card {
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+}
+
+.game-panel,
+.ui-card {
   background: var(--card);
   color: var(--card-foreground);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 0.35rem);
-  box-shadow: 0 1.2rem 4rem rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(16px);
+  border-radius: calc(var(--radius) + 0.25rem);
+  box-shadow: none;
+}
+
+.ui-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-card-header,
+.ui-card-content,
+.ui-card-footer {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.ui-card-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.ui-card-content {
+  min-height: 0;
+  overflow: auto;
+}
+
+.ui-card-footer {
+  border-top: 1px solid var(--border);
+}
+
+.ui-card-title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 0.95;
+}
+
+.ui-card-description {
+  max-width: 680px;
+  margin: 0.75rem auto 0;
+  color: var(--muted-foreground);
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+}
+
+.ui-eyebrow,
+.ui-badge {
+  width: fit-content;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.38rem 0.62rem;
+}
+
+.ui-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0b0b0d;
+  padding: 1rem;
+}
+
+.ui-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ui-section-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ui-section-header p,
+.ui-meta span {
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+}
+
+.ui-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ui-button {
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.ui-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.ui-button:disabled {
+  opacity: 0.5;
+}
+
+.ui-button-sm {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+.ui-button-md {
+  height: 2.5rem;
+  padding: 0 1rem;
+  font-size: 0.9rem;
+}
+
+.ui-button-lg {
+  height: 3rem;
+  padding: 0 1.25rem;
+  font-size: 0.95rem;
+}
+
+.ui-button-default {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.ui-button-default:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+.ui-button-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border-color: var(--border);
+}
+
+.ui-button-outline {
+  background: transparent;
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.ui-button-ghost {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.ui-button-destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  border-color: var(--destructive);
 }
 
 .text-muted-game {
@@ -109,7 +275,7 @@ select {
   padding: 0;
   border-radius: clamp(0.25rem, 0.8vw, 0.65rem);
   font-size: clamp(0.55rem, 1.8vw, 1rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease, background-color 140ms ease;
 }
@@ -122,53 +288,63 @@ select {
   --bs-btn-hover-color: var(--accent-foreground);
   --bs-btn-active-bg: var(--accent);
   --bs-btn-active-border-color: var(--ring);
-  background: rgba(15, 23, 42, 0.56);
+  background: var(--background);
 }
 
 .number-tile:not(:disabled):hover {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(161, 161, 170, 0.24);
 }
 
 .number-tile:disabled {
-  opacity: 0.65;
+  opacity: 0.7;
 }
 
 .btn-primary {
   --bs-btn-bg: var(--primary);
   --bs-btn-border-color: var(--primary);
   --bs-btn-color: var(--primary-foreground);
-  --bs-btn-hover-bg: #e2e8f0;
-  --bs-btn-hover-border-color: #e2e8f0;
+  --bs-btn-hover-bg: #e4e4e7;
+  --bs-btn-hover-border-color: #e4e4e7;
   --bs-btn-hover-color: var(--primary-foreground);
-  --bs-btn-active-bg: #cbd5e1;
-  --bs-btn-active-border-color: #cbd5e1;
+  --bs-btn-active-bg: #d4d4d8;
+  --bs-btn-active-border-color: #d4d4d8;
   border-radius: var(--radius);
 }
 
 .btn-success {
   --bs-btn-bg: var(--success);
   --bs-btn-border-color: var(--success);
-  --bs-btn-color: #022c22;
+  --bs-btn-color: #052e16;
   --bs-btn-hover-bg: #16a34a;
   --bs-btn-hover-border-color: #16a34a;
   --bs-btn-hover-color: #f0fdf4;
   border-radius: var(--radius);
 }
 
+.form-label {
+  color: var(--foreground);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+}
+
 .form-control,
 .form-select {
   color: var(--foreground);
-  background-color: rgba(15, 23, 42, 0.72);
+  background-color: var(--background);
   border-color: var(--input);
   border-radius: var(--radius);
+  min-height: 2.5rem;
 }
 
 .form-control:focus,
 .form-select:focus,
-.btn:focus-visible {
+.btn:focus-visible,
+.ui-button:focus-visible {
   border-color: var(--ring);
-  box-shadow: 0 0 0 0.22rem rgba(56, 189, 248, 0.18);
+  box-shadow: 0 0 0 0.2rem rgba(161, 161, 170, 0.22);
+  outline: none;
 }
 
 .form-control::placeholder {
@@ -182,19 +358,19 @@ select {
 
 .table-dark {
   --bs-table-bg: transparent;
-  --bs-table-striped-bg: rgba(255, 255, 255, 0.045);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.035);
   --bs-table-color: var(--foreground);
   --bs-table-border-color: var(--border);
 }
 
 .tile-correct {
-  animation: correct-pop 360ms ease;
-  box-shadow: 0 0 0.8rem rgba(34, 197, 94, 0.95);
+  animation: correct-pop 260ms ease;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45);
 }
 
 .tile-wrong {
-  animation: wrong-shake 260ms ease;
-  box-shadow: 0 0 0.8rem rgba(239, 68, 68, 0.95);
+  animation: wrong-shake 220ms ease;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.45);
 }
 
 .target-card {
@@ -203,14 +379,14 @@ select {
 
 .target-number {
   font-size: clamp(1.6rem, 6vw, 4rem);
-  font-weight: 900;
-  letter-spacing: -0.05em;
+  font-weight: 800;
+  letter-spacing: -0.06em;
 }
 
 .target-pulse {
-  color: var(--warning);
-  text-shadow: 0 0 1rem rgba(250, 204, 21, 0.8);
-  animation: target-pulse 600ms ease infinite alternate;
+  color: var(--foreground);
+  text-shadow: none;
+  animation: target-pulse 700ms ease infinite alternate;
 }
 
 .target-hidden {
@@ -219,7 +395,7 @@ select {
 
 .compact-title {
   font-size: clamp(1.3rem, 4vw, 2.4rem);
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: -0.05em;
 }
 
@@ -256,7 +432,7 @@ select {
     transform: scale(1);
   }
   to {
-    transform: scale(1.08);
+    transform: scale(1.03);
   }
 }
 
@@ -265,7 +441,7 @@ select {
     transform: scale(1);
   }
   55% {
-    transform: scale(1.14);
+    transform: scale(1.08);
   }
   100% {
     transform: scale(1);
@@ -287,6 +463,12 @@ select {
 @media (max-width: 576px) {
   .app-shell {
     padding: 0.5rem;
+  }
+
+  .ui-card-header,
+  .ui-card-content,
+  .ui-card-footer {
+    padding: 0.85rem;
   }
 
   .number-grid {
