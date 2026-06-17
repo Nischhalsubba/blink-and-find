@@ -19,7 +19,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { generateZigZagBoard } from "@/engine/board";
 import { applyTurnResultToPlayers, createTurnResult, formatTime } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
@@ -166,7 +168,6 @@ export default function HomePage() {
 
   /**
    * Prepares a turn without flashing the target yet.
-   * This creates a clean player handoff screen before each turn.
    */
   function prepareTurn(nextBoard: number[], nextTarget: number) {
     clearPreviewTimers();
@@ -449,71 +450,71 @@ export default function HomePage() {
 
   return (
     <main className="app-shell">
-      <div className="game-layout">
-        <section className="game-panel p-2 d-flex justify-content-between align-items-center gap-2">
-          <div>
-            <div className="fw-bold">{currentPlayer?.name}</div>
-            <div className="compact-small text-muted-game">
-              Round {currentRound} / {config.totalRounds}
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        <Card className="shrink-0 gap-0 py-0">
+          <CardContent className="flex items-center justify-between gap-3 p-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold sm:text-base">{currentPlayer?.name}</div>
+              <div className="text-xs text-muted-foreground">
+                Round {currentRound} / {config.totalRounds}
+              </div>
             </div>
-          </div>
 
-          <div className="d-flex align-items-center gap-2">
-            <div className="text-end compact-small text-muted-game">
-              Wrong taps: {currentWrongTaps}<br />
-              Penalty: +{config.penaltySeconds}s
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge variant="outline">Wrong {currentWrongTaps}</Badge>
+              <Badge variant="secondary">+{config.penaltySeconds}s</Badge>
+              {quitDialog}
             </div>
-            {quitDialog}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
-        <div className="row g-2 m-0">
-          <div className="col-7 p-0 pe-1">
-            <TargetDisplay targetNumber={targetNumber} hidden={targetHidden} />
-          </div>
-          <div className="col-5 p-0 ps-1">
-            <Timer elapsedMs={elapsedMs} />
-          </div>
+        <div className="grid shrink-0 grid-cols-[1fr_0.72fr] gap-2">
+          <TargetDisplay targetNumber={targetNumber} hidden={targetHidden} />
+          <Timer elapsedMs={elapsedMs} />
         </div>
 
-        <section className="game-panel board-wrap p-2">
-          <NumberGrid
-            numbers={board}
-            targetNumber={targetNumber}
-            selectedNumber={lastSelectedNumber}
-            isSelectionWrong={lastSelectionWasWrong}
-            disabled={phase !== "playing"}
-            onSelect={handleNumberSelect}
-          />
-        </section>
+        <Card className="min-h-0 flex-1 gap-0 py-0">
+          <CardContent className="flex h-full min-h-0 items-center justify-center p-2">
+            <NumberGrid
+              numbers={board}
+              targetNumber={targetNumber}
+              selectedNumber={lastSelectedNumber}
+              isSelectionWrong={lastSelectionWasWrong}
+              disabled={phase !== "playing"}
+              onSelect={handleNumberSelect}
+            />
+          </CardContent>
+        </Card>
 
-        <section className="game-panel p-2 text-center compact-small">
-          {phase === "preview" && (
-            <span>
-              Memorize the target. Hiding in <span className="badge text-bg-light ms-1">{previewCountdown}</span>
-            </span>
-          )}
-          {phase === "playing" && (
-            <span>
-              Find the hidden target number.
-              {lastSelectionWasWrong && lastSelectedNumber !== null && (
-                <span className="text-danger fw-bold ms-2">
-                  {lastSelectedNumber} is wrong. +{config.penaltySeconds}s
-                </span>
-              )}
-            </span>
-          )}
-          {phase === "turnSummary" && lastResult && (
-            <div className="d-flex justify-content-between align-items-center gap-2">
+        <Card className="shrink-0 gap-0 py-0">
+          <CardContent className="p-3 text-center text-sm">
+            {phase === "preview" && (
               <span>
-                {lastResult.playerName}: {formatTime(lastResult.finalTimeMs)}
+                Memorize the target. Hiding in <Badge variant="secondary" className="ml-1">{previewCountdown}</Badge>
               </span>
-              <Button size="sm" onClick={continueGame}>
-                Continue
-              </Button>
-            </div>
-          )}
-        </section>
+            )}
+            {phase === "playing" && (
+              <span>
+                Find the hidden target number.
+                {lastSelectionWasWrong && lastSelectedNumber !== null && (
+                  <span className="ml-2 font-semibold text-destructive">
+                    {lastSelectedNumber} is wrong. +{config.penaltySeconds}s
+                  </span>
+                )}
+              </span>
+            )}
+            {phase === "turnSummary" && lastResult && (
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  {lastResult.playerName}: {formatTime(lastResult.finalTimeMs)}
+                </span>
+                <Button size="sm" onClick={continueGame}>
+                  Continue
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
