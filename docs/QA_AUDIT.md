@@ -11,6 +11,9 @@ This audit covers the completed priorities and the core online flow. It is inten
 - Priority 5: Online room cleanup
 - Priority 6: Central history screen
 - Priority 7: Live Race gameplay
+- Priority 8: Production security hardening
+- Priority 9: Build and dependency hardening
+- Priority 10: Mobile gameplay QA
 
 ## Code-level Audit
 
@@ -100,6 +103,41 @@ Checks:
 - Final results appear after the last round.
 - Finished Live Race rooms appear in `/history`.
 
+### Priority 8: Security
+
+Checks:
+
+- `supabase/priority8_hardening.sql` exists.
+- Room, player, round, and result sanity constraints are documented.
+- Room transition trigger is documented.
+- Result validation trigger is documented.
+- Public-key anonymous limitations are documented.
+
+### Priority 9: Build
+
+Checks:
+
+- `latest` package versions were removed.
+- Node version files exist.
+- npm exact-save settings exist.
+- ESLint flat config exists.
+- GitHub Actions CI exists.
+- `npm run check` exists.
+- Production audit script exists.
+- Lockfile generation is documented as a required local follow-up.
+
+### Priority 10: Mobile
+
+Checks:
+
+- Active game mobile header is compact.
+- Quit button is shortened on mobile.
+- Target/timer row is compact on mobile.
+- Dynamic viewport units are used.
+- Safe-area padding is used.
+- Number grid is bounded by available viewport space.
+- Mobile QA checklist exists.
+
 ## Manual End-to-End Test Plan
 
 ### Local quick play
@@ -167,6 +205,19 @@ Checks:
 9. Confirm current browser shows **You** when applicable.
 10. Confirm abandoned rooms do not appear.
 
+### Mobile path
+
+1. Open production in a mobile browser.
+2. Start Easy, Normal, and Hard local games.
+3. Confirm no active-game header overflow.
+4. Confirm Target and Timer cards remain compact.
+5. Confirm the board is the largest screen area.
+6. Confirm all tiles remain tappable.
+7. Open in Messenger or another in-app browser.
+8. Confirm no horizontal overflow.
+9. Create and join online room on mobile.
+10. Confirm invite panel, QR code, and history screen remain usable.
+
 ### Reconnect path
 
 1. Create online room.
@@ -196,9 +247,18 @@ select public.abandon_stale_online_rooms(interval '0 minutes', interval '0 minut
 5. Confirm finished rooms remain `finished`.
 6. Try joining the abandoned room and confirm clean error.
 
+### Build path
+
+1. Run `npm install` locally.
+2. Commit the generated `package-lock.json`.
+3. Run `npm run check`.
+4. Run `npm run audit:prod`.
+5. Push and confirm GitHub Actions passes.
+6. Deploy latest commit to Cloudflare.
+
 ## Known Limitations
 
 - Live Race is latency-tolerant, not cheat-proof.
-- Supabase RLS is still MVP-friendly and will be tightened in Priority 8.
-- Dependency pinning and CI are still pending in Priority 9.
-- Full mobile matrix testing is still pending in Priority 10.
+- True player-proof security still requires auth, signed tokens, or server-side endpoints.
+- A real `package-lock.json` must be generated locally with npm and committed.
+- Full manual mobile matrix testing still needs your physical devices after deployment.
