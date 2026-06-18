@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
+import { cn } from "@/lib/utils";
 import type { Difficulty, GameConfig, GameMode } from "@/types/game";
 
 interface StartScreenProps {
@@ -37,8 +32,34 @@ interface StartScreenProps {
   onStart: (config: GameConfig) => void;
 }
 
+function ChoicePill({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-4 py-2 text-sm font-medium transition-all",
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-xs"
+          : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 /**
- * Minimal setup screen. Keep the menu quiet so the game board can be the focus.
+ * Quick-first setup screen. Most people should press one button and play.
  */
 export default function StartScreen({
   mode,
@@ -53,8 +74,8 @@ export default function StartScreen({
   onPenaltySecondsChange,
   onStart,
 }: StartScreenProps) {
-  const selectedDifficulty =
-    DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
+  const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
+  const normalDifficulty = DIFFICULTIES.find((item) => item.id === "normal") ?? selectedDifficulty;
 
   function updatePlayerCount(count: number) {
     const nextNames = Array.from({ length: count }, (_, index) => {
@@ -70,7 +91,18 @@ export default function StartScreen({
     onPlayerNamesChange(nextNames);
   }
 
-  function handleStart() {
+  function handleQuickStart() {
+    onStart({
+      mode: "single",
+      difficulty: "normal",
+      boardSize: normalDifficulty.boardSize,
+      totalRounds: 5,
+      flashDurationMs: normalDifficulty.flashDurationMs,
+      penaltySeconds: 3,
+    });
+  }
+
+  function handleCustomStart() {
     onStart({
       mode,
       difficulty,
@@ -83,132 +115,129 @@ export default function StartScreen({
 
   return (
     <section className="flex h-full items-center justify-center px-2">
-      <Card className="w-full max-w-xl overflow-hidden">
-        <CardHeader className="border-b pb-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <Badge variant="secondary" className="mb-3">
-                Blink &amp; Find
-              </Badge>
-              <CardTitle className="text-3xl font-semibold tracking-tight">
-                Game setup
-              </CardTitle>
-              <CardDescription className="mt-2">
-                Start locally, or create an online room in one tap.
-              </CardDescription>
-            </div>
-          </div>
+      <Card className="w-full max-w-lg overflow-hidden">
+        <CardHeader className="border-b pb-4 text-center">
+          <Badge variant="secondary" className="mx-auto mb-3 w-fit">
+            Blink &amp; Find
+          </Badge>
+          <CardTitle className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            Ready?
+          </CardTitle>
+          <CardDescription className="mt-2">
+            Tap once. Start playing. No form-filling ceremony required.
+          </CardDescription>
         </CardHeader>
 
         <CardContent className="grid gap-4 p-4 sm:p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="mode">Mode</Label>
-              <Select value={mode} onValueChange={(value) => onModeChange(value as GameMode)}>
-                <SelectTrigger id="mode">
-                  <SelectValue placeholder="Choose mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single Player</SelectItem>
-                  <SelectItem value="multiplayer">Same Device</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <Button size="lg" className="h-16 text-lg" onClick={handleQuickStart}>
+            Play Now
+          </Button>
 
-            <div className="grid gap-2">
-              <Label htmlFor="difficulty">Difficulty</Label>
-              <Select value={difficulty} onValueChange={(value) => onDifficultyChange(value as Difficulty)}>
-                <SelectTrigger id="difficulty">
-                  <SelectValue placeholder="Choose difficulty" />
-                </SelectTrigger>
-                <SelectContent>
+          <Button asChild size="lg" variant="outline" className="h-16 text-lg">
+            <Link href="/online?host=1">Play with Friend</Link>
+          </Button>
+
+          <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
+            Default: Normal board · 5 rounds · 3s penalty
+          </div>
+
+          <details className="rounded-lg border bg-muted/20 p-3">
+            <summary className="cursor-pointer text-sm font-medium">Change settings</summary>
+
+            <div className="mt-4 grid gap-4">
+              <div className="grid gap-2">
+                <Label>Local mode</Label>
+                <div className="flex flex-wrap gap-2">
+                  <ChoicePill active={mode === "single"} onClick={() => onModeChange("single")}>
+                    Solo
+                  </ChoicePill>
+                  <ChoicePill active={mode === "multiplayer"} onClick={() => onModeChange("multiplayer")}>
+                    Same Device
+                  </ChoicePill>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Difficulty</Label>
+                <div className="flex flex-wrap gap-2">
                   {DIFFICULTIES.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.label} - {item.description}
-                    </SelectItem>
+                    <ChoicePill key={item.id} active={difficulty === item.id} onClick={() => onDifficultyChange(item.id)}>
+                      {item.label}
+                    </ChoicePill>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="players">Players</Label>
-              <Select
-                value={String(mode === "single" ? 1 : playerNames.length)}
-                disabled={mode === "single"}
-                onValueChange={(value) => updatePlayerCount(Number(value))}
-              >
-                <SelectTrigger id="players">
-                  <SelectValue placeholder="Players" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1</SelectItem>
-                  {[2, 3, 4, 5, 6].map((count) => (
-                    <SelectItem key={count} value={String(count)}>{count}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="rounds">Rounds</Label>
-              <Input
-                id="rounds"
-                min={1}
-                max={20}
-                type="number"
-                value={totalRounds}
-                onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="penalty">Penalty</Label>
-              <Input
-                id="penalty"
-                min={0}
-                max={10}
-                type="number"
-                value={penaltySeconds}
-                onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
-              />
-            </div>
-          </div>
-
-          {mode === "multiplayer" && (
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label>Player names</Label>
-                <Badge variant="outline">{playerNames.length}</Badge>
+                </div>
               </div>
-              <div className="grid max-h-36 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                {playerNames.map((name, index) => (
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-2">
+                  <Label>Players</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4].map((count) => (
+                      <ChoicePill
+                        key={count}
+                        active={(mode === "single" ? 1 : playerNames.length) === count}
+                        onClick={() => {
+                          onModeChange(count === 1 ? "single" : "multiplayer");
+                          updatePlayerCount(count);
+                        }}
+                      >
+                        {count}
+                      </ChoicePill>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="rounds">Rounds</Label>
                   <Input
-                    key={index}
-                    value={name}
-                    aria-label={`Player ${index + 1} name`}
-                    onChange={(event) => updatePlayerName(index, event.target.value)}
+                    id="rounds"
+                    min={1}
+                    max={20}
+                    type="number"
+                    value={totalRounds}
+                    onChange={(event) => onTotalRoundsChange(Number(event.target.value))}
                   />
-                ))}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="penalty">Penalty</Label>
+                  <Input
+                    id="penalty"
+                    min={0}
+                    max={10}
+                    type="number"
+                    value={penaltySeconds}
+                    onChange={(event) => onPenaltySecondsChange(Number(event.target.value))}
+                  />
+                </div>
               </div>
+
+              {mode === "multiplayer" && (
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Names</Label>
+                    <Badge variant="outline">{playerNames.length}</Badge>
+                  </div>
+                  <div className="grid max-h-32 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                    {playerNames.map((name, index) => (
+                      <Input
+                        key={index}
+                        value={name}
+                        aria-label={`Player ${index + 1} name`}
+                        onChange={(event) => updatePlayerName(index, event.target.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={handleCustomStart}>Start Custom Game</Button>
             </div>
-          )}
+          </details>
         </CardContent>
 
-        <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <div className="text-sm text-muted-foreground">
-            {selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview
-          </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/online?host=1">Host Online</Link>
-            </Button>
-            <Button onClick={handleStart}>
-              Start
-            </Button>
-          </div>
+        <CardFooter className="justify-center border-t p-4 text-sm text-muted-foreground sm:p-5">
+          Find the hidden number faster than your friend. That is mercifully all.
         </CardFooter>
       </Card>
     </section>
