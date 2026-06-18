@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getDeviceId } from "@/lib/device";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
 import {
@@ -32,10 +25,13 @@ import {
   subscribeToOnlineRoom,
 } from "@/lib/onlineRooms";
 import { hasSupabaseConfig } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
 const ONLINE_NAME_KEY = "blink-and-find-online-name";
+
+type OnlineAction = "create" | "join";
 
 const DEFAULT_CONFIG: GameConfig = {
   mode: "multiplayer",
@@ -64,8 +60,35 @@ function saveOnlineName(name: string) {
   }
 }
 
+function ChoicePill({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-4 py-2 text-sm font-medium transition-all",
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-xs"
+          : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function OnlinePage() {
   const autoActionStartedRef = useRef(false);
+  const [action, setAction] = useState<OnlineAction>("create");
   const [playerName, setPlayerName] = useState("Player");
   const [roomCode, setRoomCode] = useState("");
   const [gameType, setGameType] = useState<OnlineGameType>("same_challenge");
@@ -98,7 +121,7 @@ export default function OnlinePage() {
 
   async function quickCreateRoom() {
     setIsBusy(true);
-    setMessage("Creating a room...");
+    setMessage("Creating room...");
     saveOnlineName(playerName);
 
     try {
@@ -111,7 +134,7 @@ export default function OnlinePage() {
 
       setSnapshot(result);
       setLocalPlayer(result.localPlayer);
-      setMessage("Room created. Share the invite link with your friend.");
+      setMessage("Room created. Share the invite link.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -123,7 +146,7 @@ export default function OnlinePage() {
     const normalizedCode = code.trim().toUpperCase();
 
     if (!normalizedCode) {
-      setMessage("Enter the room code from your friend.");
+      setMessage("Enter the room code.");
       return;
     }
 
@@ -176,7 +199,7 @@ export default function OnlinePage() {
 
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      setMessage("Invite link copied. Send it to your friend.");
+      setMessage("Invite copied. Send it to your friend.");
     } catch {
       setMessage(inviteUrl);
     }
@@ -188,8 +211,7 @@ export default function OnlinePage() {
   }
 
   useEffect(() => {
-    const savedName = getDefaultOnlineName();
-    setPlayerName(savedName);
+    setPlayerName(getDefaultOnlineName());
   }, []);
 
   useEffect(() => {
@@ -204,6 +226,7 @@ export default function OnlinePage() {
 
     if (codeFromUrl) {
       setRoomCode(codeFromUrl);
+      setAction("join");
     }
 
     if (codeFromUrl && shouldJoin) {
@@ -243,9 +266,7 @@ export default function OnlinePage() {
           <Card className="w-full max-w-xl">
             <CardHeader>
               <CardTitle>Online Play needs Supabase</CardTitle>
-              <CardDescription>
-                Add the Supabase environment variables locally and in Vercel.
-              </CardDescription>
+              <CardDescription>Add the Supabase environment variables locally and in Vercel.</CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then run the SQL in supabase/schema.sql.
@@ -283,10 +304,8 @@ export default function OnlinePage() {
             <Card className="w-full max-w-xl overflow-hidden">
               <CardHeader className="border-b pb-4">
                 <Badge variant="secondary" className="mb-3 w-fit">Live Race</Badge>
-                <CardTitle className="text-3xl font-semibold tracking-tight">Live Race foundation ready</CardTitle>
-                <CardDescription>
-                  Room sync is active. The synchronized countdown and simultaneous race gameplay come next.
-                </CardDescription>
+                <CardTitle className="text-3xl font-semibold tracking-tight">Live Race is coming next</CardTitle>
+                <CardDescription>The room is synced. Simultaneous gameplay is the next build step.</CardDescription>
               </CardHeader>
               <CardFooter className="border-t p-4 sm:p-5">
                 <Button variant="outline" onClick={() => setSnapshot(null)}>Back</Button>
@@ -304,9 +323,7 @@ export default function OnlinePage() {
             <CardHeader className="border-b pb-4 text-center">
               <Badge variant="secondary" className="mx-auto mb-3 w-fit">Room ready</Badge>
               <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
-              <CardDescription>
-                Send this code or invite link to your friend. They just open it and join.
-              </CardDescription>
+              <CardDescription>Share the invite. Start when your friend appears.</CardDescription>
             </CardHeader>
 
             <CardContent className="grid gap-4 p-4 sm:p-5">
@@ -323,9 +340,7 @@ export default function OnlinePage() {
               </div>
 
               <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-                {snapshot.players.length < 2
-                  ? "Waiting for one more player. Copy the invite link and send it."
-                  : "Everyone is here. Host can start the game."}
+                {snapshot.players.length < 2 ? "Waiting for your friend..." : "Friend joined. Ready to start."}
               </div>
 
               {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
@@ -353,69 +368,92 @@ export default function OnlinePage() {
   return (
     <main className="app-shell">
       <section className="flex h-full items-center justify-center px-2">
-        <Card className="w-full max-w-2xl overflow-hidden">
+        <Card className="w-full max-w-xl overflow-hidden">
           <CardHeader className="border-b pb-4 text-center">
             <Badge variant="secondary" className="mx-auto mb-3 w-fit">Online Play</Badge>
             <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Play with a friend</CardTitle>
-            <CardDescription>
-              One tap creates a room. A shared link lets your friend join without figuring out the machinery. Humanity gets one win.
-            </CardDescription>
+            <CardDescription>Create a room or join one. That is the whole job.</CardDescription>
           </CardHeader>
 
           <CardContent className="grid gap-4 p-4 sm:p-5">
-            <Button size="lg" className="h-14 text-base" onClick={quickCreateRoom} disabled={isBusy}>
-              {isBusy ? "Working..." : "Create Game"}
-            </Button>
-
-            <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-              <Label htmlFor="room-code">Join with room code</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="room-code"
-                  value={roomCode}
-                  onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
-                  placeholder="AB123"
-                />
-                <Button variant="outline" onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>
-                  Join
-                </Button>
-              </div>
+            <div className="flex rounded-full border bg-muted/20 p-1" aria-label="Choose online action">
+              <button
+                type="button"
+                aria-pressed={action === "create"}
+                onClick={() => setAction("create")}
+                className={cn(
+                  "flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                  action === "create" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground"
+                )}
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                aria-pressed={action === "join"}
+                onClick={() => setAction("join")}
+                className={cn(
+                  "flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                  action === "join" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground"
+                )}
+              >
+                Join
+              </button>
             </div>
 
-            <div className="grid gap-2 rounded-lg border bg-muted/20 p-3">
-              <Label htmlFor="player-name">Your name</Label>
-              <Input id="player-name" value={playerName} onChange={(event) => updatePlayerName(event.target.value)} />
-            </div>
-
-            <Button variant="ghost" onClick={() => setShowAdvanced((current) => !current)}>
-              {showAdvanced ? "Hide options" : "Game options"}
-            </Button>
-
-            {showAdvanced && (
+            {action === "create" ? (
+              <Button size="lg" className="h-14 text-base" onClick={quickCreateRoom} disabled={isBusy}>
+                {isBusy ? "Creating..." : "Create Game"}
+              </Button>
+            ) : (
               <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                <Label htmlFor="room-code">Room code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="room-code"
+                    value={roomCode}
+                    onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
+                    placeholder="AB123"
+                  />
+                  <Button onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>
+                    Join
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <details className="rounded-lg border bg-muted/20 p-3">
+              <summary className="cursor-pointer text-sm font-medium">Name and options</summary>
+              <div className="mt-3 grid gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="game-type">Game type</Label>
-                  <Select value={gameType} onValueChange={(value) => setGameType(value as OnlineGameType)}>
-                    <SelectTrigger id="game-type"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="same_challenge">Same Challenge</SelectItem>
-                      <SelectItem value="live_race">Live Race</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="player-name">Your name</Label>
+                  <Input id="player-name" value={playerName} onChange={(event) => updatePlayerName(event.target.value)} />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="grid gap-2 sm:col-span-1">
-                    <Label htmlFor="online-difficulty">Difficulty</Label>
-                    <Select value={difficulty} onValueChange={(value) => setDifficulty(value as Difficulty)}>
-                      <SelectTrigger id="online-difficulty"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {DIFFICULTIES.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="grid gap-2">
+                  <Label>Game type</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <ChoicePill active={gameType === "same_challenge"} onClick={() => setGameType("same_challenge")}>
+                      Same Challenge
+                    </ChoicePill>
+                    <ChoicePill active={gameType === "live_race"} onClick={() => setGameType("live_race")}>
+                      Live Race
+                    </ChoicePill>
                   </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Difficulty</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {DIFFICULTIES.map((item) => (
+                      <ChoicePill key={item.id} active={difficulty === item.id} onClick={() => setDifficulty(item.id)}>
+                        {item.label}
+                      </ChoicePill>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
                     <Label htmlFor="online-rounds">Rounds</Label>
                     <Input id="online-rounds" min={1} max={20} type="number" value={rounds} onChange={(event) => setRounds(Number(event.target.value))} />
@@ -426,7 +464,7 @@ export default function OnlinePage() {
                   </div>
                 </div>
               </div>
-            )}
+            </details>
 
             {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
           </CardContent>
