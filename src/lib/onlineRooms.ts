@@ -1,6 +1,6 @@
 import { generateSeededZigZagBoard } from "@/engine/board";
 import { supabase } from "@/lib/supabase";
-import type { GameConfig } from "@/types/game";
+import type { GameConfig, Player, TurnResult } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineResult, OnlineRoom, OnlineRoomSnapshot, OnlineRound } from "@/types/online";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -21,6 +21,42 @@ export function pickTargetFromSeededBoard(boardSize: number, seed: number): numb
   const board = getOnlineBoard(boardSize, seed);
   const targetIndex = Math.abs(seed * 31 + boardSize * 17) % board.length;
   return board[targetIndex];
+}
+
+export function getCurrentOnlineRound(snapshot: OnlineRoomSnapshot): OnlineRound | null {
+  return snapshot.rounds.find((round) => round.round_number === snapshot.room.current_round) ?? null;
+}
+
+export function onlinePlayerToGamePlayer(player: OnlinePlayer): Player {
+  return {
+    id: player.id,
+    name: player.name,
+    totalTimeMs: player.total_time_ms,
+    wrongTaps: player.wrong_taps,
+    completedTurns: 0,
+  };
+}
+
+export function onlineResultToTurnResult(result: OnlineResult): TurnResult {
+  return {
+    id: result.id,
+    round: result.round_number,
+    playerId: result.player_id,
+    playerName: result.player_name,
+    targetNumber: result.target_number,
+    rawTimeMs: result.raw_time_ms,
+    penaltyMs: result.penalty_ms,
+    finalTimeMs: result.final_time_ms,
+    wrongTaps: result.wrong_taps,
+  };
+}
+
+export function onlinePlayersToGamePlayers(players: OnlinePlayer[]): Player[] {
+  return players.map(onlinePlayerToGamePlayer);
+}
+
+export function onlineResultsToTurnResults(results: OnlineResult[]): TurnResult[] {
+  return results.map(onlineResultToTurnResult);
 }
 
 function requireSupabase() {
@@ -236,9 +272,147 @@ export async function startOnlineRoom(room: OnlineRoom, players: OnlinePlayer[])
   const { error: roomError } = await client
     .from("online_rooms")
     .update({
-      status: "ready",
+      status: room.game_type === "same_challenge" ? "ready" : "playing",
       current_round: 1,
       current_player_id: room.game_type === "same_challenge" ? firstPlayer.id : null,
+    })
+    .eq("id", room.id);
+
+  if (roomError) {
+    throw roomError;
+  }
+}
+
+export async function markSameChallengeTurnPlaying(roomId: string, roundId: string): Promise<void> {
+  const client = requireSupabase();
+
+  const [roomResponse, roundResponse] = await Promise.all([
+    client.from("online_rooms").update({ status: "playing" }).eq("id", roomId),
+    client.from("online_rounds").update({ status: "playing", start_at: new Date().toISOString() }).eq("id", roundId),
+  ]);
+
+  if (roomResponse.error) {
+    throw roomResponse.error;
+  }
+
+  if (roundResponse.error) {
+    throw roundResponse.error;
+  }
+}
+
+export async function submitSameChallengeResult(params: {
+  room: OnlineRoom;
+  players: OnlinePlayer[];
+  result: TurnResult;
+}): Promise<void> {
+  const client = requireSupabase();
+  const sortedPlayers = [...params.players].sort((a, b) => a.joined_at.localeCompare(b.joined_at));
+  const playerIndex = sortedPlayers.findIndex((player) => player.id === params.result.playerId);
+  const currentPlayer = sortedPlayers[playerIndex];
+  const nextPlayer = sortedPlayers[playerIndex + 1] ?? null;
+  const isFinalRound = params.room.current_round >= params.room.settings.totalRounds;
+
+  if (!currentPlayer) {
+    throw new Error("Could not find the current online player.");
+  }
+
+  const { error: resultError } = await client
+    .from("online_results")
+    .upsert({
+      room_id: params.room.id,
+      round_number: params.result.round,
+      player_id: params.result.playerId,
+      player_name: params.result.playerName,
+      target_number: params.result.targetNumber,
+      raw_time_ms: params.result.rawTimeMs,
+      penalty_ms: params.result.penaltyMs,
+      final_time_ms: params.result.finalTimeMs,
+      wrong_taps: params.result.wrongTaps,
+      client_tap_at: new Date().toISOString(),
+    }, { onConflict: "room_id,round_number,player_id" });
+
+  if (resultError) {
+    throw resultError;
+  }
+
+  const { error: playerError } = await client
+    .from("online_players")
+    .update({
+      total_time_ms: currentPlayer.total_time_ms + params.result.finalTimeMs,
+      wrong_taps: currentPlayer.wrong_taps + params.result.wrongTaps,
+    })
+    .eq("id", currentPlayer.id);
+
+  if (playerError) {
+    throw playerError;
+  }
+
+  if (nextPlayer) {
+    const { error: roomError } = await client
+      .from("online_rooms")
+      .update({
+        status: "ready",
+        current_player_id: nextPlayer.id,
+      })
+      .eq("id", params.room.id);
+
+    if (roomError) {
+      throw roomError;
+    }
+
+    return;
+  }
+
+  const [roundResponse, roomResponse] = await Promise.all([
+    client.from("online_rounds").update({ status: "complete" }).eq("room_id", params.room.id).eq("round_number", params.room.current_round),
+    client.from("online_rooms").update({
+      status: isFinalRound ? "finished" : "round_summary",
+      current_player_id: null,
+    }).eq("id", params.room.id),
+  ]);
+
+  if (roundResponse.error) {
+    throw roundResponse.error;
+  }
+
+  if (roomResponse.error) {
+    throw roomResponse.error;
+  }
+}
+
+export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlayer[]): Promise<void> {
+  const client = requireSupabase();
+  const firstPlayer = players[0];
+  const nextRound = room.current_round + 1;
+  const seed = createRoundSeed();
+  const boardSize = room.settings.boardSize;
+  const targetNumber = pickTargetFromSeededBoard(boardSize, seed);
+
+  if (!firstPlayer) {
+    throw new Error("A room needs players before the next round can start.");
+  }
+
+  const { error: roundError } = await client
+    .from("online_rounds")
+    .upsert({
+      room_id: room.id,
+      round_number: nextRound,
+      seed,
+      target_number: targetNumber,
+      board_size: boardSize,
+      status: "waiting",
+    }, { onConflict: "room_id,round_number" });
+
+  if (roundError) {
+    throw roundError;
+  }
+
+  const { error: roomError } = await client
+    .from("online_rooms")
+    .update({
+      status: "ready",
+      current_round: nextRound,
+      current_player_id: firstPlayer.id,
     })
     .eq("id", room.id);
 
