@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { absoluteUrl, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { absoluteUrl, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   title: {
-    default: "Blink & Find | Free Number Hunting Memory Game",
+    default: SITE_TITLE,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
@@ -39,20 +39,20 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: absoluteUrl("/"),
     siteName: SITE_NAME,
-    title: "Blink & Find | Free Number Hunting Memory Game",
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: [
       {
         url: "/og-image.svg",
         width: 1200,
         height: 630,
-        alt: "Blink & Find scattered number memory game",
+        alt: "Blink & Find scattered number memory game board",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blink & Find | Free Number Hunting Memory Game",
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: ["/og-image.svg"],
   },
