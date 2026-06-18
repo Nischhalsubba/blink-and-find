@@ -2,14 +2,22 @@ export const SITE_URL = "https://blink-and-find.hinischalsubba.workers.dev";
 
 export const SITE_NAME = "Blink & Find";
 
+export const SITE_TITLE = "Blink & Find | Free Online Number Hunting Memory Game";
+
 export const SITE_DESCRIPTION =
-  "Play Blink & Find, a fast number hunting memory game. Memorize a target number, find it on a scattered board, and race friends online in Same Challenge or Live Race mode.";
+  "Play Blink & Find, a free online number hunting memory game. Memorize a target number, find it on a scattered board, train focus, and race friends in Same Challenge or Live Race mode.";
+
+export const RULES_DESCRIPTION =
+  "Learn how to play Blink & Find, including target preview, scoring, penalties, Same Challenge, Live Race, online rooms, and winning rules.";
 
 export const SEO_KEYWORDS = [
   "Blink and Find",
+  "Blink & Find",
   "number hunting game",
-  "memory game",
+  "memory game online",
+  "free memory game",
   "reaction game",
+  "focus training game",
   "brain training game",
   "online number game",
   "multiplayer browser game",
@@ -17,6 +25,8 @@ export const SEO_KEYWORDS = [
   "find the number game",
   "same challenge game",
   "live race game",
+  "visual memory game",
+  "attention game",
 ];
 
 export const ROUTES = [
@@ -28,7 +38,7 @@ export const ROUTES = [
   {
     path: "/rules",
     label: "Game Rules",
-    description: "Learn how to play, how scoring works, and what Same Challenge and Live Race mean.",
+    description: RULES_DESCRIPTION,
   },
   {
     path: "/online",
@@ -57,17 +67,25 @@ export function getGameJsonLd() {
         url: SITE_URL,
         description: SITE_DESCRIPTION,
         inLanguage: "en",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
       },
       {
         "@type": ["VideoGame", "WebApplication"],
         "@id": `${SITE_URL}/#game`,
         name: SITE_NAME,
+        alternateName: "Blink and Find",
         url: SITE_URL,
         description: SITE_DESCRIPTION,
         applicationCategory: "GameApplication",
-        genre: ["Memory", "Puzzle", "Reaction", "Educational"],
+        genre: ["Memory", "Puzzle", "Reaction", "Educational", "Brain Training"],
         operatingSystem: "Any modern web browser",
+        browserRequirements: "Requires JavaScript and a modern browser",
         playMode: ["SinglePlayer", "MultiPlayer"],
+        numberOfPlayers: "1-4 local players or online friends",
         isAccessibleForFree: true,
         offers: {
           "@type": "Offer",
@@ -78,6 +96,34 @@ export function getGameJsonLd() {
           "@type": "Person",
           name: "Nischhal Subba",
         },
+      },
+      {
+        "@type": "HowTo",
+        "@id": `${SITE_URL}/rules#how-to-play`,
+        name: "How to play Blink & Find",
+        description: RULES_DESCRIPTION,
+        step: [
+          {
+            "@type": "HowToStep",
+            name: "Memorize the target",
+            text: "A target number appears briefly before the round starts.",
+          },
+          {
+            "@type": "HowToStep",
+            name: "Find the hidden number",
+            text: "After the target hides, tap the matching number on the scattered board.",
+          },
+          {
+            "@type": "HowToStep",
+            name: "Avoid wrong taps",
+            text: "Wrong taps add penalty seconds to your time.",
+          },
+          {
+            "@type": "HowToStep",
+            name: "Win with the lowest total time",
+            text: "The player with the lowest total time after all rounds wins.",
+          },
+        ],
       },
     ],
   };
