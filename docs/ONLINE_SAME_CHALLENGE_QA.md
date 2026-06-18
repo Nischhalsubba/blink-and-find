@@ -1,6 +1,6 @@
 # Online Same Challenge QA
 
-Use this checklist for Priority 1: proving the online Same Challenge flow works on two different devices.
+Use this checklist to prove the online Same Challenge flow works on two different devices.
 
 ## Setup
 
@@ -14,24 +14,28 @@ Use this checklist for Priority 1: proving the online Same Challenge flow works 
 
 1. On Device A, open the deployed app.
 2. Tap **Play with Friend**.
-3. Confirm a room is created automatically.
-4. Tap **Copy Invite**.
-5. Open the invite link on Device B.
-6. Confirm Device B joins the room automatically.
-7. Confirm Device A sees both players in the lobby.
-8. On Device A, tap **Start Game**.
-9. Confirm Device A sees the ready screen.
-10. Confirm Device B sees a waiting screen.
-11. On Device A, tap **Show Target**.
-12. Confirm the target appears, then hides.
-13. Finish Device A's turn.
-14. Confirm Device B becomes the active player.
-15. Confirm Device B plays the same board and target.
-16. Finish Device B's turn.
-17. Confirm both devices reach the round summary.
-18. On Device A, start the next round.
-19. Finish all rounds.
-20. Confirm final results appear on both devices.
+3. Confirm the online screen shows **Create** and **Join** pills.
+4. On Device A, choose **Create**.
+5. Tap **Create Game**.
+6. Confirm a room code appears.
+7. Tap **Copy Invite**.
+8. Open the invite link on Device B.
+9. Confirm Device B joins the room automatically.
+10. Confirm Device A sees both players in the lobby.
+11. On Device A, tap **Start Game**.
+12. Confirm Device A sees the ready screen.
+13. Confirm Device B sees a waiting screen.
+14. On Device A, tap **Show Target**.
+15. Confirm the target appears, then hides.
+16. Finish Device A's turn.
+17. Confirm Device B becomes the active player.
+18. Confirm Device B plays the same board and target.
+19. Finish Device B's turn.
+20. Confirm both devices reach the round summary.
+21. On Device A, start the next round.
+22. Confirm the next round has a different board layout.
+23. Finish all rounds.
+24. Confirm final results appear on both devices.
 
 ## Sync Checks
 
@@ -39,6 +43,7 @@ Use this checklist for Priority 1: proving the online Same Challenge flow works 
 - Room status updates without manual refresh.
 - Waiting screen changes when the active player changes.
 - Round summary appears after all players finish.
+- Board position changes between rounds.
 - Final result appears after the last round.
 
 ## Data Checks in Supabase
@@ -57,11 +62,11 @@ For a 2-player, 5-round game, expect:
 
 ## Failure Cases
 
-- Guest opens invite before host copies it: no action needed.
-- Guest joins with bad room code: app should show an error.
+- Guest opens an invite after the room is created: guest should auto-join.
+- Guest joins with a bad room code: app should show an error.
 - Device refresh during lobby: player may need to rejoin through the invite.
 - Device refresh during active game: reconnect support is a later priority.
 
 ## Priority 1 Result
 
-Mark Priority 1 complete only after the happy path works on two real devices.
+Priority 1 is considered complete after the happy path works on two real devices and the final room status becomes `finished` in Supabase.
