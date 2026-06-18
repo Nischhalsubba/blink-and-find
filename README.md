@@ -2,19 +2,22 @@
 
 Memorize. Hide. Hunt the scattered number.
 
-Blink & Find is a fast-paced number hunting game where players race to find a flashed target number inside a scattered board. It supports single-player practice, same-device multiplayer, and the new Supabase-backed online room foundation.
+Blink & Find is a fast-paced number hunting game where players find a flashed target number inside a scattered board. It supports quick solo play, same-device multiplayer, and Supabase-backed online Same Challenge rooms for two-device play.
 
 ## Current Features
 
-- Minimal setup screen
+- One-tap **Play Now** local game
+- **Play with Friend** online entry with Create / Join pill choices
 - Single-player and same-device multiplayer modes
-- Online room create/join lobby
-- Same Challenge and Live Race room types
+- Online Same Challenge rooms with Supabase sync
+- Online invite links with auto-join support
 - Central room/player/round/result tables through Supabase
-- Dynamic player count
+- Same Challenge and Live Race room types
+- Dynamic player count for custom local games
 - Dynamic round count
 - Easy, normal, and hard board sizes
 - Scattered handwritten-style number layout
+- Per-round board reshuffle/repositioning
 - Fair seeded board generation for online play
 - Pre-turn ready screen
 - Target preview countdown
@@ -22,8 +25,9 @@ Blink & Find is a fast-paced number hunting game where players race to find a fl
 - Wrong-tap penalties
 - Round summaries
 - Final rankings and round history
-- Saved settings and best scores via local storage
-- Copyable result summary
+- Saved local settings and best scores via local storage
+- Online result saving via Supabase
+- Copyable local result summary
 - Sound effects with mute toggle
 - Mobile vibration feedback
 - Optional auto-continue after correct taps
@@ -32,6 +36,29 @@ Blink & Find is a fast-paced number hunting game where players race to find a fl
 - Reduced-motion support
 - PWA manifest and app icon
 - shadcn/ui component system with Tailwind CSS
+
+## Online Play
+
+### Same Challenge
+
+Same Challenge is playable now.
+
+Flow:
+
+1. Player A opens the app.
+2. Player A taps **Play with Friend**.
+3. Player A chooses **Create** and taps **Create Game**.
+4. Player A copies the invite link.
+5. Player B opens the invite link or joins with the room code.
+6. Player A starts the game.
+7. Each player takes a turn on their own device.
+8. Every player gets the same board and target for that round.
+9. Each new round reshuffles and repositions the board.
+10. Results are saved centrally in Supabase.
+
+### Live Race
+
+Live Race has the shared room foundation, but simultaneous race gameplay is not complete yet. It is planned after Same Challenge polish, reconnect support, and invite UX improvements.
 
 ## Stack
 
@@ -68,7 +95,7 @@ NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Then open Supabase SQL Editor and run:
+Then open Supabase SQL Editor and run the contents of:
 
 ```bash
 supabase/schema.sql
@@ -112,8 +139,10 @@ If a deployment fails after dependency changes, clear the build cache and redepl
 
 ## Product Notes
 
-The board intentionally avoids strict rows and columns. The placement is deterministic for online play, so every player in the same room receives the same scattered layout. That keeps the handmade feel without ruining multiplayer fairness, because chaos is fun only until someone loses by math crime.
+The board intentionally avoids strict rows and columns. For online play, board generation is deterministic per round, so players in the same room receive the same scattered layout. The next round uses a new seed, so the positions change without ruining multiplayer fairness. Chaos, but with paperwork.
 
-## Online Play Status
+## Current Priority Status
 
-The current online work includes the Supabase foundation, create/join room flow, lobby sync, and seeded online board generation. Same Challenge gameplay and Live Race gameplay should be connected next on top of this room state.
+- Priority 1: Two-device Same Challenge QA is confirmed working.
+- Priority 2: Documentation cleanup is in progress.
+- Next priority: Invite UX polish, including native share and QR support.
