@@ -109,18 +109,23 @@ Completed:
 
 ## Priority 8: Production security hardening
 
-Status: Next.
+Status: Complete for the anonymous MVP.
 
-Planned:
+Completed:
 
-- Stricter Supabase RLS policies.
-- Host-only start/advance checks.
-- Player-only result writes.
-- Basic abuse/rate-limit notes.
+- Added `supabase/priority8_hardening.sql` migration.
+- Added database sanity checks for rooms, players, rounds, and results.
+- Added room transition protection trigger.
+- Added result validation trigger.
+- Tightened insert policies for rooms, players, rounds, and results.
+- Documented no-auth security limits and next-step server/auth options.
+- Added `docs/PRODUCTION_SECURITY.md`.
+
+Note: true player-proof authorization still requires auth, signed tokens, or server-side Cloudflare endpoints. The current hardening protects data integrity for the no-login MVP.
 
 ## Priority 9: Build and dependency hardening
 
-Status: Not started.
+Status: Next.
 
 Planned:
 
