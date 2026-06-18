@@ -10,6 +10,7 @@ This audit covers the completed priorities and the core online flow. It is inten
 - Priority 4: Reconnect and refresh handling
 - Priority 5: Online room cleanup
 - Priority 6: Central history screen
+- Priority 7: Live Race gameplay
 
 ## Code-level Audit
 
@@ -81,6 +82,24 @@ Checks:
 - Selected room detail shows standings and round-by-round results.
 - Loading, empty, and error states exist.
 
+### Priority 7: Live Race
+
+Checks:
+
+- Live Race option starts a playable room instead of a placeholder.
+- Host creates a shared round with `round_start_at`.
+- Every player sees the same countdown.
+- Every player sees the same target during countdown.
+- The target hides when the shared race starts.
+- Every player receives the same seeded board layout.
+- Results submit once per player per round.
+- Wrong taps add penalties.
+- Round closes when every player has submitted.
+- Placements are assigned by final time.
+- Host can start the next round.
+- Final results appear after the last round.
+- Finished Live Race rooms appear in `/history`.
+
 ## Manual End-to-End Test Plan
 
 ### Local quick play
@@ -91,7 +110,7 @@ Checks:
 4. Play all rounds.
 5. Confirm final results appear.
 
-### Online happy path
+### Same Challenge happy path
 
 1. Device A opens app.
 2. Device A taps Play with Friend.
@@ -110,9 +129,34 @@ Checks:
 15. Confirm final results appear on both devices.
 16. Confirm Supabase room status is `finished`.
 
+### Live Race happy path
+
+1. Device A opens app.
+2. Device A taps Play with Friend.
+3. Device A chooses Create.
+4. Device A opens Name and options.
+5. Device A selects Live Race.
+6. Device A taps Create Game.
+7. Device B joins through invite link, QR, or room code.
+8. Device A starts game.
+9. Confirm both devices see the same countdown.
+10. Confirm both devices see the same target during countdown.
+11. Confirm the target hides on both devices when countdown ends.
+12. Confirm both players can tap at the same time.
+13. Tap wrong numbers and confirm penalties apply.
+14. Tap the correct number on both devices.
+15. Confirm each device sees submitted/waiting state.
+16. Confirm round summary appears after all players finish.
+17. Confirm placements sort by final time.
+18. Start next round.
+19. Confirm board positions change.
+20. Finish all rounds.
+21. Confirm final results appear.
+22. Open `/history` and confirm the room appears.
+
 ### History path
 
-1. Finish an online Same Challenge game.
+1. Finish an online Same Challenge or Live Race game.
 2. Open `/history` or tap View History.
 3. Confirm the room appears in Recent games.
 4. Confirm the winner matches the final result screen.
@@ -154,7 +198,7 @@ select public.abandon_stale_online_rooms(interval '0 minutes', interval '0 minut
 
 ## Known Limitations
 
-- Live Race has room foundation only.
+- Live Race is latency-tolerant, not cheat-proof.
 - Supabase RLS is still MVP-friendly and will be tightened in Priority 8.
 - Dependency pinning and CI are still pending in Priority 9.
 - Full mobile matrix testing is still pending in Priority 10.
