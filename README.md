@@ -24,6 +24,7 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - Recent finished games
 - Online player leaderboard
 - Room detail with round-by-round results
+- Database guardrails for anonymous online play
 - Central room/player/round/result tables through Supabase
 - Same Challenge and Live Race room types
 - Dynamic player count for custom local games
@@ -90,7 +91,7 @@ Flow:
 9. The round closes when every player has submitted.
 10. Results are ranked by final time.
 
-Live Race uses a shared `round_start_at` timestamp for casual latency-tolerant timing. It is fair enough for friends, not yet armored against villainous packet goblins. Security hardening comes later.
+Live Race uses a shared `round_start_at` timestamp for casual latency-tolerant timing. It is fair enough for friends, not yet armored against determined cheating. Stronger server/auth security can come after the no-login MVP.
 
 ### History
 
@@ -137,6 +138,12 @@ Then open Supabase SQL Editor and run the contents of:
 supabase/schema.sql
 ```
 
+After that, run the production hardening migration:
+
+```bash
+supabase/priority8_hardening.sql
+```
+
 The SQL creates:
 
 - `online_rooms`
@@ -144,7 +151,7 @@ The SQL creates:
 - `online_rounds`
 - `online_results`
 
-It also enables Realtime, Row Level Security policies for the MVP anonymous-room flow, and the `abandon_stale_online_rooms` cleanup helper.
+It also enables Realtime, Row Level Security policies for the MVP anonymous-room flow, the `abandon_stale_online_rooms` cleanup helper, and database guardrails for room/result integrity.
 
 ## Quality Checks
 
@@ -184,4 +191,5 @@ The board intentionally avoids strict rows and columns. For online play, board g
 - Priority 5: Online room cleanup is complete.
 - Priority 6: Central history screen is complete.
 - Priority 7: Live Race gameplay is complete.
-- Next priority: Production security hardening.
+- Priority 8: Production security hardening is complete for the anonymous MVP.
+- Next priority: Build and dependency hardening.
