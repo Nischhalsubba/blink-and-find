@@ -25,6 +25,13 @@ import {
   startOnlineRoom,
   subscribeToOnlineRoom,
 } from "@/lib/onlineRooms";
+import {
+  clearOnlineRoomSession,
+  getOnlineRoomSessionAge,
+  loadOnlineRoomSession,
+  saveOnlineRoomSession,
+  type OnlineRoomSession,
+} from "@/lib/onlineSession";
 import { hasSupabaseConfig } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { Difficulty, GameConfig } from "@/types/game";
@@ -106,14 +113,47 @@ export default function OnlinePage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [rounds, setRounds] = useState(5);
   const [penaltySeconds, setPenaltySeconds] = useState(3);
+  const [restoreSession, setRestoreSession] = useState<OnlineRoomSession | null>(null);
   const [snapshot, setSnapshot] = useState<OnlineRoomSnapshot | null>(null);
   const [localPlayer, setLocalPlayer] = useState<OnlinePlayer | null>(null);
   const [message, setMessage] = useState("");
   const [isBusy, setIsBusy] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  function rememberRoom(nextSnapshot: OnlineRoomSnapshot, nextLocalPlayer: OnlinePlayer) {
+    const session = saveOnlineRoomSession(nextSnapshot, nextLocalPlayer);
+    setRestoreSession(session);
+  }
+
+  function enterOnlineRoom(result: OnlineRoomSnapshot & { localPlayer: OnlinePlayer }, nextMessage: string) {
+    setSnapshot(result);
+    setLocalPlayer(result.localPlayer);
+    rememberRoom(result, result.localPlayer);
+    setMessage(nextMessage);
+  }
 
   async function refreshRoom(roomId: string) {
     const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
+
+    if (nextSnapshot.room.status === "abandoned") {
+      clearOnlineRoomSession();
+      setRestoreSession(null);
+      setSnapshot(null);
+      setLocalPlayer(null);
+      setMessage("That room is no longer active. Create a new room to keep playing.");
+      return;
+    }
+
+    const nextLocalPlayer = localPlayer
+      ? nextSnapshot.players.find((player) => player.id === localPlayer.id) ?? localPlayer
+      : null;
+
     setSnapshot(nextSnapshot);
+
+    if (nextLocalPlayer) {
+      setLocalPlayer(nextLocalPlayer);
+      rememberRoom(nextSnapshot, nextLocalPlayer);
+    }
   }
 
   function buildSettings(): GameConfig {
@@ -142,9 +182,7 @@ export default function OnlinePage() {
         settings: buildSettings(),
       });
 
-      setSnapshot(result);
-      setLocalPlayer(result.localPlayer);
-      setMessage("Room created. Share the invite with your friend.");
+      enterOnlineRoom(result, "Room created. Share the invite with your friend.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -152,7 +190,7 @@ export default function OnlinePage() {
     }
   }
 
-  async function quickJoinRoom(code = roomCode) {
+  async function quickJoinRoom(code = roomCode, name = playerName) {
     const normalizedCode = code.trim().toUpperCase();
 
     if (!normalizedCode) {
@@ -162,23 +200,44 @@ export default function OnlinePage() {
 
     setIsBusy(true);
     setMessage("Joining room...");
-    saveOnlineName(playerName);
+    saveOnlineName(name);
 
     try {
       const result = await joinOnlineRoom({
         code: normalizedCode,
-        playerName,
+        playerName: name,
         deviceId: getDeviceId(),
       });
 
       setRoomCode(normalizedCode);
-      setSnapshot(result);
-      setLocalPlayer(result.localPlayer);
-      setMessage("Joined room. Wait for the host to start.");
+      enterOnlineRoom(result, result.room.status === "finished" ? "Rejoined completed room." : "Joined room. Wait for the host to start.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not join room.");
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  async function restoreLastRoom(session = restoreSession) {
+    if (!session) {
+      return;
+    }
+
+    setIsRestoring(true);
+    setMessage(`Reconnecting to room ${session.roomCode}...`);
+
+    try {
+      const result = await joinOnlineRoom({
+        code: session.roomCode,
+        playerName: session.playerName || playerName,
+        deviceId: getDeviceId(),
+      });
+
+      enterOnlineRoom(result, result.room.status === "finished" ? "Rejoined completed room." : "Reconnected to your room.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not rejoin last room.");
+    } finally {
+      setIsRestoring(false);
     }
   }
 
@@ -205,18 +264,31 @@ export default function OnlinePage() {
     saveOnlineName(name);
   }
 
-  useEffect(() => {
-    setPlayerName(getDefaultOnlineName());
-  }, []);
+  function dismissLastRoom() {
+    clearOnlineRoomSession();
+    setRestoreSession(null);
+    setMessage("Last room cleared.");
+  }
+
+  function closeRoomView() {
+    setSnapshot(null);
+    setLocalPlayer(null);
+    setMessage(restoreSession ? `Room ${restoreSession.roomCode} saved. You can rejoin it from here.` : "");
+  }
 
   useEffect(() => {
-    if (autoActionStartedRef.current || !hasSupabaseConfig()) {
-      return;
-    }
-
+    const savedName = getDefaultOnlineName();
+    const savedSession = loadOnlineRoomSession();
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("room")?.toUpperCase() ?? "";
     const shouldJoin = params.get("join") === "1";
+
+    setPlayerName(savedName);
+    setRestoreSession(savedSession);
+
+    if (!hasSupabaseConfig()) {
+      return;
+    }
 
     if (codeFromUrl) {
       setRoomCode(codeFromUrl);
@@ -225,9 +297,15 @@ export default function OnlinePage() {
 
     if (codeFromUrl && shouldJoin) {
       autoActionStartedRef.current = true;
-      void quickJoinRoom(codeFromUrl);
+      void quickJoinRoom(codeFromUrl, savedName);
+      return;
     }
-  }, [playerName]);
+
+    if (savedSession && !autoActionStartedRef.current) {
+      autoActionStartedRef.current = true;
+      void restoreLastRoom(savedSession);
+    }
+  }, []);
 
   useEffect(() => {
     if (!snapshot?.room.id) {
@@ -245,7 +323,7 @@ export default function OnlinePage() {
     return () => {
       unsubscribe?.();
     };
-  }, [snapshot?.room.id]);
+  }, [snapshot?.room.id, localPlayer?.id]);
 
   if (!hasSupabaseConfig()) {
     return (
@@ -270,6 +348,25 @@ export default function OnlinePage() {
     );
   }
 
+  if (isRestoring && !snapshot) {
+    return (
+      <main className="app-shell">
+        <section className="flex h-full items-center justify-center px-2">
+          <Card className="w-full max-w-xl overflow-hidden">
+            <CardHeader className="border-b pb-4 text-center">
+              <Badge variant="secondary" className="mx-auto mb-3 w-fit">Reconnecting</Badge>
+              <CardTitle className="text-3xl font-semibold tracking-tight">Finding your room...</CardTitle>
+              <CardDescription>Restoring your game after refresh. The browser forgot, so we reminded it.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 text-center text-sm text-muted-foreground sm:p-5" role="status" aria-live="polite">
+              {message || "Reconnecting..."}
+            </CardContent>
+          </Card>
+        </section>
+      </main>
+    );
+  }
+
   if (snapshot && localPlayer) {
     const isHost = localPlayer.is_host;
     const roomStatus = snapshot.room.status;
@@ -281,7 +378,7 @@ export default function OnlinePage() {
           snapshot={snapshot}
           localPlayer={localPlayer}
           onRefresh={() => refreshRoom(snapshot.room.id)}
-          onBackToLobby={() => setSnapshot(null)}
+          onBackToLobby={closeRoomView}
         />
       );
     }
@@ -297,7 +394,7 @@ export default function OnlinePage() {
                 <CardDescription>The room is synced. Simultaneous gameplay is the next build step.</CardDescription>
               </CardHeader>
               <CardFooter className="border-t p-4 sm:p-5">
-                <Button variant="outline" onClick={() => setSnapshot(null)}>Back</Button>
+                <Button variant="outline" onClick={closeRoomView}>Back</Button>
               </CardFooter>
             </Card>
           </section>
@@ -346,9 +443,7 @@ export default function OnlinePage() {
             </CardContent>
 
             <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <Button asChild variant="outline">
-                <Link href="/">Back</Link>
-              </Button>
+              <Button variant="outline" onClick={closeRoomView}>Back</Button>
               {isHost && roomStatus === "lobby" && (
                 <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
                   {snapshot.players.length < 2 ? "Waiting for Friend" : "Start Game"}
@@ -372,6 +467,22 @@ export default function OnlinePage() {
           </CardHeader>
 
           <CardContent className="grid gap-4 p-4 sm:p-5">
+            {restoreSession && (
+              <div className="grid gap-3 rounded-xl border bg-muted/20 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="font-semibold">Rejoin room {restoreSession.roomCode}</div>
+                    <div className="text-muted-foreground">{restoreSession.playerName} · {getOnlineRoomSessionAge(restoreSession)}</div>
+                  </div>
+                  <Badge variant="outline">Saved</Badge>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button onClick={() => restoreLastRoom()} disabled={isBusy || isRestoring}>Rejoin Last Room</Button>
+                  <Button variant="outline" onClick={dismissLastRoom}>Dismiss</Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex rounded-full border bg-muted/20 p-1" aria-label="Choose online action">
               <button
                 type="button"
