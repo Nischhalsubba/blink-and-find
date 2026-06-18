@@ -11,6 +11,9 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - Single-player and same-device multiplayer modes
 - Online Same Challenge rooms with Supabase sync
 - Online invite links with auto-join support
+- Native share invite flow where supported
+- QR code invite for room joining
+- Copy-link fallback for invite sharing
 - Central room/player/round/result tables through Supabase
 - Same Challenge and Live Race room types
 - Dynamic player count for custom local games
@@ -48,8 +51,8 @@ Flow:
 1. Player A opens the app.
 2. Player A taps **Play with Friend**.
 3. Player A chooses **Create** and taps **Create Game**.
-4. Player A copies the invite link.
-5. Player B opens the invite link or joins with the room code.
+4. Player A shares the invite link, shows the QR code, or gives Player B the room code.
+5. Player B opens the invite link, scans the QR code, or joins with the room code.
 6. Player A starts the game.
 7. Each player takes a turn on their own device.
 8. Every player gets the same board and target for that round.
@@ -69,7 +72,7 @@ Live Race has the shared room foundation, but simultaneous race gameplay is not 
 - shadcn/ui-style components
 - Radix UI primitives
 - Supabase
-- Vercel
+- Cloudflare Pages
 
 ## Development
 
@@ -119,23 +122,21 @@ npm run build
 
 ## Deployment Notes
 
-This project is ready for Vercel deployment.
+This project is hosted on Cloudflare Pages.
 
-Because the app now uses Tailwind CSS, Radix UI, Supabase, and shadcn-style components, make sure Vercel installs fresh dependencies after pulling the latest `package.json` changes.
-
-Recommended Vercel settings:
+Recommended Cloudflare Pages settings:
 
 - Framework preset: Next.js
 - Install command: `npm install`
 - Build command: `npm run build`
-- Output directory: default Next.js output
+- Output directory: use the default Cloudflare Pages output for the selected Next.js preset
 
-Add these Vercel environment variables:
+Add these Cloudflare Pages environment variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-If a deployment fails after dependency changes, clear the build cache and redeploy.
+If a deployment fails after dependency changes, retry the deployment after Cloudflare has installed the latest dependency graph. The machines are dramatic, but they do eventually read `package.json`.
 
 ## Product Notes
 
@@ -144,5 +145,6 @@ The board intentionally avoids strict rows and columns. For online play, board g
 ## Current Priority Status
 
 - Priority 1: Two-device Same Challenge QA is confirmed working.
-- Priority 2: Documentation cleanup is in progress.
-- Next priority: Invite UX polish, including native share and QR support.
+- Priority 2: Documentation cleanup is complete, including Cloudflare Pages notes.
+- Priority 3: Invite UX polish is complete with native share, QR, and copy fallback.
+- Next priority: Reconnect and refresh handling.
