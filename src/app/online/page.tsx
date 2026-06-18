@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getDeviceId } from "@/lib/device";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
+import { abandonStaleOnlineRooms, isOnlineRoomStale } from "@/lib/onlineCleanup";
 import {
   createOnlineRoom,
   fetchOnlineRoomSnapshot,
@@ -120,12 +121,40 @@ export default function OnlinePage() {
   const [isBusy, setIsBusy] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
+  async function runStaleRoomCleanup(showResult = false) {
+    try {
+      const result = await abandonStaleOnlineRooms();
+      const total = result.lobbyAbandoned + result.activeAbandoned;
+
+      if (showResult && total > 0) {
+        setMessage(`Cleaned up ${total} stale room${total === 1 ? "" : "s"}.`);
+      }
+
+      return result;
+    } catch (error) {
+      if (showResult) {
+        setMessage(error instanceof Error ? error.message : "Could not clean up stale rooms.");
+      }
+
+      return null;
+    }
+  }
+
   function rememberRoom(nextSnapshot: OnlineRoomSnapshot, nextLocalPlayer: OnlinePlayer) {
     const session = saveOnlineRoomSession(nextSnapshot, nextLocalPlayer);
     setRestoreSession(session);
   }
 
   function enterOnlineRoom(result: OnlineRoomSnapshot & { localPlayer: OnlinePlayer }, nextMessage: string) {
+    if (result.room.status === "abandoned" || isOnlineRoomStale(result.room)) {
+      clearOnlineRoomSession();
+      setRestoreSession(null);
+      setSnapshot(null);
+      setLocalPlayer(null);
+      setMessage("That room is no longer active. Create a new room to keep playing.");
+      return;
+    }
+
     setSnapshot(result);
     setLocalPlayer(result.localPlayer);
     rememberRoom(result, result.localPlayer);
@@ -135,7 +164,8 @@ export default function OnlinePage() {
   async function refreshRoom(roomId: string) {
     const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
 
-    if (nextSnapshot.room.status === "abandoned") {
+    if (nextSnapshot.room.status === "abandoned" || isOnlineRoomStale(nextSnapshot.room)) {
+      await runStaleRoomCleanup(false);
       clearOnlineRoomSession();
       setRestoreSession(null);
       setSnapshot(null);
@@ -175,6 +205,7 @@ export default function OnlinePage() {
     saveOnlineName(playerName);
 
     try {
+      await runStaleRoomCleanup(false);
       const result = await createOnlineRoom({
         playerName,
         deviceId: getDeviceId(),
@@ -203,6 +234,7 @@ export default function OnlinePage() {
     saveOnlineName(name);
 
     try {
+      await runStaleRoomCleanup(false);
       const result = await joinOnlineRoom({
         code: normalizedCode,
         playerName: name,
@@ -227,6 +259,7 @@ export default function OnlinePage() {
     setMessage(`Reconnecting to room ${session.roomCode}...`);
 
     try {
+      await runStaleRoomCleanup(false);
       const result = await joinOnlineRoom({
         code: session.roomCode,
         playerName: session.playerName || playerName,
@@ -235,6 +268,8 @@ export default function OnlinePage() {
 
       enterOnlineRoom(result, result.room.status === "finished" ? "Rejoined completed room." : "Reconnected to your room.");
     } catch (error) {
+      clearOnlineRoomSession();
+      setRestoreSession(null);
       setMessage(error instanceof Error ? error.message : "Could not rejoin last room.");
     } finally {
       setIsRestoring(false);
@@ -277,34 +312,40 @@ export default function OnlinePage() {
   }
 
   useEffect(() => {
-    const savedName = getDefaultOnlineName();
-    const savedSession = loadOnlineRoomSession();
-    const params = new URLSearchParams(window.location.search);
-    const codeFromUrl = params.get("room")?.toUpperCase() ?? "";
-    const shouldJoin = params.get("join") === "1";
+    async function initializeOnlinePage() {
+      const savedName = getDefaultOnlineName();
+      const savedSession = loadOnlineRoomSession();
+      const params = new URLSearchParams(window.location.search);
+      const codeFromUrl = params.get("room")?.toUpperCase() ?? "";
+      const shouldJoin = params.get("join") === "1";
 
-    setPlayerName(savedName);
-    setRestoreSession(savedSession);
+      setPlayerName(savedName);
+      setRestoreSession(savedSession);
 
-    if (!hasSupabaseConfig()) {
-      return;
+      if (!hasSupabaseConfig()) {
+        return;
+      }
+
+      await runStaleRoomCleanup(false);
+
+      if (codeFromUrl) {
+        setRoomCode(codeFromUrl);
+        setAction("join");
+      }
+
+      if (codeFromUrl && shouldJoin) {
+        autoActionStartedRef.current = true;
+        await quickJoinRoom(codeFromUrl, savedName);
+        return;
+      }
+
+      if (savedSession && !autoActionStartedRef.current) {
+        autoActionStartedRef.current = true;
+        await restoreLastRoom(savedSession);
+      }
     }
 
-    if (codeFromUrl) {
-      setRoomCode(codeFromUrl);
-      setAction("join");
-    }
-
-    if (codeFromUrl && shouldJoin) {
-      autoActionStartedRef.current = true;
-      void quickJoinRoom(codeFromUrl, savedName);
-      return;
-    }
-
-    if (savedSession && !autoActionStartedRef.current) {
-      autoActionStartedRef.current = true;
-      void restoreLastRoom(savedSession);
-    }
+    void initializeOnlinePage();
   }, []);
 
   useEffect(() => {
