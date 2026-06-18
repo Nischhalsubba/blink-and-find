@@ -78,6 +78,7 @@ create table if not exists public.online_results (
 );
 
 create index if not exists online_rooms_code_idx on public.online_rooms(code);
+create index if not exists online_rooms_status_updated_at_idx on public.online_rooms(status, updated_at);
 create index if not exists online_players_room_id_idx on public.online_players(room_id);
 create index if not exists online_rounds_room_id_idx on public.online_rounds(room_id);
 create index if not exists online_results_room_id_idx on public.online_results(room_id);
@@ -99,6 +100,39 @@ drop trigger if exists online_players_set_updated_at on public.online_players;
 create trigger online_players_set_updated_at
 before update on public.online_players
 for each row execute function public.set_updated_at();
+
+create or replace function public.abandon_stale_online_rooms(
+  lobby_cutoff interval default interval '2 hours',
+  active_cutoff interval default interval '6 hours'
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  lobby_count integer := 0;
+  active_count integer := 0;
+begin
+  update public.online_rooms
+  set status = 'abandoned', current_player_id = null
+  where status = 'lobby'
+    and updated_at < now() - lobby_cutoff;
+
+  get diagnostics lobby_count = row_count;
+
+  update public.online_rooms
+  set status = 'abandoned', current_player_id = null
+  where status in ('ready', 'playing', 'round_summary')
+    and updated_at < now() - active_cutoff;
+
+  get diagnostics active_count = row_count;
+
+  return lobby_count + active_count;
+end;
+$$;
+
+grant execute on function public.abandon_stale_online_rooms(interval, interval) to anon, authenticated;
 
 do $$
 begin
