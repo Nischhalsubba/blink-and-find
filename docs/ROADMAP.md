@@ -91,19 +91,25 @@ Completed:
 
 ## Priority 7: Live Race gameplay
 
-Status: Next.
+Status: Complete.
 
-Planned:
+Completed:
 
-- Shared countdown.
-- Simultaneous same-board play.
-- Client reaction-time submission.
-- Round placement ranking.
-- Latency-tolerant result handling.
+- Shared `round_start_at` countdown.
+- Simultaneous same-board and same-target play.
+- Target preview during countdown.
+- Target hides when the shared race starts.
+- Client reaction-time submission based on the shared start timestamp.
+- Wrong-tap penalties in Live Race.
+- Result-submitted waiting state.
+- Round placement ranking after every player finishes.
+- Host-controlled next round flow.
+- Final results and central history support.
+- `docs/ONLINE_LIVE_RACE.md` documents gameplay, fairness rules, and QA.
 
 ## Priority 8: Production security hardening
 
-Status: Not started.
+Status: Next.
 
 Planned:
 
