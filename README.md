@@ -2,7 +2,7 @@
 
 Memorize. Hide. Hunt the scattered number.
 
-Blink & Find is a fast-paced number hunting game where players find a flashed target number inside a scattered board. It supports quick solo play, same-device multiplayer, and Supabase-backed online Same Challenge rooms for two-device play.
+Blink & Find is a fast-paced number hunting game where players find a flashed target number inside a scattered board. It supports quick solo play, same-device multiplayer, Supabase-backed online Same Challenge rooms, and online Live Race rooms for two-device play.
 
 ## Current Features
 
@@ -10,6 +10,9 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - **Play with Friend** online entry with Create / Join pill choices
 - Single-player and same-device multiplayer modes
 - Online Same Challenge rooms with Supabase sync
+- Online Live Race rooms with shared countdown
+- Same-board simultaneous play for Live Race
+- Live Race result placement after every player finishes
 - Online invite links with auto-join support
 - Native share invite flow where supported
 - QR code invite for room joining
@@ -70,13 +73,28 @@ If a player refreshes, the app saves the last room locally and can restore the r
 
 Unfinished stale rooms are marked `abandoned` automatically. Lobbies expire after 2 idle hours; active rooms expire after 6 idle hours. Finished rooms stay available on the central history screen.
 
+### Live Race
+
+Live Race is playable now.
+
+Flow:
+
+1. Player A taps **Play with Friend**.
+2. Player A opens **Name and options**.
+3. Player A selects **Live Race**.
+4. Player A creates the room and invites Player B.
+5. Player A starts the game after Player B joins.
+6. Both players see the same countdown, same target, and same board.
+7. When the countdown reaches zero, the target hides and both players race at the same time.
+8. Correct taps submit results to Supabase.
+9. The round closes when every player has submitted.
+10. Results are ranked by final time.
+
+Live Race uses a shared `round_start_at` timestamp for casual latency-tolerant timing. It is fair enough for friends, not yet armored against villainous packet goblins. Security hardening comes later.
+
 ### History
 
 Open `/history` or tap **View History** on the setup screen to see finished online rooms, winners, player leaderboard, and round-by-round room details.
-
-### Live Race
-
-Live Race has the shared room foundation, but simultaneous race gameplay is not complete yet. It is planned after production hardening and build hardening.
 
 ## Stack
 
@@ -165,4 +183,5 @@ The board intentionally avoids strict rows and columns. For online play, board g
 - Priority 4: Reconnect and refresh handling is complete.
 - Priority 5: Online room cleanup is complete.
 - Priority 6: Central history screen is complete.
-- Next priority: Live Race gameplay.
+- Priority 7: Live Race gameplay is complete.
+- Next priority: Production security hardening.
