@@ -19,6 +19,7 @@ import {
   startNextOnlineRound,
   submitSameChallengeResult,
 } from "@/lib/onlineRooms";
+import { finishOnlineRoom } from "@/lib/onlineRoomStatus";
 import type { GamePhase, TurnResult } from "@/types/game";
 import type { OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
@@ -238,11 +239,22 @@ export default function OnlineSameChallengeGame({
     }
   }
 
+  async function handleFinishGame() {
+    setMessage("");
+
+    try {
+      await finishOnlineRoom(room);
+      await onRefresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not finish online game.");
+    }
+  }
+
   if (!currentRound && room.status !== "lobby") {
     return (
       <WaitingCard
         title="Preparing online round"
-        description="The host has started the room. Waiting for the round to appear. Yes, distributed state is needy."
+        description="The host has started the room. Waiting for the round to appear."
         onBack={onBackToLobby}
       />
     );
@@ -258,7 +270,7 @@ export default function OnlineSameChallengeGame({
             players={gamePlayers}
             results={gameResults}
             onNextRound={handleNextRound}
-            onFinishGame={onRefresh}
+            onFinishGame={handleFinishGame}
           />
           {message && <p className="sr-only" role="status">{message}</p>}
         </main>
@@ -268,7 +280,7 @@ export default function OnlineSameChallengeGame({
     return (
       <WaitingCard
         title={`Round ${room.current_round} complete`}
-        description="Waiting for the host to start the next round. Power corrupts, even tiny host buttons."
+        description="Waiting for the host to start the next round."
         onBack={onBackToLobby}
       />
     );
