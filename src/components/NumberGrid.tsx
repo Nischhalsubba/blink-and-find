@@ -7,6 +7,7 @@ interface NumberGridProps {
   targetNumber: number | null;
   selectedNumber: number | null;
   isSelectionWrong: boolean;
+  scatterKey?: string | number;
   disabled?: boolean;
   onSelect?: (value: number) => void;
 }
@@ -24,6 +25,18 @@ interface PlacedTile {
 function seededFraction(seed: number): number {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function getScatterSeed(scatterKey: string | number | undefined): number {
+  if (typeof scatterKey === "number") {
+    return scatterKey;
+  }
+
+  if (!scatterKey) {
+    return 1;
+  }
+
+  return Array.from(scatterKey).reduce((total, char) => total + char.charCodeAt(0), 0);
 }
 
 function getTileSize(count: number): number {
@@ -62,10 +75,10 @@ function scoreCandidate(candidate: PlacedTile, placed: PlacedTile[]): number {
   );
 }
 
-function createCandidate(number: number, index: number, attempt: number, tileSize: number): PlacedTile {
+function createCandidate(number: number, index: number, attempt: number, tileSize: number, scatterSeed: number): PlacedTile {
   const usableArea = 100 - tileSize;
-  const x = seededFraction(number * 97 + index * 131 + attempt * 17) * usableArea + tileSize / 2;
-  const y = seededFraction(number * 193 + index * 53 + attempt * 29) * usableArea + tileSize / 2;
+  const x = seededFraction(number * 97 + index * 131 + attempt * 17 + scatterSeed * 41) * usableArea + tileSize / 2;
+  const y = seededFraction(number * 193 + index * 53 + attempt * 29 + scatterSeed * 67) * usableArea + tileSize / 2;
 
   return {
     centerX: x,
@@ -74,17 +87,18 @@ function createCandidate(number: number, index: number, attempt: number, tileSiz
   };
 }
 
-function getScatteredStyles(numbers: number[]): Map<number, NumberTileStyle> {
+function getScatteredStyles(numbers: number[], scatterKey?: string | number): Map<number, NumberTileStyle> {
   const tileSize = getTileSize(numbers.length);
+  const scatterSeed = getScatterSeed(scatterKey);
   const placed: PlacedTile[] = [];
   const styles = new Map<number, NumberTileStyle>();
 
   numbers.forEach((number, index) => {
-    let bestCandidate = createCandidate(number, index, 0, tileSize);
+    let bestCandidate = createCandidate(number, index, 0, tileSize, scatterSeed);
     let bestScore = -1;
 
     for (let attempt = 0; attempt < 90; attempt += 1) {
-      const candidate = createCandidate(number, index, attempt, tileSize);
+      const candidate = createCandidate(number, index, attempt, tileSize, scatterSeed);
       const candidateScore = scoreCandidate(candidate, placed);
 
       if (!overlaps(candidate, placed)) {
@@ -100,7 +114,7 @@ function getScatteredStyles(numbers: number[]): Map<number, NumberTileStyle> {
 
     placed.push(bestCandidate);
 
-    const rotation = (seededFraction(number * 7 + index * 13) - 0.5) * 16;
+    const rotation = (seededFraction(number * 7 + index * 13 + scatterSeed * 19) - 0.5) * 16;
     styles.set(number, {
       left: `${bestCandidate.centerX - tileSize / 2}%`,
       top: `${bestCandidate.centerY - tileSize / 2}%`,
@@ -129,10 +143,11 @@ export default function NumberGrid({
   targetNumber,
   selectedNumber,
   isSelectionWrong,
+  scatterKey,
   disabled = false,
   onSelect,
 }: NumberGridProps) {
-  const scatteredStyles = getScatteredStyles(numbers);
+  const scatteredStyles = getScatteredStyles(numbers, scatterKey);
 
   function getTileState(number: number) {
     const isSelected = selectedNumber === number;
