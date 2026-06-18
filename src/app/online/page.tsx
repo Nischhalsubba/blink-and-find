@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,6 +64,14 @@ export default function OnlinePage() {
     const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
     setSnapshot(nextSnapshot);
   }
+
+  useEffect(() => {
+    const codeFromUrl = new URLSearchParams(window.location.search).get("room");
+
+    if (codeFromUrl) {
+      setRoomCode(codeFromUrl.toUpperCase());
+    }
+  }, []);
 
   useEffect(() => {
     if (!snapshot?.room.id) {
@@ -189,6 +198,38 @@ export default function OnlinePage() {
     const isHost = localPlayer.is_host;
     const roomStatus = snapshot.room.status;
 
+    if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
+      return (
+        <OnlineSameChallengeGame
+          snapshot={snapshot}
+          localPlayer={localPlayer}
+          onRefresh={() => refreshRoom(snapshot.room.id)}
+          onBackToLobby={() => setSnapshot(null)}
+        />
+      );
+    }
+
+    if (roomStatus !== "lobby" && snapshot.room.game_type === "live_race") {
+      return (
+        <main className="app-shell">
+          <section className="flex h-full items-center justify-center px-2">
+            <Card className="w-full max-w-xl overflow-hidden">
+              <CardHeader className="border-b pb-4">
+                <Badge variant="secondary" className="mb-3 w-fit">Live Race</Badge>
+                <CardTitle className="text-3xl font-semibold tracking-tight">Live Race foundation ready</CardTitle>
+                <CardDescription>
+                  Room sync is active. The synchronized countdown and simultaneous race gameplay come next.
+                </CardDescription>
+              </CardHeader>
+              <CardFooter className="border-t p-4 sm:p-5">
+                <Button variant="outline" onClick={() => setSnapshot(null)}>Back</Button>
+              </CardFooter>
+            </Card>
+          </section>
+        </main>
+      );
+    }
+
     return (
       <main className="app-shell">
         <section className="flex h-full items-center justify-center px-2">
@@ -234,12 +275,6 @@ export default function OnlinePage() {
                 </div>
               </div>
 
-              {roomStatus !== "lobby" && (
-                <div className="rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
-                  First online sync is ready. Next step is connecting this room state to the shared turn-based gameplay screen.
-                </div>
-              )}
-
               {message && <div className="text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
 
@@ -270,7 +305,7 @@ export default function OnlinePage() {
             <Badge variant="secondary" className="mb-3 w-fit">Online Play</Badge>
             <CardTitle className="text-3xl font-semibold tracking-tight">Create or join a room</CardTitle>
             <CardDescription>
-              Same Challenge is turn-based. Live Race is planned on the same room foundation.
+              Same Challenge is playable now. Live Race uses the same lobby foundation and comes next.
             </CardDescription>
           </CardHeader>
 
