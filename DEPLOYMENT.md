@@ -20,11 +20,11 @@ NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Do not commit real Supabase values to GitHub. Public keys belong in Vercel/local env config, not in the repo, because the repo does not need to cosplay as a leak bucket.
+Do not commit real Supabase values to GitHub. Public keys belong in Vercel/local env config, not in the repo. The repo does not need to cosplay as a leak bucket.
 
 ## Supabase Database
 
-Open the Supabase SQL Editor and run:
+Open the Supabase SQL Editor and run the contents of:
 
 ```bash
 supabase/schema.sql
@@ -61,12 +61,17 @@ These are referenced from the Next.js metadata in `src/app/layout.tsx`.
 After deployment, test:
 
 - Setup screen opens cleanly on desktop and mobile
-- Online button opens `/online`
-- Host can create an online room
-- Guest can join by room code
-- Lobby updates when the second player joins
+- **Play Now** starts a local solo game immediately
+- **Play with Friend** opens `/online`
+- Online screen shows **Create** and **Join** pill choices
+- Host can create an online room from **Create Game**
 - Host can copy invite link
+- Guest can auto-join from invite link
+- Guest can join manually by room code
+- Lobby updates when the second player joins
 - Host can start the online room
+- Same Challenge turn flow works on two devices
+- Board positions change on the next round
 - Single-player game starts
 - Same-device multiplayer game shows the ready screen for each player
 - Target preview hides correctly
@@ -79,3 +84,7 @@ After deployment, test:
 - Round summary appears after all local players finish
 - Final result screen shows ranking and history
 - Copy result works in browsers that support clipboard access
+
+## Release Verification
+
+Before marking a deployment as good, confirm the Vercel Production deployment points to the latest GitHub commit on `main`. If Production is behind, redeploy the newest commit manually from Vercel Deployments. Computers enjoy technicalities. Apparently this is culture now.
