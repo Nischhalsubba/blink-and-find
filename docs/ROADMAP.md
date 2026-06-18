@@ -27,22 +27,24 @@ Updated:
 - `DEPLOYMENT.md`
 - `docs/ONLINE_SAME_CHALLENGE_QA.md`
 - `docs/ROADMAP.md`
+- Cloudflare Pages deployment notes
 
 ## Priority 3: Invite UX polish
 
-Status: Next.
+Status: Complete.
 
-Planned:
+Completed:
 
 - Native Share button when supported.
 - QR code for room invite.
-- Copy fallback for unsupported browsers.
+- Copy-link fallback for unsupported browsers.
 - Clearer host lobby instructions.
 - Better guest join messaging.
+- Room code remains visible for manual join.
 
 ## Priority 4: Reconnect and refresh handling
 
-Status: Not started.
+Status: Next.
 
 Planned:
 
@@ -107,6 +109,7 @@ Planned:
 - Verify `npm run typecheck`.
 - Verify `npm run build`.
 - Add GitHub Actions CI.
+- Verify Cloudflare Pages production build.
 
 ## Priority 10: Mobile gameplay QA
 
