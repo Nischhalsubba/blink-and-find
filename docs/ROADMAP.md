@@ -44,19 +44,22 @@ Completed:
 
 ## Priority 4: Reconnect and refresh handling
 
-Status: Next.
+Status: Complete.
 
-Planned:
+Completed:
 
-- Save current room id/code in localStorage.
-- Restore current room after refresh.
-- Show **Rejoin last room**.
+- Save current online room in localStorage.
+- Restore room after browser refresh.
+- Show **Rejoin Last Room** when a saved room exists.
 - Preserve local player identity through device id.
-- Handle abandoned rooms cleanly.
+- Keep realtime subscriptions alive after reconnect.
+- Block brand-new players from joining a game that already started.
+- Handle abandoned rooms by clearing the saved session.
+- Recover active player turns after refresh with a **Restart Turn** flow.
 
 ## Priority 5: Online room cleanup
 
-Status: Not started.
+Status: Next.
 
 Planned:
 
