@@ -59,17 +59,22 @@ Completed:
 
 ## Priority 5: Online room cleanup
 
-Status: Next.
+Status: Complete.
 
-Planned:
+Completed:
 
-- Mark old rooms as abandoned.
-- Add cleanup SQL or scheduled cleanup instructions.
-- Avoid central database clutter from half-created rooms.
+- App-side cleanup marks stale unfinished rooms as `abandoned`.
+- Lobby rooms are abandoned after 2 idle hours.
+- Ready, playing, and round-summary rooms are abandoned after 6 idle hours.
+- Finished rooms are retained for future central history.
+- Rejoin flow clears saved sessions for abandoned rooms.
+- `supabase/schema.sql` includes cleanup index and `abandon_stale_online_rooms` SQL helper.
+- `docs/ONLINE_ROOM_CLEANUP.md` documents policy, verification queries, and QA.
+- `docs/QA_AUDIT.md` tracks completed-priority QA and end-to-end checks.
 
 ## Priority 6: Central history screen
 
-Status: Not started.
+Status: Next.
 
 Planned:
 
