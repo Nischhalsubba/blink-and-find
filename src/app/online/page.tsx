@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import { hasSupabaseConfig } from "@/lib/supabase";
 import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
+const ONLINE_NAME_KEY = "blink-and-find-online-name";
+
 const DEFAULT_CONFIG: GameConfig = {
   mode: "multiplayer",
   difficulty: "normal",
@@ -48,13 +50,29 @@ function getDifficultyConfig(difficulty: Difficulty) {
   return DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
 }
 
+function getDefaultOnlineName(): string {
+  if (typeof window === "undefined") {
+    return "Player";
+  }
+
+  return window.localStorage.getItem(ONLINE_NAME_KEY) || "Player";
+}
+
+function saveOnlineName(name: string) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ONLINE_NAME_KEY, name.trim() || "Player");
+  }
+}
+
 export default function OnlinePage() {
+  const autoActionStartedRef = useRef(false);
   const [playerName, setPlayerName] = useState("Player");
   const [roomCode, setRoomCode] = useState("");
   const [gameType, setGameType] = useState<OnlineGameType>("same_challenge");
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [rounds, setRounds] = useState(5);
   const [penaltySeconds, setPenaltySeconds] = useState(3);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [snapshot, setSnapshot] = useState<OnlineRoomSnapshot | null>(null);
   const [localPlayer, setLocalPlayer] = useState<OnlinePlayer | null>(null);
   const [message, setMessage] = useState("");
@@ -65,13 +83,140 @@ export default function OnlinePage() {
     setSnapshot(nextSnapshot);
   }
 
+  function buildSettings(): GameConfig {
+    const selectedDifficulty = getDifficultyConfig(difficulty);
+
+    return {
+      ...DEFAULT_CONFIG,
+      difficulty,
+      boardSize: selectedDifficulty.boardSize,
+      totalRounds: Math.max(1, Math.min(rounds, 20)),
+      flashDurationMs: selectedDifficulty.flashDurationMs,
+      penaltySeconds: Math.max(0, Math.min(penaltySeconds, 10)),
+    };
+  }
+
+  async function quickCreateRoom() {
+    setIsBusy(true);
+    setMessage("Creating a room...");
+    saveOnlineName(playerName);
+
+    try {
+      const result = await createOnlineRoom({
+        playerName,
+        deviceId: getDeviceId(),
+        gameType,
+        settings: buildSettings(),
+      });
+
+      setSnapshot(result);
+      setLocalPlayer(result.localPlayer);
+      setMessage("Room created. Share the invite link with your friend.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create room.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function quickJoinRoom(code = roomCode) {
+    const normalizedCode = code.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      setMessage("Enter the room code from your friend.");
+      return;
+    }
+
+    setIsBusy(true);
+    setMessage("Joining room...");
+    saveOnlineName(playerName);
+
+    try {
+      const result = await joinOnlineRoom({
+        code: normalizedCode,
+        playerName,
+        deviceId: getDeviceId(),
+      });
+
+      setRoomCode(normalizedCode);
+      setSnapshot(result);
+      setLocalPlayer(result.localPlayer);
+      setMessage("Joined room.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not join room.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleStartRoom() {
+    if (!snapshot) {
+      return;
+    }
+
+    setIsBusy(true);
+    setMessage("Starting game...");
+
+    try {
+      await startOnlineRoom(snapshot.room, snapshot.players);
+      await refreshRoom(snapshot.room.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not start room.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function copyInvite() {
+    if (!snapshot) {
+      return;
+    }
+
+    const inviteUrl = `${window.location.origin}/online?room=${snapshot.room.code}&join=1`;
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setMessage("Invite link copied. Send it to your friend.");
+    } catch {
+      setMessage(inviteUrl);
+    }
+  }
+
+  function updatePlayerName(name: string) {
+    setPlayerName(name);
+    saveOnlineName(name);
+  }
+
   useEffect(() => {
-    const codeFromUrl = new URLSearchParams(window.location.search).get("room");
+    const savedName = getDefaultOnlineName();
+    setPlayerName(savedName);
+  }, []);
+
+  useEffect(() => {
+    if (autoActionStartedRef.current || !hasSupabaseConfig()) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = params.get("room")?.toUpperCase() ?? "";
+    const shouldJoin = params.get("join") === "1";
+    const shouldHost = params.get("host") === "1";
 
     if (codeFromUrl) {
-      setRoomCode(codeFromUrl.toUpperCase());
+      setRoomCode(codeFromUrl);
     }
-  }, []);
+
+    if (codeFromUrl && shouldJoin) {
+      autoActionStartedRef.current = true;
+      void quickJoinRoom(codeFromUrl);
+      return;
+    }
+
+    if (shouldHost) {
+      autoActionStartedRef.current = true;
+      void quickCreateRoom();
+    }
+  }, [playerName]);
 
   useEffect(() => {
     if (!snapshot?.room.id) {
@@ -91,84 +236,6 @@ export default function OnlinePage() {
     };
   }, [snapshot?.room.id]);
 
-  async function handleCreateRoom() {
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      const selectedDifficulty = getDifficultyConfig(difficulty);
-      const settings: GameConfig = {
-        ...DEFAULT_CONFIG,
-        difficulty,
-        boardSize: selectedDifficulty.boardSize,
-        totalRounds: Math.max(1, Math.min(rounds, 20)),
-        flashDurationMs: selectedDifficulty.flashDurationMs,
-        penaltySeconds: Math.max(0, Math.min(penaltySeconds, 10)),
-      };
-      const result = await createOnlineRoom({
-        playerName,
-        deviceId: getDeviceId(),
-        gameType,
-        settings,
-      });
-
-      setSnapshot(result);
-      setLocalPlayer(result.localPlayer);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create room.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleJoinRoom() {
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      const result = await joinOnlineRoom({
-        code: roomCode,
-        playerName,
-        deviceId: getDeviceId(),
-      });
-
-      setSnapshot(result);
-      setLocalPlayer(result.localPlayer);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not join room.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleStartRoom() {
-    if (!snapshot) {
-      return;
-    }
-
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      await startOnlineRoom(snapshot.room, snapshot.players);
-      await refreshRoom(snapshot.room.id);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start room.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function copyInvite() {
-    if (!snapshot) {
-      return;
-    }
-
-    const inviteUrl = `${window.location.origin}/online?room=${snapshot.room.code}`;
-    await navigator.clipboard.writeText(inviteUrl);
-    setMessage("Invite link copied.");
-  }
-
   if (!hasSupabaseConfig()) {
     return (
       <main className="app-shell">
@@ -177,7 +244,7 @@ export default function OnlinePage() {
             <CardHeader>
               <CardTitle>Online Play needs Supabase</CardTitle>
               <CardDescription>
-                Add the Supabase environment variables locally and in Vercel. Software, naturally, refuses to read minds.
+                Add the Supabase environment variables locally and in Vercel.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
@@ -234,17 +301,12 @@ export default function OnlinePage() {
       <main className="app-shell">
         <section className="flex h-full items-center justify-center px-2">
           <Card className="w-full max-w-2xl overflow-hidden">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <Badge variant="secondary" className="mb-3">Online Room</Badge>
-                  <CardTitle className="text-3xl font-semibold tracking-tight">Room {snapshot.room.code}</CardTitle>
-                  <CardDescription>
-                    {snapshot.room.game_type === "same_challenge" ? "Same Challenge" : "Live Race"} · {roomStatus}
-                  </CardDescription>
-                </div>
-                <Badge variant="outline">{snapshot.players.length} players</Badge>
-              </div>
+            <CardHeader className="border-b pb-4 text-center">
+              <Badge variant="secondary" className="mx-auto mb-3 w-fit">Room ready</Badge>
+              <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
+              <CardDescription>
+                Send this code or invite link to your friend. They just open it and join.
+              </CardDescription>
             </CardHeader>
 
             <CardContent className="grid gap-4 p-4 sm:p-5">
@@ -260,33 +322,24 @@ export default function OnlinePage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <div className="text-muted-foreground">Rounds</div>
-                  <div className="font-semibold">{snapshot.room.settings.totalRounds}</div>
-                </div>
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <div className="text-muted-foreground">Tiles</div>
-                  <div className="font-semibold">{snapshot.room.settings.boardSize}</div>
-                </div>
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <div className="text-muted-foreground">Penalty</div>
-                  <div className="font-semibold">+{snapshot.room.settings.penaltySeconds}s</div>
-                </div>
+              <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
+                {snapshot.players.length < 2
+                  ? "Waiting for one more player. Copy the invite link and send it."
+                  : "Everyone is here. Host can start the game."}
               </div>
 
-              {message && <div className="text-sm text-muted-foreground" role="status">{message}</div>}
+              {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
 
             <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <Button asChild variant="outline">
                 <Link href="/">Back</Link>
               </Button>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <Button variant="outline" onClick={copyInvite}>Copy Invite</Button>
                 {isHost && roomStatus === "lobby" && (
                   <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
-                    Start Room
+                    Start Game
                   </Button>
                 )}
               </div>
@@ -301,68 +354,81 @@ export default function OnlinePage() {
     <main className="app-shell">
       <section className="flex h-full items-center justify-center px-2">
         <Card className="w-full max-w-2xl overflow-hidden">
-          <CardHeader className="border-b pb-4">
-            <Badge variant="secondary" className="mb-3 w-fit">Online Play</Badge>
-            <CardTitle className="text-3xl font-semibold tracking-tight">Create or join a room</CardTitle>
+          <CardHeader className="border-b pb-4 text-center">
+            <Badge variant="secondary" className="mx-auto mb-3 w-fit">Online Play</Badge>
+            <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Play with a friend</CardTitle>
             <CardDescription>
-              Same Challenge is playable now. Live Race uses the same lobby foundation and comes next.
+              One tap creates a room. A shared link lets your friend join without figuring out the machinery. Humanity gets one win.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="grid gap-5 p-4 sm:p-5">
-            <div className="grid gap-2">
-              <Label htmlFor="player-name">Your name</Label>
-              <Input id="player-name" value={playerName} onChange={(event) => setPlayerName(event.target.value)} />
-            </div>
+          <CardContent className="grid gap-4 p-4 sm:p-5">
+            <Button size="lg" className="h-14 text-base" onClick={quickCreateRoom} disabled={isBusy}>
+              {isBusy ? "Working..." : "Create Game"}
+            </Button>
 
             <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-              <div className="grid gap-2">
-                <Label htmlFor="game-type">Game type</Label>
-                <Select value={gameType} onValueChange={(value) => setGameType(value as OnlineGameType)}>
-                  <SelectTrigger id="game-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="same_challenge">Same Challenge</SelectItem>
-                    <SelectItem value="live_race">Live Race</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Label htmlFor="room-code">Join with room code</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="room-code"
+                  value={roomCode}
+                  onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
+                  placeholder="AB123"
+                />
+                <Button variant="outline" onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>
+                  Join
+                </Button>
               </div>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="grid gap-2 sm:col-span-1">
-                  <Label htmlFor="online-difficulty">Difficulty</Label>
-                  <Select value={difficulty} onValueChange={(value) => setDifficulty(value as Difficulty)}>
-                    <SelectTrigger id="online-difficulty"><SelectValue /></SelectTrigger>
+            <div className="grid gap-2 rounded-lg border bg-muted/20 p-3">
+              <Label htmlFor="player-name">Your name</Label>
+              <Input id="player-name" value={playerName} onChange={(event) => updatePlayerName(event.target.value)} />
+            </div>
+
+            <Button variant="ghost" onClick={() => setShowAdvanced((current) => !current)}>
+              {showAdvanced ? "Hide options" : "Game options"}
+            </Button>
+
+            {showAdvanced && (
+              <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="game-type">Game type</Label>
+                  <Select value={gameType} onValueChange={(value) => setGameType(value as OnlineGameType)}>
+                    <SelectTrigger id="game-type"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {DIFFICULTIES.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
-                      ))}
+                      <SelectItem value="same_challenge">Same Challenge</SelectItem>
+                      <SelectItem value="live_race">Live Race</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="online-rounds">Rounds</Label>
-                  <Input id="online-rounds" min={1} max={20} type="number" value={rounds} onChange={(event) => setRounds(Number(event.target.value))} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="online-penalty">Penalty</Label>
-                  <Input id="online-penalty" min={0} max={10} type="number" value={penaltySeconds} onChange={(event) => setPenaltySeconds(Number(event.target.value))} />
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-2 sm:col-span-1">
+                    <Label htmlFor="online-difficulty">Difficulty</Label>
+                    <Select value={difficulty} onValueChange={(value) => setDifficulty(value as Difficulty)}>
+                      <SelectTrigger id="online-difficulty"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIFFICULTIES.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="online-rounds">Rounds</Label>
+                    <Input id="online-rounds" min={1} max={20} type="number" value={rounds} onChange={(event) => setRounds(Number(event.target.value))} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="online-penalty">Penalty</Label>
+                    <Input id="online-penalty" min={0} max={10} type="number" value={penaltySeconds} onChange={(event) => setPenaltySeconds(Number(event.target.value))} />
+                  </div>
                 </div>
               </div>
+            )}
 
-              <Button onClick={handleCreateRoom} disabled={isBusy}>Create Room</Button>
-            </div>
-
-            <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-              <div className="grid gap-2">
-                <Label htmlFor="room-code">Room code</Label>
-                <Input id="room-code" value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} placeholder="AB123" />
-              </div>
-              <Button variant="outline" onClick={handleJoinRoom} disabled={isBusy || roomCode.trim().length === 0}>Join Room</Button>
-            </div>
-
-            {message && <div className="text-sm text-muted-foreground" role="status">{message}</div>}
+            {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
           </CardContent>
 
           <CardFooter className="border-t p-4 sm:p-5">
