@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import InvitePanel from "@/components/InvitePanel";
 import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,16 @@ function saveOnlineName(name: string) {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ONLINE_NAME_KEY, name.trim() || "Player");
   }
+}
+
+function getInviteUrl(roomCode: string): string {
+  const path = `/online?room=${roomCode}&join=1`;
+
+  if (typeof window === "undefined") {
+    return path;
+  }
+
+  return `${window.location.origin}${path}`;
 }
 
 function ChoicePill({
@@ -133,7 +144,7 @@ export default function OnlinePage() {
 
       setSnapshot(result);
       setLocalPlayer(result.localPlayer);
-      setMessage("Room created. Share the invite link.");
+      setMessage("Room created. Share the invite with your friend.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -163,7 +174,7 @@ export default function OnlinePage() {
       setRoomCode(normalizedCode);
       setSnapshot(result);
       setLocalPlayer(result.localPlayer);
-      setMessage("Joined room.");
+      setMessage("Joined room. Wait for the host to start.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not join room.");
     } finally {
@@ -186,21 +197,6 @@ export default function OnlinePage() {
       setMessage(error instanceof Error ? error.message : "Could not start room.");
     } finally {
       setIsBusy(false);
-    }
-  }
-
-  async function copyInvite() {
-    if (!snapshot) {
-      return;
-    }
-
-    const inviteUrl = `${window.location.origin}/online?room=${snapshot.room.code}&join=1`;
-
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setMessage("Invite copied. Send it to your friend.");
-    } catch {
-      setMessage(inviteUrl);
     }
   }
 
@@ -258,7 +254,7 @@ export default function OnlinePage() {
           <Card className="w-full max-w-xl">
             <CardHeader>
               <CardTitle>Online Play needs Supabase</CardTitle>
-              <CardDescription>Add the Supabase environment variables locally and in Vercel.</CardDescription>
+              <CardDescription>Add the Supabase environment variables locally and in Cloudflare Pages.</CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then run the SQL in supabase/schema.sql.
@@ -277,6 +273,7 @@ export default function OnlinePage() {
   if (snapshot && localPlayer) {
     const isHost = localPlayer.is_host;
     const roomStatus = snapshot.room.status;
+    const inviteUrl = getInviteUrl(snapshot.room.code);
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
       return (
@@ -315,7 +312,9 @@ export default function OnlinePage() {
             <CardHeader className="border-b pb-4 text-center">
               <Badge variant="secondary" className="mx-auto mb-3 w-fit">Room ready</Badge>
               <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
-              <CardDescription>Share the invite. Start when your friend appears.</CardDescription>
+              <CardDescription>
+                {isHost ? "Share the invite, then start when your friend appears." : "You joined. Wait for the host to start."}
+              </CardDescription>
             </CardHeader>
 
             <CardContent className="grid gap-4 p-4 sm:p-5">
@@ -331,6 +330,14 @@ export default function OnlinePage() {
                 ))}
               </div>
 
+              {isHost ? (
+                <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} />
+              ) : (
+                <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
+                  You are in room <span className="font-semibold text-foreground">{snapshot.room.code}</span>. Keep this screen open and wait for the host to start.
+                </div>
+              )}
+
               <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
                 {snapshot.players.length < 2 ? "Waiting for your friend..." : "Friend joined. Ready to start."}
               </div>
@@ -342,14 +349,11 @@ export default function OnlinePage() {
               <Button asChild variant="outline">
                 <Link href="/">Back</Link>
               </Button>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <Button variant="outline" onClick={copyInvite}>Copy Invite</Button>
-                {isHost && roomStatus === "lobby" && (
-                  <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
-                    Start Game
-                  </Button>
-                )}
-              </div>
+              {isHost && roomStatus === "lobby" && (
+                <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
+                  {snapshot.players.length < 2 ? "Waiting for Friend" : "Start Game"}
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </section>
