@@ -157,6 +157,11 @@ export async function joinOnlineRoom(params: {
   }
 
   const room = roomData as OnlineRoom;
+
+  if (room.status === "abandoned") {
+    throw new Error("That room is no longer active. Create a new room instead.");
+  }
+
   const { data: existingPlayer } = await client
     .from("online_players")
     .select("*")
@@ -165,6 +170,10 @@ export async function joinOnlineRoom(params: {
     .maybeSingle();
 
   let localPlayer = existingPlayer as OnlinePlayer | null;
+
+  if (!localPlayer && room.status !== "lobby") {
+    throw new Error("That game already started. Ask the host to create a new room.");
+  }
 
   if (!localPlayer) {
     const { data: playerData, error: playerError } = await client
