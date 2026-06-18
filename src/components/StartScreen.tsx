@@ -50,7 +50,7 @@ function ChoicePill({
       onClick={onClick}
       className={cn(
         "rounded-full border font-medium transition-all",
-        compact ? "px-3 py-2 text-sm" : "px-4 py-2 text-sm",
+        compact ? "min-h-10 px-3 py-2 text-sm" : "px-4 py-2 text-sm",
         active
           ? "border-primary bg-primary text-primary-foreground shadow-xs"
           : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -119,21 +119,21 @@ export default function StartScreen({
 
   if (settingsOpen) {
     return (
-      <section className="flex h-full min-h-0 items-center justify-center px-2">
-        <Card className="flex max-h-full w-full max-w-lg flex-col overflow-hidden">
-          <CardHeader className="shrink-0 border-b p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+      <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto px-2 py-2 sm:items-center">
+        <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden">
+          <CardHeader className="shrink-0 border-b p-3 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <Badge variant="secondary" className="mb-2 w-fit">Settings</Badge>
-                <CardTitle className="text-2xl font-semibold tracking-tight sm:text-3xl">Customize game</CardTitle>
-                <CardDescription className="mt-1">Compact controls. No giant dropdown circus.</CardDescription>
+                <CardTitle className="truncate text-xl font-semibold tracking-tight sm:text-3xl">Customize game</CardTitle>
+                <CardDescription className="mt-1 hidden sm:block">Compact controls without the old dropdown sprawl.</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={() => setSettingsOpen(false)}>Done</Button>
             </div>
           </CardHeader>
 
-          <CardContent className="grid min-h-0 gap-3 p-4 sm:p-5">
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+          <CardContent className="grid min-h-0 gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-5">
+            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
               <Label>Local mode</Label>
               <div className="grid grid-cols-2 gap-2">
                 <ChoicePill compact active={mode === "single"} onClick={() => onModeChange("single")}>
@@ -145,7 +145,7 @@ export default function StartScreen({
               </div>
             </div>
 
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
               <Label>Difficulty</Label>
               <div className="grid grid-cols-3 gap-2">
                 {DIFFICULTIES.map((item) => (
@@ -156,7 +156,7 @@ export default function StartScreen({
               </div>
             </div>
 
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
               <Label>Players</Label>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((count) => (
@@ -175,12 +175,12 @@ export default function StartScreen({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
                 <Label htmlFor="rounds">Rounds</Label>
                 <Input
                   id="rounds"
-                  className="h-11 text-center text-base"
+                  className="h-10 text-center text-base sm:h-11"
                   min={1}
                   max={20}
                   type="number"
@@ -189,11 +189,11 @@ export default function StartScreen({
                 />
               </div>
 
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
                 <Label htmlFor="penalty">Penalty</Label>
                 <Input
                   id="penalty"
-                  className="h-11 text-center text-base"
+                  className="h-10 text-center text-base sm:h-11"
                   min={0}
                   max={10}
                   type="number"
@@ -204,7 +204,7 @@ export default function StartScreen({
             </div>
 
             {mode === "multiplayer" && (
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-3">
+              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
                 <div className="flex items-center justify-between">
                   <Label>Names</Label>
                   <Badge variant="outline">{playerNames.length}</Badge>
@@ -224,7 +224,7 @@ export default function StartScreen({
             )}
           </CardContent>
 
-          <CardFooter className="shrink-0 border-t p-4 sm:p-5">
+          <CardFooter className="shrink-0 border-t p-3 sm:p-5">
             <Button className="h-12 w-full text-base" onClick={handleCustomStart}>Start Custom Game</Button>
           </CardFooter>
         </Card>
