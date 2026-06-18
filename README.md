@@ -25,6 +25,8 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - Online player leaderboard
 - Room detail with round-by-round results
 - Database guardrails for anonymous online play
+- CI workflow for lint, typecheck, build, and audit
+- Mobile-safe active gameplay layout
 - Central room/player/round/result tables through Supabase
 - Same Challenge and Live Race room types
 - Dynamic player count for custom local games
@@ -156,9 +158,17 @@ It also enables Realtime, Row Level Security policies for the MVP anonymous-room
 ## Quality Checks
 
 ```bash
-npm run typecheck
-npm run build
+npm run check
+npm run audit:prod
 ```
+
+Generate the npm lockfile locally once:
+
+```bash
+npm install --package-lock-only
+```
+
+Then commit `package-lock.json` so future CI can switch to `npm ci`.
 
 ## Deployment Notes
 
@@ -192,4 +202,5 @@ The board intentionally avoids strict rows and columns. For online play, board g
 - Priority 6: Central history screen is complete.
 - Priority 7: Live Race gameplay is complete.
 - Priority 8: Production security hardening is complete for the anonymous MVP.
-- Next priority: Build and dependency hardening.
+- Priority 9: Build and dependency hardening is complete, with local lockfile follow-up.
+- Priority 10: Mobile gameplay QA fixes and checklist are complete.
