@@ -15,9 +15,9 @@ export default function TargetDisplay({
   hidden = false,
 }: TargetDisplayProps) {
   return (
-    <Card className="h-full gap-2 overflow-hidden py-3 text-center">
-      <CardContent className="flex h-full flex-col items-center justify-center px-3">
-        <Badge variant="outline" className="mb-2">
+    <Card className="h-full gap-1 overflow-hidden py-2 text-center sm:gap-2 sm:py-3">
+      <CardContent className="flex h-full flex-col items-center justify-center px-2 sm:px-3">
+        <Badge variant="outline" className="mb-1 text-[11px] sm:mb-2 sm:text-xs">
           Target
         </Badge>
 
