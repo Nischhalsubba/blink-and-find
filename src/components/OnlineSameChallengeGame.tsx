@@ -30,7 +30,19 @@ interface OnlineSameChallengeGameProps {
   onBackToLobby: () => void;
 }
 
-function WaitingCard({ title, description, onBack }: { title: string; description: string; onBack: () => void }) {
+function WaitingCard({
+  title,
+  description,
+  actionLabel,
+  onAction,
+  onBack,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onBack: () => void;
+}) {
   return (
     <main className="app-shell">
       <section className="flex h-full items-center justify-center px-2">
@@ -43,8 +55,9 @@ function WaitingCard({ title, description, onBack }: { title: string; descriptio
           <CardContent className="p-4 text-sm text-muted-foreground sm:p-5" role="status" aria-live="polite">
             This screen updates automatically when the room changes.
           </CardContent>
-          <CardFooter className="border-t p-4 sm:p-5">
+          <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-between sm:p-5">
             <Button variant="outline" onClick={onBack}>Back to Lobby</Button>
+            {actionLabel && onAction && <Button onClick={onAction}>{actionLabel}</Button>}
           </CardFooter>
         </Card>
       </section>
@@ -311,7 +324,19 @@ export default function OnlineSameChallengeGame({
     );
   }
 
-  if (phase === "ready" && room.status !== "playing") {
+  if (phase === "ready" && room.status === "playing") {
+    return (
+      <WaitingCard
+        title="Reconnect your turn"
+        description="Your browser refreshed during this turn. Restart the preview to continue with the same target and board. No result was submitted yet."
+        actionLabel="Restart Turn"
+        onAction={startTurn}
+        onBack={onBackToLobby}
+      />
+    );
+  }
+
+  if (phase === "ready") {
     return (
       <main className="app-shell">
         <ReadyScreen
