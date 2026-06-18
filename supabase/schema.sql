@@ -31,13 +31,20 @@ create table if not exists public.online_players (
   unique(room_id, device_id)
 );
 
-alter table public.online_rooms
-  add constraint if not exists online_rooms_host_player_id_fkey
-  foreign key (host_player_id) references public.online_players(id) on delete set null;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'online_rooms_host_player_id_fkey') then
+    alter table public.online_rooms
+      add constraint online_rooms_host_player_id_fkey
+      foreign key (host_player_id) references public.online_players(id) on delete set null;
+  end if;
 
-alter table public.online_rooms
-  add constraint if not exists online_rooms_current_player_id_fkey
-  foreign key (current_player_id) references public.online_players(id) on delete set null;
+  if not exists (select 1 from pg_constraint where conname = 'online_rooms_current_player_id_fkey') then
+    alter table public.online_rooms
+      add constraint online_rooms_current_player_id_fkey
+      foreign key (current_player_id) references public.online_players(id) on delete set null;
+  end if;
+end $$;
 
 create table if not exists public.online_rounds (
   id uuid primary key default gen_random_uuid(),
@@ -93,10 +100,48 @@ create trigger online_players_set_updated_at
 before update on public.online_players
 for each row execute function public.set_updated_at();
 
-alter publication supabase_realtime add table public.online_rooms;
-alter publication supabase_realtime add table public.online_players;
-alter publication supabase_realtime add table public.online_rounds;
-alter publication supabase_realtime add table public.online_results;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on c.oid = pr.prrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    join pg_publication p on p.oid = pr.prpubid
+    where p.pubname = 'supabase_realtime' and n.nspname = 'public' and c.relname = 'online_rooms'
+  ) then
+    alter publication supabase_realtime add table public.online_rooms;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on c.oid = pr.prrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    join pg_publication p on p.oid = pr.prpubid
+    where p.pubname = 'supabase_realtime' and n.nspname = 'public' and c.relname = 'online_players'
+  ) then
+    alter publication supabase_realtime add table public.online_players;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on c.oid = pr.prrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    join pg_publication p on p.oid = pr.prpubid
+    where p.pubname = 'supabase_realtime' and n.nspname = 'public' and c.relname = 'online_rounds'
+  ) then
+    alter publication supabase_realtime add table public.online_rounds;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_rel pr
+    join pg_class c on c.oid = pr.prrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    join pg_publication p on p.oid = pr.prpubid
+    where p.pubname = 'supabase_realtime' and n.nspname = 'public' and c.relname = 'online_results'
+  ) then
+    alter publication supabase_realtime add table public.online_results;
+  end if;
+end $$;
 
 alter table public.online_rooms enable row level security;
 alter table public.online_players enable row level security;
