@@ -125,26 +125,42 @@ Note: true player-proof authorization still requires auth, signed tokens, or ser
 
 ## Priority 9: Build and dependency hardening
 
-Status: Next.
+Status: Complete, with one local lockfile follow-up.
 
-Planned:
+Completed:
 
-- Pin dependency versions.
-- Generate/update lockfile.
-- Verify `npm run typecheck`.
-- Verify `npm run build`.
-- Add GitHub Actions CI.
-- Verify Cloudflare Pages production build.
+- Removed `latest` dependency versions.
+- Added explicit package versions.
+- Added Node engine metadata.
+- Added `packageManager` metadata.
+- Added `.nvmrc` and `.node-version`.
+- Added `.npmrc` exact-save defaults.
+- Added ESLint flat config.
+- Added `npm run check`.
+- Added production dependency audit script.
+- Added GitHub Actions CI.
+- Added `docs/BUILD_HARDENING.md`.
+
+Follow-up:
+
+- Generate and commit `package-lock.json` locally with `npm install --package-lock-only`. The GitHub connector cannot safely generate a real npm lockfile without running npm against the registry.
 
 ## Priority 10: Mobile gameplay QA
 
-Status: Not started.
+Status: Complete at code and checklist level; physical-device QA still needs deployment testing.
 
-Planned:
+Completed:
 
-- Test small phones.
-- Test large phones.
-- Test tablets.
-- Verify hard board density.
-- Verify invite flow on mobile browsers.
-- Verify tap targets and scroll/overflow behavior.
+- Fixed active-game mobile header overflow.
+- Shortened quit action on mobile.
+- Compacted target and timer cards on mobile.
+- Hardened viewport sizing with `dvh` and `dvw`.
+- Added safe-area padding.
+- Bounded number grid to available viewport space.
+- Improved mobile tile readability.
+- Added `docs/MOBILE_QA.md`.
+- Updated `docs/QA_AUDIT.md` with mobile QA coverage.
+
+Follow-up:
+
+- Test on small phone, large phone, tablet, and in-app browsers after Cloudflare deploy.
