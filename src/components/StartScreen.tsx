@@ -236,8 +236,11 @@ export default function StartScreen({
           </details>
         </CardContent>
 
-        <CardFooter className="justify-center border-t p-4 text-sm text-muted-foreground sm:p-5">
-          Find the hidden number faster than your friend. That is mercifully all.
+        <CardFooter className="flex flex-col gap-2 border-t p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <span>Find the hidden number faster than your friend.</span>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/history">View History</Link>
+          </Button>
         </CardFooter>
       </Card>
     </section>
