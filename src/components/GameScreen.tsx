@@ -25,6 +25,7 @@ interface GameScreenProps {
   statusMessage: string;
   isMuted: boolean;
   autoContinue: boolean;
+  boardScatterKey?: string | number;
   onNumberSelect: (value: number) => void;
   onContinue: () => void;
   onBackToSetup: () => void;
@@ -53,6 +54,7 @@ export default function GameScreen({
   statusMessage,
   isMuted,
   autoContinue,
+  boardScatterKey,
   onNumberSelect,
   onContinue,
   onBackToSetup,
@@ -97,6 +99,7 @@ export default function GameScreen({
               targetNumber={targetNumber}
               selectedNumber={lastSelectedNumber}
               isSelectionWrong={lastSelectionWasWrong}
+              scatterKey={boardScatterKey ?? currentRound}
               disabled={phase !== "playing"}
               onSelect={onNumberSelect}
             />
