@@ -94,7 +94,7 @@ export default function StartScreen({
                 Game setup
               </CardTitle>
               <CardDescription className="mt-2">
-                Choose local play or create an online room.
+                Start locally, or create an online room in one tap.
               </CardDescription>
             </div>
           </div>
@@ -203,7 +203,7 @@ export default function StartScreen({
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline">
-              <Link href="/online">Online</Link>
+              <Link href="/online?host=1">Host Online</Link>
             </Button>
             <Button onClick={handleStart}>
               Start
