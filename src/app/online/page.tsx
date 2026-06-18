@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import InvitePanel from "@/components/InvitePanel";
+import OnlineLiveRaceGame from "@/components/OnlineLiveRaceGame";
 import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -426,20 +427,12 @@ export default function OnlinePage() {
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "live_race") {
       return (
-        <main className="app-shell">
-          <section className="flex h-full items-center justify-center px-2">
-            <Card className="w-full max-w-xl overflow-hidden">
-              <CardHeader className="border-b pb-4">
-                <Badge variant="secondary" className="mb-3 w-fit">Live Race</Badge>
-                <CardTitle className="text-3xl font-semibold tracking-tight">Live Race is coming next</CardTitle>
-                <CardDescription>The room is synced. Simultaneous gameplay is the next build step.</CardDescription>
-              </CardHeader>
-              <CardFooter className="border-t p-4 sm:p-5">
-                <Button variant="outline" onClick={closeRoomView}>Back</Button>
-              </CardFooter>
-            </Card>
-          </section>
-        </main>
+        <OnlineLiveRaceGame
+          snapshot={snapshot}
+          localPlayer={localPlayer}
+          onRefresh={() => refreshRoom(snapshot.room.id)}
+          onBackToLobby={closeRoomView}
+        />
       );
     }
 
