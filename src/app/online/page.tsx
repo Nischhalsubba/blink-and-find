@@ -95,7 +95,6 @@ export default function OnlinePage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [rounds, setRounds] = useState(5);
   const [penaltySeconds, setPenaltySeconds] = useState(3);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [snapshot, setSnapshot] = useState<OnlineRoomSnapshot | null>(null);
   const [localPlayer, setLocalPlayer] = useState<OnlinePlayer | null>(null);
   const [message, setMessage] = useState("");
@@ -222,7 +221,6 @@ export default function OnlinePage() {
     const params = new URLSearchParams(window.location.search);
     const codeFromUrl = params.get("room")?.toUpperCase() ?? "";
     const shouldJoin = params.get("join") === "1";
-    const shouldHost = params.get("host") === "1";
 
     if (codeFromUrl) {
       setRoomCode(codeFromUrl);
@@ -232,12 +230,6 @@ export default function OnlinePage() {
     if (codeFromUrl && shouldJoin) {
       autoActionStartedRef.current = true;
       void quickJoinRoom(codeFromUrl);
-      return;
-    }
-
-    if (shouldHost) {
-      autoActionStartedRef.current = true;
-      void quickCreateRoom();
     }
   }, [playerName]);
 
