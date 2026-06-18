@@ -2,25 +2,35 @@
 
 ## Platform
 
-Recommended deployment target: Vercel.
+Current deployment target: Cloudflare Pages.
+
+Production URL:
+
+```txt
+https://blink-and-find.hinischalsubba.workers.dev/
+```
 
 ## Build Settings
+
+Use the Cloudflare Pages Next.js preset.
+
+Recommended settings:
 
 - Framework preset: Next.js
 - Install command: `npm install`
 - Build command: `npm run build`
-- Output directory: use the default Next.js output
+- Output directory: use the default output from Cloudflare's Next.js preset
 
 ## Environment Variables
 
-Add these in Vercel Project Settings > Environment Variables:
+Add these in Cloudflare Pages Project Settings > Environment Variables:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Do not commit real Supabase values to GitHub. Public keys belong in Vercel/local env config, not in the repo. The repo does not need to cosplay as a leak bucket.
+Do not commit real Supabase values to GitHub. Public keys belong in Cloudflare/local env config, not in the repo. The repo does not need to cosplay as a leak bucket.
 
 ## Supabase Database
 
@@ -44,7 +54,7 @@ npm run build
 
 ## Dependency Notes
 
-The project uses Tailwind CSS, shadcn/ui-style components, Radix UI primitives, Supabase, and Next.js. If Vercel fails after a package update, clear the Vercel build cache and redeploy so the latest dependency graph is installed cleanly.
+The project uses Tailwind CSS, shadcn/ui-style components, Radix UI primitives, Supabase, QR code generation, and Next.js. If Cloudflare fails after a package update, retry the deployment so the latest dependency graph is installed cleanly.
 
 ## PWA Assets
 
@@ -65,9 +75,12 @@ After deployment, test:
 - **Play with Friend** opens `/online`
 - Online screen shows **Create** and **Join** pill choices
 - Host can create an online room from **Create Game**
-- Host can copy invite link
+- Host sees room code, QR code, native share/copy buttons
+- Host can share invite through native share where supported
+- Host can copy invite link as fallback
 - Guest can auto-join from invite link
 - Guest can join manually by room code
+- Guest can scan QR code to join
 - Lobby updates when the second player joins
 - Host can start the online room
 - Same Challenge turn flow works on two devices
@@ -87,4 +100,4 @@ After deployment, test:
 
 ## Release Verification
 
-Before marking a deployment as good, confirm the Vercel Production deployment points to the latest GitHub commit on `main`. If Production is behind, redeploy the newest commit manually from Vercel Deployments. Computers enjoy technicalities. Apparently this is culture now.
+Before marking a deployment as good, confirm Cloudflare Pages is building the latest GitHub commit on `main`. If production is behind, trigger a new Cloudflare Pages deployment. Machines enjoy technicalities. Apparently this is culture now.
