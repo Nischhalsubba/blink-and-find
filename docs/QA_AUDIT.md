@@ -9,6 +9,7 @@ This audit covers the completed priorities and the core online flow. It is inten
 - Priority 3: Invite UX polish
 - Priority 4: Reconnect and refresh handling
 - Priority 5: Online room cleanup
+- Priority 6: Central history screen
 
 ## Code-level Audit
 
@@ -66,6 +67,20 @@ Checks:
 - App-side cleanup runs during online entry, create, join, restore, and refresh.
 - SQL helper exists for manual or scheduled cleanup.
 
+### Priority 6: History
+
+Checks:
+
+- `/history` route exists.
+- Setup screen links to `/history`.
+- Finished rooms load from Supabase.
+- Abandoned rooms are hidden.
+- Recent games show winner, player count, and completion date.
+- Player leaderboard ranks by wins, average time, and wrong taps.
+- Current browser/device is marked with **You** when applicable.
+- Selected room detail shows standings and round-by-round results.
+- Loading, empty, and error states exist.
+
 ## Manual End-to-End Test Plan
 
 ### Local quick play
@@ -94,6 +109,19 @@ Checks:
 14. Finish all rounds.
 15. Confirm final results appear on both devices.
 16. Confirm Supabase room status is `finished`.
+
+### History path
+
+1. Finish an online Same Challenge game.
+2. Open `/history` or tap View History.
+3. Confirm the room appears in Recent games.
+4. Confirm the winner matches the final result screen.
+5. Click View on the room.
+6. Confirm player totals appear.
+7. Confirm round-by-round rows match the game results.
+8. Confirm the leaderboard includes both players.
+9. Confirm current browser shows **You** when applicable.
+10. Confirm abandoned rooms do not appear.
 
 ### Reconnect path
 
@@ -127,7 +155,6 @@ select public.abandon_stale_online_rooms(interval '0 minutes', interval '0 minut
 ## Known Limitations
 
 - Live Race has room foundation only.
-- Central history screen is not built yet.
 - Supabase RLS is still MVP-friendly and will be tightened in Priority 8.
 - Dependency pinning and CI are still pending in Priority 9.
 - Full mobile matrix testing is still pending in Priority 10.
