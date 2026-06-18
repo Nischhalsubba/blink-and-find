@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,7 +94,7 @@ export default function StartScreen({
                 Game setup
               </CardTitle>
               <CardDescription className="mt-2">
-                Choose the basics, then start.
+                Choose local play or create an online room.
               </CardDescription>
             </div>
           </div>
@@ -109,7 +110,7 @@ export default function StartScreen({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single">Single Player</SelectItem>
-                  <SelectItem value="multiplayer">Multiplayer</SelectItem>
+                  <SelectItem value="multiplayer">Same Device</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -196,13 +197,18 @@ export default function StartScreen({
           )}
         </CardContent>
 
-        <CardFooter className="flex items-center justify-between gap-3 border-t p-4 sm:p-5">
+        <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="text-sm text-muted-foreground">
             {selectedDifficulty.boardSize} tiles · {selectedDifficulty.flashDurationMs / 1000}s preview
           </div>
-          <Button onClick={handleStart}>
-            Start
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/online">Online</Link>
+            </Button>
+            <Button onClick={handleStart}>
+              Start
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </section>
