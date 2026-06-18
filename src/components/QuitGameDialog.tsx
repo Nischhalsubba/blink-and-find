@@ -22,8 +22,9 @@ export default function QuitGameDialog({ onConfirm }: QuitGameDialogProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Back to Setup
+        <Button variant="outline" size="sm" className="h-7 min-w-0 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm">
+          <span className="sm:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Setup</span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
