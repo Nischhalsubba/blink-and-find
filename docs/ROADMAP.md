@@ -74,18 +74,24 @@ Completed:
 
 ## Priority 6: Central history screen
 
-Status: Next.
+Status: Complete.
 
-Planned:
+Completed:
 
-- Recent online games.
-- Room result history.
-- Best online scores.
-- Player history by device/name.
+- `/history` central online history route.
+- Recent finished games table.
+- Room winner summary.
+- Player leaderboard grouped by browser/device and player name.
+- **You** badge for the current browser/device.
+- Room detail panel with standings.
+- Round-by-round result history.
+- Empty, loading, and error states.
+- Setup screen **View History** link.
+- `docs/ONLINE_HISTORY.md` documents the screen and QA.
 
 ## Priority 7: Live Race gameplay
 
-Status: Foundation only.
+Status: Next.
 
 Planned:
 
