@@ -134,7 +134,7 @@ export default function StartScreen({
           </Button>
 
           <Button asChild size="lg" variant="outline" className="h-16 text-lg">
-            <Link href="/online?host=1">Play with Friend</Link>
+            <Link href="/online">Play with Friend</Link>
           </Button>
 
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
