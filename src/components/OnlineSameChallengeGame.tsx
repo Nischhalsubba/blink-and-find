@@ -345,6 +345,7 @@ export default function OnlineSameChallengeGame({
       statusMessage={message || statusMessage}
       isMuted={isMuted}
       autoContinue={autoContinue}
+      boardScatterKey={currentRound ? `${currentRound.seed}-${room.current_round}` : room.current_round}
       onNumberSelect={handleNumberSelect}
       onContinue={onRefresh}
       onBackToSetup={onBackToLobby}
