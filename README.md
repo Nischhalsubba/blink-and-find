@@ -16,6 +16,7 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - Copy-link fallback for invite sharing
 - Rejoin-last-room support after refresh
 - Active-turn recovery after refresh
+- Stale online room cleanup
 - Central room/player/round/result tables through Supabase
 - Same Challenge and Live Race room types
 - Dynamic player count for custom local games
@@ -63,9 +64,11 @@ Flow:
 
 If a player refreshes, the app saves the last room locally and can restore the room automatically or through **Rejoin Last Room**. If the active player refreshes mid-turn, the app offers **Restart Turn** on the same board and target instead of leaving the room stuck. Tiny mercy, since browsers do enjoy forgetting things at the worst possible time.
 
+Unfinished stale rooms are marked `abandoned` automatically. Lobbies expire after 2 idle hours; active rooms expire after 6 idle hours. Finished rooms stay available for the future central history screen.
+
 ### Live Race
 
-Live Race has the shared room foundation, but simultaneous race gameplay is not complete yet. It is planned after room cleanup, central history, and production hardening.
+Live Race has the shared room foundation, but simultaneous race gameplay is not complete yet. It is planned after central history and production hardening.
 
 ## Stack
 
@@ -115,7 +118,7 @@ The SQL creates:
 - `online_rounds`
 - `online_results`
 
-It also enables Realtime and Row Level Security policies for the MVP anonymous-room flow.
+It also enables Realtime, Row Level Security policies for the MVP anonymous-room flow, and the `abandon_stale_online_rooms` cleanup helper.
 
 ## Quality Checks
 
@@ -152,4 +155,5 @@ The board intentionally avoids strict rows and columns. For online play, board g
 - Priority 2: Documentation cleanup is complete, including Cloudflare Pages notes.
 - Priority 3: Invite UX polish is complete with native share, QR, and copy fallback.
 - Priority 4: Reconnect and refresh handling is complete.
-- Next priority: Online room cleanup.
+- Priority 5: Online room cleanup is complete.
+- Next priority: Central history screen.
