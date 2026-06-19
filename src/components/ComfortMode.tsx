@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,10 @@ export default function ComfortMode() {
     setPhase("complete");
     setMessage("Found it. Nice and steady.");
   }
+
+  useEffect(() => {
+    return () => clearTimers();
+  }, []);
 
   return (
     <main className="app-shell overflow-auto">
