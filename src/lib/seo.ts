@@ -28,6 +28,24 @@ export const STREAK_DESCRIPTION =
 export const STATS_DESCRIPTION =
   "View your Blink & Find personal stats, local best scores, practice rounds, daily challenge results, streak bests, and achievements.";
 
+export const CHALLENGE_DESCRIPTION =
+  "Play a shared Blink & Find challenge link with the same seeded board and target as your friends.";
+
+export const COMFORT_DESCRIPTION =
+  "Play Blink & Find Comfort Mode with a smaller board, larger tiles, longer preview, and gentler penalties for kids, seniors, and first-time players.";
+
+export const ZEN_DESCRIPTION =
+  "Play Blink & Find Zen Mode with endless calm boards, visible targets, no timer, and no score pressure.";
+
+export const TIPS_DESCRIPTION =
+  "Improve at Blink & Find with practical scanning, memory, focus, and speed tips for number hunting games.";
+
+export const MODES_DESCRIPTION =
+  "Explore every Blink & Find game mode, including Practice, Daily Challenge, Time Attack, Streak, Comfort, Zen, Same Challenge, and Live Race.";
+
+export const FAQ_DESCRIPTION =
+  "Read answers to common Blink & Find questions about scoring, wrong taps, saved stats, Daily Challenge, online rooms, and game modes.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -50,6 +68,9 @@ export const SEO_KEYWORDS = [
   "time attack game",
   "streak mode game",
   "memory game stats",
+  "accessible memory game",
+  "shared challenge game",
+  "focus tips",
 ];
 
 export const ROUTES = [
@@ -64,6 +85,11 @@ export const ROUTES = [
     description: DAILY_DESCRIPTION,
   },
   {
+    path: "/challenge",
+    label: "Shared Challenge",
+    description: CHALLENGE_DESCRIPTION,
+  },
+  {
     path: "/time-attack",
     label: "Time Attack",
     description: TIME_ATTACK_DESCRIPTION,
@@ -72,6 +98,16 @@ export const ROUTES = [
     path: "/streak",
     label: "Streak Mode",
     description: STREAK_DESCRIPTION,
+  },
+  {
+    path: "/comfort",
+    label: "Comfort Mode",
+    description: COMFORT_DESCRIPTION,
+  },
+  {
+    path: "/zen",
+    label: "Zen Mode",
+    description: ZEN_DESCRIPTION,
   },
   {
     path: "/tutorial",
@@ -87,6 +123,21 @@ export const ROUTES = [
     path: "/stats",
     label: "Personal Stats",
     description: STATS_DESCRIPTION,
+  },
+  {
+    path: "/tips",
+    label: "Tips",
+    description: TIPS_DESCRIPTION,
+  },
+  {
+    path: "/modes",
+    label: "Game Modes",
+    description: MODES_DESCRIPTION,
+  },
+  {
+    path: "/faq",
+    label: "FAQ",
+    description: FAQ_DESCRIPTION,
   },
   {
     path: "/rules",
