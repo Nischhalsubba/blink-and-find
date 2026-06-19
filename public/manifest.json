@@ -1,13 +1,14 @@
 {
-  "name": "Blink & Find",
+  "name": "Blink & Find - Number Hunting Memory Game",
   "short_name": "BlinkFind",
-  "description": "A fast-paced scattered number hunting game.",
+  "description": "Play a free number hunting memory game. Memorize a target number, find it on a scattered board, and race friends online.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "orientation": "portrait-primary",
+  "categories": ["games", "education", "entertainment"],
   "icons": [
     {
       "src": "/icon.svg",
