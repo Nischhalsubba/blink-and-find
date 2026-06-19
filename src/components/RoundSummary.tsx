@@ -51,10 +51,10 @@ export default function RoundSummary({
       <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
         <CardHeader className="border-b text-center">
           <CardDescription>
-            {isFinalRound ? "Final round finished" : `Next up: Round ${round + 1}`}
+            {isFinalRound ? "All rounds are complete. One final look, then results." : `Great round. Round ${round + 1} is ready when you are.`}
           </CardDescription>
           <CardTitle className="text-3xl tracking-tight sm:text-5xl">
-            Round {round} Complete
+            Round {round} complete
           </CardTitle>
         </CardHeader>
 
@@ -62,8 +62,8 @@ export default function RoundSummary({
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="gap-3 bg-muted/20 py-4 shadow-none">
               <CardHeader className="px-4">
-                <CardTitle className="text-base">Round result</CardTitle>
-                <CardDescription>Fastest player this round appears first.</CardDescription>
+                <CardTitle className="text-base">This round</CardTitle>
+                <CardDescription>Fastest clean search rises to the top. Wrong taps add time.</CardDescription>
               </CardHeader>
               <CardContent className="px-4">
                 <Table>
@@ -91,8 +91,8 @@ export default function RoundSummary({
 
             <Card className="gap-3 bg-muted/20 py-4 shadow-none">
               <CardHeader className="px-4">
-                <CardTitle className="text-base">Overall ranking</CardTitle>
-                <CardDescription>Total time across every completed turn.</CardDescription>
+                <CardTitle className="text-base">Overall standings</CardTitle>
+                <CardDescription>Lowest total time is leading the game.</CardDescription>
               </CardHeader>
               <CardContent className="px-4">
                 <Table>
