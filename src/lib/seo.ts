@@ -16,6 +16,9 @@ export const TUTORIAL_DESCRIPTION =
 export const PRACTICE_DESCRIPTION =
   "Practice Blink & Find without timer pressure. Pick a difficulty, find targets at your own pace, use hints, and build confidence before a real game.";
 
+export const DAILY_DESCRIPTION =
+  "Play today's Blink & Find Daily Challenge. Everyone gets the same target and scattered board, so you can compare times fairly.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -33,6 +36,8 @@ export const SEO_KEYWORDS = [
   "live race game",
   "visual memory game",
   "attention game",
+  "daily memory challenge",
+  "daily brain game",
 ];
 
 export const ROUTES = [
@@ -40,6 +45,11 @@ export const ROUTES = [
     path: "/",
     label: "Play Blink & Find",
     description: "Start a quick number hunting game or create an online room for friends.",
+  },
+  {
+    path: "/daily",
+    label: "Daily Challenge",
+    description: DAILY_DESCRIPTION,
   },
   {
     path: "/tutorial",
