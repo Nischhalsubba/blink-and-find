@@ -19,6 +19,15 @@ export const PRACTICE_DESCRIPTION =
 export const DAILY_DESCRIPTION =
   "Play today's Blink & Find Daily Challenge. Everyone gets the same target and scattered board, so you can compare times fairly.";
 
+export const TIME_ATTACK_DESCRIPTION =
+  "Play Blink & Find Time Attack, a 60-second number hunting sprint where you find as many targets as possible before the clock runs out.";
+
+export const STREAK_DESCRIPTION =
+  "Play Blink & Find Streak Mode. Keep finding hidden target numbers until one wrong tap ends the run.";
+
+export const STATS_DESCRIPTION =
+  "View your Blink & Find personal stats, local best scores, practice rounds, daily challenge results, streak bests, and achievements.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -38,6 +47,9 @@ export const SEO_KEYWORDS = [
   "attention game",
   "daily memory challenge",
   "daily brain game",
+  "time attack game",
+  "streak mode game",
+  "memory game stats",
 ];
 
 export const ROUTES = [
@@ -52,6 +64,16 @@ export const ROUTES = [
     description: DAILY_DESCRIPTION,
   },
   {
+    path: "/time-attack",
+    label: "Time Attack",
+    description: TIME_ATTACK_DESCRIPTION,
+  },
+  {
+    path: "/streak",
+    label: "Streak Mode",
+    description: STREAK_DESCRIPTION,
+  },
+  {
     path: "/tutorial",
     label: "Interactive Tutorial",
     description: TUTORIAL_DESCRIPTION,
@@ -60,6 +82,11 @@ export const ROUTES = [
     path: "/practice",
     label: "Practice Mode",
     description: PRACTICE_DESCRIPTION,
+  },
+  {
+    path: "/stats",
+    label: "Personal Stats",
+    description: STATS_DESCRIPTION,
   },
   {
     path: "/rules",
