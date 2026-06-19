@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
+import ShareableResultCard from "@/components/ShareableResultCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,6 +107,8 @@ export default function DailyChallenge() {
   const [bestResult, setBestResult] = useState<DailyResult | null>(null);
   const [latestResult, setLatestResult] = useState<DailyResult | null>(null);
   const [message, setMessage] = useState("Everyone gets this same challenge today. One board, one target, one tiny argument with your attention span.");
+
+  const shareResult = latestResult ?? bestResult;
 
   function clearPreviewTimers() {
     if (previewTimeoutRef.current !== null) {
@@ -264,6 +267,25 @@ export default function DailyChallenge() {
                   {formatTime(bestResult.finalTimeMs)} · {bestResult.wrongTaps} wrong · {bestResult.attempts} attempt{bestResult.attempts === 1 ? "" : "s"}
                 </div>
               </div>
+            )}
+
+            {shareResult && (
+              <ShareableResultCard
+                eyebrow="Daily Challenge"
+                title={dateLabel}
+                subtitle="Same board, same target, every player today"
+                primaryLabel="Final time"
+                primaryValue={formatTime(shareResult.finalTimeMs)}
+                metrics={[
+                  { label: "Wrong taps", value: String(shareResult.wrongTaps) },
+                  { label: "Penalty", value: formatTime(shareResult.penaltyMs) },
+                  { label: "Raw time", value: formatTime(shareResult.rawTimeMs) },
+                  { label: "Attempts", value: String(shareResult.attempts) },
+                ]}
+                footer="Play today’s free number hunting challenge"
+                filename={`blink-find-daily-${dateKey}.svg`}
+                shareText={`I played the ${dateLabel} Blink & Find Daily Challenge: ${formatTime(shareResult.finalTimeMs)}, ${shareResult.wrongTaps} wrong taps.`}
+              />
             )}
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
