@@ -35,7 +35,6 @@ interface GameScreenProps {
 
 /**
  * Active gameplay screen.
- * Kept separate from the controller hook so layout and game logic stop wrestling in public.
  */
 export default function GameScreen({
   phase,
@@ -114,15 +113,15 @@ export default function GameScreen({
           <CardContent className="p-2 text-center text-xs sm:text-sm" role="status" aria-live="polite">
             {phase === "preview" && (
               <span>
-                Memorize the target. Hiding in <Badge variant="secondary" className="ml-1">{previewCountdown}</Badge>
+                Remember this number. It hides in <Badge variant="secondary" className="ml-1">{previewCountdown}</Badge>
               </span>
             )}
             {phase === "playing" && (
               <span>
-                {statusMessage}
+                {statusMessage || "Target hidden. Find the matching number on the board."}
                 {lastSelectionWasWrong && lastSelectedNumber !== null && (
                   <span className="ml-2 font-semibold text-destructive">
-                    {lastSelectedNumber} is wrong. +{config.penaltySeconds}s
+                    Not {lastSelectedNumber}. +{config.penaltySeconds}s, but keep going.
                   </span>
                 )}
               </span>
@@ -130,12 +129,10 @@ export default function GameScreen({
             {phase === "turnSummary" && lastResult && (
               <div className="flex items-center justify-between gap-2">
                 <span>
-                  {lastResult.playerName}: {formatTime(lastResult.finalTimeMs)}
-                  {autoContinue && <span className="ml-2 text-muted-foreground">Auto-continuing...</span>}
+                  Nice. {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
+                  {autoContinue && <span className="ml-2 text-muted-foreground">Next screen is coming...</span>}
                 </span>
-                <Button size="sm" onClick={onContinue}>
-                  Continue
-                </Button>
+                <Button size="sm" onClick={onContinue}>Continue</Button>
               </div>
             )}
           </CardContent>
