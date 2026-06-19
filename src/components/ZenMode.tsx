@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NumberGrid from "@/components/NumberGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,17 @@ export default function ZenMode() {
   const [found, setFound] = useState(0);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [message, setMessage] = useState("No timer. No penalties. Just find the number and breathe, a scandalous design choice.");
+  const advanceTimerRef = useRef<number | null>(null);
+
+  function clearAdvanceTimer() {
+    if (advanceTimerRef.current !== null) {
+      window.clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+  }
 
   function newBoard(nextSize = boardSize) {
+    clearAdvanceTimer();
     setRound(createRound(nextSize));
     setSelectedNumber(null);
     setMessage("New calm board ready.");
@@ -47,8 +56,13 @@ export default function ZenMode() {
 
     setFound((current) => current + 1);
     setMessage("Found it. New board loaded.");
-    window.setTimeout(() => newBoard(), 350);
+    clearAdvanceTimer();
+    advanceTimerRef.current = window.setTimeout(() => newBoard(), 350);
   }
+
+  useEffect(() => {
+    return () => clearAdvanceTimer();
+  }, []);
 
   return (
     <main className="app-shell overflow-auto">
