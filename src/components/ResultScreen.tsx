@@ -1,3 +1,4 @@
+import ShareableResultCard from "@/components/ShareableResultCard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -106,6 +107,25 @@ export default function ResultScreen({
               </div>
             )}
           </div>
+
+          {winner && (
+            <ShareableResultCard
+              eyebrow="Blink & Find Result"
+              title={`${winner.name} wins`}
+              subtitle={`${ranking.length} player${ranking.length === 1 ? "" : "s"} · ${results.length} turn${results.length === 1 ? "" : "s"}`}
+              primaryLabel="Winning time"
+              primaryValue={formatTime(winner.totalTimeMs)}
+              metrics={[
+                { label: "Accuracy", value: `${stats.accuracyPercent.toFixed(0)}%` },
+                { label: "Wrong taps", value: String(stats.totalWrongTaps) },
+                { label: "Fastest find", value: stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-" },
+                { label: "Penalty", value: formatTime(stats.totalPenaltyMs) },
+              ]}
+              footer="Play the free number hunting memory game"
+              filename={`blink-find-${winner.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-result.svg`}
+              shareText={`I played Blink & Find. ${winner.name} won with ${formatTime(winner.totalTimeMs)}, ${stats.accuracyPercent.toFixed(0)}% accuracy, and ${stats.totalWrongTaps} wrong taps.`}
+            />
+          )}
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
             <Card className="gap-3 bg-muted/20 py-4 shadow-none">
