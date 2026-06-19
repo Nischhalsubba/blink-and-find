@@ -29,6 +29,7 @@ interface ResultScreenProps {
   latestScore: SavedScore | null;
   isNewBest: boolean;
   onPlayAgain: () => void;
+  playAgainLabel?: string;
 }
 
 /**
@@ -41,6 +42,7 @@ export default function ResultScreen({
   latestScore,
   isNewBest,
   onPlayAgain,
+  playAgainLabel = "Play Again",
 }: ResultScreenProps) {
   const ranking = [...players].sort((a, b) => a.totalTimeMs - b.totalTimeMs);
   const stats = calculateGameStats(results);
@@ -194,7 +196,7 @@ export default function ResultScreen({
 
         <CardFooter className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end sm:p-6">
           <Button variant="outline" onClick={copyResult}>Copy Result</Button>
-          <Button onClick={onPlayAgain}>Play Again</Button>
+          <Button onClick={onPlayAgain}>{playAgainLabel}</Button>
         </CardFooter>
       </Card>
     </section>
