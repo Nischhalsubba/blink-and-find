@@ -14,7 +14,10 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "check": "npm run lint && npm run typecheck && npm run build"
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "verify": "npm run check && npm run e2e"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "1.1.15",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
+    "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.15.29",
     "@types/qrcode": "1.5.5",
