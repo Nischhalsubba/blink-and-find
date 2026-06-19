@@ -205,40 +205,43 @@ export default function StartScreen({
   }
 
   return (
-    <section className="flex h-full min-h-0 items-center justify-center px-2">
-      <Card className="flex max-h-full w-full max-w-lg flex-col overflow-hidden">
-        <CardHeader className="shrink-0 border-b pb-4 text-center">
-          <Badge variant="secondary" className="mx-auto mb-3 w-fit">Blink &amp; Find</Badge>
-          <CardTitle className="text-4xl font-semibold tracking-tight sm:text-5xl">Ready to play?</CardTitle>
+    <section className="flex h-full min-h-0 items-center justify-center overflow-y-auto px-2 py-2">
+      <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden">
+        <CardHeader className="shrink-0 border-b pb-3 text-center">
+          <Badge variant="secondary" className="mx-auto mb-2 w-fit">Blink &amp; Find</Badge>
+          <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Ready to play?</CardTitle>
           <CardDescription className="mt-2">Memorize one number, find it on the board, and try to beat your time.</CardDescription>
         </CardHeader>
 
-        <CardContent className="grid min-h-0 gap-3 p-4 sm:gap-4 sm:p-5">
-          <Button size="lg" className="h-16 text-lg" onClick={handleQuickStart}>Play Now</Button>
+        <CardContent className="grid min-h-0 gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-5">
+          <Button size="lg" className="h-14 text-lg" onClick={handleQuickStart}>Play Now</Button>
 
-          <Button asChild size="lg" variant="outline" className="h-14 text-base">
-            <Link href="/daily">Daily Challenge</Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/daily">Daily Challenge</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/practice">Practice</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/time-attack">Time Attack</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/streak">Streak</Link></Button>
+          </div>
+
+          <Button asChild variant="outline" className="h-12 text-base">
+            <Link href="/online">Play with Friend</Link>
           </Button>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild size="lg" variant="outline" className="h-14 text-base"><Link href="/practice">Practice</Link></Button>
-            <Button asChild size="lg" variant="outline" className="h-14 text-base"><Link href="/online">Play with Friend</Link></Button>
-          </div>
-
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-            New here? Try the quick tutorial or pressure-free practice first, then take today’s challenge.
+            New here? Try the tutorial or practice first, then come back for Daily, Time Attack, or Streak mode.
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="secondary" className="h-12"><Link href="/tutorial">Learn in 20s</Link></Button>
-            <Button variant="secondary" className="h-12" onClick={() => setSettingsOpen(true)}>Change settings</Button>
+            <Button asChild variant="secondary" className="h-11"><Link href="/tutorial">Learn in 20s</Link></Button>
+            <Button variant="secondary" className="h-11" onClick={() => setSettingsOpen(true)}>Change settings</Button>
           </div>
         </CardContent>
 
-        <CardFooter className="flex shrink-0 flex-col gap-2 border-t p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <CardFooter className="flex shrink-0 flex-col gap-2 border-t p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <span>Tip: wrong taps add time, so quick eyes beat frantic fingers.</span>
           <div className="flex gap-1">
             <Button asChild variant="ghost" size="sm"><Link href="/rules">Rules</Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/stats">Stats</Link></Button>
             <Button asChild variant="ghost" size="sm"><Link href="/history">History</Link></Button>
           </div>
         </CardFooter>
