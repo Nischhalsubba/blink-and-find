@@ -154,17 +154,7 @@ export default function StartScreen({
               <Label>Players</Label>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((count) => (
-                  <ChoicePill
-                    key={count}
-                    compact
-                    active={(mode === "single" ? 1 : playerNames.length) === count}
-                    onClick={() => {
-                      onModeChange(count === 1 ? "single" : "multiplayer");
-                      updatePlayerCount(count);
-                    }}
-                  >
-                    {count}
-                  </ChoicePill>
+                  <ChoicePill key={count} compact active={(mode === "single" ? 1 : playerNames.length) === count} onClick={() => { onModeChange(count === 1 ? "single" : "multiplayer"); updatePlayerCount(count); }}>{count}</ChoicePill>
                 ))}
               </div>
             </div>
@@ -217,18 +207,21 @@ export default function StartScreen({
           <Button size="lg" className="h-14 text-lg" onClick={handleQuickStart}>Play Now</Button>
 
           <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/daily">Daily Challenge</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/daily">Daily</Link></Button>
             <Button asChild variant="outline" className="h-12 text-base"><Link href="/practice">Practice</Link></Button>
             <Button asChild variant="outline" className="h-12 text-base"><Link href="/time-attack">Time Attack</Link></Button>
             <Button asChild variant="outline" className="h-12 text-base"><Link href="/streak">Streak</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/comfort">Comfort</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/zen">Zen</Link></Button>
           </div>
 
-          <Button asChild variant="outline" className="h-12 text-base">
-            <Link href="/online">Play with Friend</Link>
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/online">Play with Friend</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/challenge">Challenge Link</Link></Button>
+          </div>
 
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-            New here? Try the tutorial or practice first, then come back for Daily, Time Attack, or Streak mode.
+            New here? Try the tutorial or Zen first, then come back for Daily, Time Attack, Streak, or online play.
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -238,9 +231,11 @@ export default function StartScreen({
         </CardContent>
 
         <CardFooter className="flex shrink-0 flex-col gap-2 border-t p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <span>Tip: wrong taps add time, so quick eyes beat frantic fingers.</span>
-          <div className="flex gap-1">
-            <Button asChild variant="ghost" size="sm"><Link href="/rules">Rules</Link></Button>
+          <span>Tip: quick eyes beat frantic fingers.</span>
+          <div className="flex flex-wrap justify-center gap-1">
+            <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/tips">Tips</Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
             <Button asChild variant="ghost" size="sm"><Link href="/stats">Stats</Link></Button>
             <Button asChild variant="ghost" size="sm"><Link href="/history">History</Link></Button>
           </div>
