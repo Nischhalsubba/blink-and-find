@@ -13,6 +13,9 @@ export const RULES_DESCRIPTION =
 export const TUTORIAL_DESCRIPTION =
   "Try a quick interactive Blink & Find tutorial. Memorize the target, tap the matching number, and learn how wrong-tap penalties work before starting a real game.";
 
+export const PRACTICE_DESCRIPTION =
+  "Practice Blink & Find without timer pressure. Pick a difficulty, find targets at your own pace, use hints, and build confidence before a real game.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -42,6 +45,11 @@ export const ROUTES = [
     path: "/tutorial",
     label: "Interactive Tutorial",
     description: TUTORIAL_DESCRIPTION,
+  },
+  {
+    path: "/practice",
+    label: "Practice Mode",
+    description: PRACTICE_DESCRIPTION,
   },
   {
     path: "/rules",
