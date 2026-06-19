@@ -18,6 +18,10 @@ const PENALTY_SECONDS = 3;
 
 type ChallengePhase = "ready" | "preview" | "playing" | "complete";
 
+function sanitizeSeed(value: number) {
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_SEED;
+}
+
 function sanitizeBoardSize(size: number) {
   if ([25, 100, 225].includes(size)) {
     return size;
@@ -37,7 +41,7 @@ function getChallengeFromUrl() {
   }
 
   const params = new URLSearchParams(window.location.search);
-  const seed = Math.max(1, Number(params.get("seed") ?? DEFAULT_SEED));
+  const seed = sanitizeSeed(Number(params.get("seed") ?? DEFAULT_SEED));
   const size = sanitizeBoardSize(Number(params.get("size") ?? DEFAULT_SIZE));
   const board = generateSeededZigZagBoard(size, seed);
   const requestedTarget = Number(params.get("target"));
