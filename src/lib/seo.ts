@@ -10,6 +10,9 @@ export const SITE_DESCRIPTION =
 export const RULES_DESCRIPTION =
   "Learn how to play Blink & Find, including target preview, scoring, penalties, Same Challenge, Live Race, online rooms, and winning rules.";
 
+export const TUTORIAL_DESCRIPTION =
+  "Try a quick interactive Blink & Find tutorial. Memorize the target, tap the matching number, and learn how wrong-tap penalties work before starting a real game.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -34,6 +37,11 @@ export const ROUTES = [
     path: "/",
     label: "Play Blink & Find",
     description: "Start a quick number hunting game or create an online room for friends.",
+  },
+  {
+    path: "/tutorial",
+    label: "Interactive Tutorial",
+    description: TUTORIAL_DESCRIPTION,
   },
   {
     path: "/rules",
