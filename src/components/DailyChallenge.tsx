@@ -109,6 +109,7 @@ export default function DailyChallenge() {
   const [message, setMessage] = useState("Everyone gets this same challenge today. One board, one target, one tiny argument with your attention span.");
 
   const shareResult = latestResult ?? bestResult;
+  const seededChallengeUrl = absoluteUrl(`/challenge?seed=${challenge.seed}&size=${DAILY_BOARD_SIZE}&target=${challenge.target ?? 1}`);
 
   function clearPreviewTimers() {
     if (previewTimeoutRef.current !== null) {
@@ -202,9 +203,18 @@ export default function DailyChallenge() {
     }
 
     await navigator.clipboard.writeText(
-      `I played the ${dateLabel} Blink & Find Daily Challenge: ${formatTime(result.finalTimeMs)}, ${result.wrongTaps} wrong taps. Try it: ${absoluteUrl("/daily")}`
+      `I played the ${dateLabel} Blink & Find Daily Challenge: ${formatTime(result.finalTimeMs)}, ${result.wrongTaps} wrong taps. Try the same board: ${seededChallengeUrl}`
     );
-    setMessage("Daily result copied. Now you can politely ruin someone else’s productivity.");
+    setMessage("Daily result copied with the seeded challenge link.");
+  }
+
+  async function copyChallengeLink() {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(seededChallengeUrl);
+    setMessage("Seeded challenge link copied.");
   }
 
   useEffect(() => {
@@ -285,6 +295,7 @@ export default function DailyChallenge() {
                 footer="Play today’s free number hunting challenge"
                 filename={`blink-find-daily-${dateKey}.svg`}
                 shareText={`I played the ${dateLabel} Blink & Find Daily Challenge: ${formatTime(shareResult.finalTimeMs)}, ${shareResult.wrongTaps} wrong taps.`}
+                shareUrl={seededChallengeUrl}
               />
             )}
 
@@ -293,6 +304,8 @@ export default function DailyChallenge() {
                 {bestResult ? "Retry Today" : "Start Today’s Challenge"}
               </Button>
               <Button variant="outline" onClick={copyDailyResult} disabled={!bestResult && !latestResult}>Copy Result</Button>
+              <Button variant="outline" onClick={copyChallengeLink}>Copy Same-Board Link</Button>
+              <Button asChild variant="ghost"><Link href={seededChallengeUrl}>Open as Challenge</Link></Button>
             </div>
           </CardContent>
 
