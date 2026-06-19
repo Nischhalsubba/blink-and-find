@@ -20,6 +20,7 @@ interface ShareableResultCardProps {
   footer: string;
   filename: string;
   shareText: string;
+  shareUrl?: string;
 }
 
 function escapeSvgText(value: string) {
@@ -83,6 +84,7 @@ function createShareCardSvg(props: ShareableResultCardProps) {
 
 export default function ShareableResultCard(props: ShareableResultCardProps) {
   const [status, setStatus] = useState("Share your result as text or download a clean score card.");
+  const shareUrl = props.shareUrl ?? absoluteUrl("/");
 
   function downloadCard() {
     const svg = createShareCardSvg(props);
@@ -105,7 +107,7 @@ export default function ShareableResultCard(props: ShareableResultCardProps) {
       return;
     }
 
-    await navigator.clipboard.writeText(`${props.shareText} ${absoluteUrl("/")}`);
+    await navigator.clipboard.writeText(`${props.shareText} ${shareUrl}`);
     setStatus("Result text copied.");
   }
 
@@ -118,7 +120,7 @@ export default function ShareableResultCard(props: ShareableResultCardProps) {
     await navigator.share({
       title: "Blink & Find result",
       text: props.shareText,
-      url: absoluteUrl("/"),
+      url: shareUrl,
     });
     setStatus("Share sheet opened.");
   }
