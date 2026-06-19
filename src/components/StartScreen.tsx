@@ -221,10 +221,13 @@ export default function StartScreen({
           </Button>
 
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-            New here? Normal mode is a good first round: 5 rounds, 3s penalty, no setup required.
+            New here? Try the quick tutorial first, then jump into Normal mode when you feel ready.
           </div>
 
-          <Button variant="secondary" className="h-12" onClick={() => setSettingsOpen(true)}>Change settings</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild variant="secondary" className="h-12"><Link href="/tutorial">Learn in 20s</Link></Button>
+            <Button variant="secondary" className="h-12" onClick={() => setSettingsOpen(true)}>Change settings</Button>
+          </div>
         </CardContent>
 
         <CardFooter className="flex shrink-0 flex-col gap-2 border-t p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
