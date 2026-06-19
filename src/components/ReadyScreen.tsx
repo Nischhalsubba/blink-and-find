@@ -37,44 +37,40 @@ export default function ReadyScreen({
       <Card className="w-full max-w-xl overflow-hidden">
         <CardHeader className="border-b pb-4">
           <Badge variant="secondary" className="mb-3 w-fit">
-            Round {round} / {config.totalRounds}
+            Round {round} of {config.totalRounds}
           </Badge>
           <CardTitle className="text-3xl font-semibold tracking-tight">
-            {player?.name ?? "Player"}, get ready
+            {player?.name ?? "Player"}, your turn is ready
           </CardTitle>
           <CardDescription>
-            Player {playerIndex + 1} of {totalPlayers}. Same board and target for everyone this round.
+            You are player {playerIndex + 1} of {totalPlayers}. First, memorize the target. Then find it on the scattered board.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="grid gap-3 p-4 sm:p-5">
           <div className="grid grid-cols-3 gap-2 text-sm">
             <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-muted-foreground">Tiles</div>
-              <div className="font-semibold">{config.boardSize}</div>
+              <div className="text-muted-foreground">Board</div>
+              <div className="font-semibold">{config.boardSize} numbers</div>
             </div>
             <div className="rounded-lg border bg-muted/20 p-3">
               <div className="text-muted-foreground">Preview</div>
               <div className="font-semibold">{config.flashDurationMs / 1000}s</div>
             </div>
             <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-muted-foreground">Penalty</div>
+              <div className="text-muted-foreground">Mistake</div>
               <div className="font-semibold">+{config.penaltySeconds}s</div>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Memorize the number when it appears, then find it after it hides.
+            Take a breath. Accuracy matters more than frantic tapping, which is rude but mathematically true.
           </p>
         </CardContent>
 
         <CardFooter className="flex items-center justify-between gap-3 border-t p-4 sm:p-5">
-          <Button variant="outline" onClick={onBackToSetup}>
-            Back
-          </Button>
-          <Button onClick={onStartTurn}>
-            Show Target
-          </Button>
+          <Button variant="outline" onClick={onBackToSetup}>Back</Button>
+          <Button onClick={onStartTurn}>Show Target</Button>
         </CardFooter>
       </Card>
     </section>
