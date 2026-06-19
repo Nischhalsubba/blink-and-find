@@ -2,11 +2,14 @@
 
 Memorize. Hide. Hunt the scattered number.
 
-Blink & Find is a fast-paced number hunting game where players find a flashed target number inside a scattered board. It supports quick solo play, same-device multiplayer, Supabase-backed online Same Challenge rooms, and online Live Race rooms for two-device play.
+Blink & Find is a free online number hunting memory game where players memorize a target number, find it inside a scattered board, and race friends in Same Challenge or Live Race mode.
 
 ## Current Features
 
 - One-tap **Play Now** local game
+- Friendly new-player microcopy across setup, ready, gameplay, summary, and results screens
+- Dedicated `/rules` page explaining how the game works
+- SEO metadata, sitemap, robots file, and structured data
 - **Play with Friend** online entry with Create / Join pill choices
 - Single-player and same-device multiplayer modes
 - Online Same Challenge rooms with Supabase sync
@@ -53,6 +56,19 @@ Blink & Find is a fast-paced number hunting game where players find a flashed ta
 - PWA manifest and app icon
 - shadcn/ui component system with Tailwind CSS
 
+## How to Play
+
+Open `/rules` for the player-facing guide.
+
+Quick rules:
+
+1. Memorize the target number during preview.
+2. Find the matching number after it hides.
+3. Wrong taps add penalty seconds.
+4. Lowest total time wins.
+5. Same Challenge gives each friend the same target and board in turn order.
+6. Live Race lets friends race at the same time after a shared countdown.
+
 ## Online Play
 
 ### Same Challenge
@@ -97,7 +113,21 @@ Live Race uses a shared `round_start_at` timestamp for casual latency-tolerant t
 
 ### History
 
-Open `/history` or tap **View History** on the setup screen to see finished online rooms, winners, player leaderboard, and round-by-round room details.
+Open `/history` or tap **History** on the setup screen to see finished online rooms, winners, player leaderboard, and round-by-round room details.
+
+## SEO
+
+Implemented SEO basics:
+
+- root metadata title and description
+- Open Graph and Twitter cards
+- JSON-LD for WebSite, VideoGame, WebApplication, and HowTo
+- `/sitemap.xml`
+- `/robots.txt`
+- player-friendly `/rules` page
+- PWA manifest description
+
+See `docs/SEO.md` for the indexing and Google Search Console checklist. Search ranking is not guaranteed, because Google is a search engine, not a vending machine with vibes taped to it.
 
 ## Stack
 
@@ -191,16 +221,3 @@ If a deployment fails after dependency changes, retry the deployment after Cloud
 ## Product Notes
 
 The board intentionally avoids strict rows and columns. For online play, board generation is deterministic per round, so players in the same room receive the same scattered layout. The next round uses a new seed, so the positions change without ruining multiplayer fairness. Chaos, but with paperwork.
-
-## Current Priority Status
-
-- Priority 1: Two-device Same Challenge QA is confirmed working.
-- Priority 2: Documentation cleanup is complete, including Cloudflare Pages notes.
-- Priority 3: Invite UX polish is complete with native share, QR, and copy fallback.
-- Priority 4: Reconnect and refresh handling is complete.
-- Priority 5: Online room cleanup is complete.
-- Priority 6: Central history screen is complete.
-- Priority 7: Live Race gameplay is complete.
-- Priority 8: Production security hardening is complete for the anonymous MVP.
-- Priority 9: Build and dependency hardening is complete, with local lockfile follow-up.
-- Priority 10: Mobile gameplay QA fixes and checklist are complete.
