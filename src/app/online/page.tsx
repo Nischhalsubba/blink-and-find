@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import InvitePanel from "@/components/InvitePanel";
 import OnlineLiveRaceGame from "@/components/OnlineLiveRaceGame";
+import OnlineModeExplainer from "@/components/OnlineModeExplainer";
+import OnlinePlayerPresence from "@/components/OnlinePlayerPresence";
 import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
+import ResultScreen from "@/components/ResultScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +27,8 @@ import {
   createOnlineRoom,
   fetchOnlineRoomSnapshot,
   joinOnlineRoom,
+  onlinePlayersToGamePlayers,
+  onlineResultsToTurnResults,
   startOnlineRoom,
   subscribeToOnlineRoom,
 } from "@/lib/onlineRooms";
@@ -106,6 +111,30 @@ function ChoicePill({
   );
 }
 
+function OnlineRecoveryActions({
+  message,
+  onClear,
+  onCleanup,
+}: {
+  message: string;
+  onClear: () => void;
+  onCleanup: () => void;
+}) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2 rounded-xl border bg-muted/20 p-3 text-sm">
+      <div className="text-muted-foreground" role="status">{message}</div>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button size="sm" variant="outline" onClick={onCleanup}>Clean stale rooms</Button>
+        <Button size="sm" variant="ghost" onClick={onClear}>Dismiss</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function OnlinePage() {
   const autoActionStartedRef = useRef(false);
   const [action, setAction] = useState<OnlineAction>("create");
@@ -127,8 +156,8 @@ export default function OnlinePage() {
       const result = await abandonStaleOnlineRooms();
       const total = result.lobbyAbandoned + result.activeAbandoned;
 
-      if (showResult && total > 0) {
-        setMessage(`Cleaned up ${total} stale room${total === 1 ? "" : "s"}.`);
+      if (showResult) {
+        setMessage(total > 0 ? `Cleaned up ${total} stale room${total === 1 ? "" : "s"}.` : "No stale rooms found.");
       }
 
       return result;
@@ -295,6 +324,35 @@ export default function OnlinePage() {
     }
   }
 
+  async function handleRematch() {
+    if (!snapshot || !localPlayer) {
+      return;
+    }
+
+    setIsBusy(true);
+    setMessage("Creating rematch room...");
+    saveOnlineName(localPlayer.name);
+
+    try {
+      const result = await createOnlineRoom({
+        playerName: localPlayer.name,
+        deviceId: getDeviceId(),
+        gameType: snapshot.room.game_type,
+        settings: snapshot.room.settings,
+      });
+
+      setGameType(snapshot.room.game_type);
+      setDifficulty(snapshot.room.settings.difficulty);
+      setRounds(snapshot.room.settings.totalRounds);
+      setPenaltySeconds(snapshot.room.settings.penaltySeconds);
+      enterOnlineRoom(result, "Rematch room created. Share the new invite and start again.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create rematch room.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   function updatePlayerName(name: string) {
     setPlayerName(name);
     saveOnlineName(name);
@@ -380,9 +438,7 @@ export default function OnlinePage() {
               Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then run the SQL in supabase/schema.sql.
             </CardContent>
             <CardFooter>
-              <Button asChild variant="outline">
-                <Link href="/">Back</Link>
-              </Button>
+              <Button asChild variant="outline"><Link href="/">Back</Link></Button>
             </CardFooter>
           </Card>
         </section>
@@ -413,6 +469,22 @@ export default function OnlinePage() {
     const isHost = localPlayer.is_host;
     const roomStatus = snapshot.room.status;
     const inviteUrl = getInviteUrl(snapshot.room.code);
+
+    if (roomStatus === "finished") {
+      return (
+        <main className="app-shell">
+          <ResultScreen
+            players={onlinePlayersToGamePlayers(snapshot.players)}
+            results={onlineResultsToTurnResults(snapshot.results)}
+            bestScore={null}
+            latestScore={null}
+            isNewBest={false}
+            onPlayAgain={handleRematch}
+            playAgainLabel={isBusy ? "Creating Rematch..." : "Start Rematch"}
+          />
+        </main>
+      );
+    }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
       return (
@@ -452,11 +524,11 @@ export default function OnlinePage() {
               <div className="grid gap-2">
                 {snapshot.players.map((player) => (
                   <div key={player.id} className="flex items-center justify-between rounded-lg border bg-muted/20 p-3 text-sm">
-                    <div className="font-medium">{player.name}</div>
-                    <div className="flex items-center gap-2">
-                      {player.is_host && <Badge variant="secondary">Host</Badge>}
-                      {player.id === localPlayer.id && <Badge variant="outline">You</Badge>}
+                    <div>
+                      <div className="font-medium">{player.name}</div>
+                      <div className="text-xs text-muted-foreground">Joined {new Date(player.joined_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     </div>
+                    <OnlinePlayerPresence player={player} localPlayerId={localPlayer.id} snapshot={snapshot} />
                   </div>
                 ))}
               </div>
@@ -469,15 +541,19 @@ export default function OnlinePage() {
                 </div>
               )}
 
-              <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-                {snapshot.players.length < 2 ? "Waiting for your friend..." : "Friend joined. Ready to start."}
+              <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
+                <div>{snapshot.players.length < 2 ? "Waiting for your friend..." : "Friend joined. Ready to start."}</div>
+                <div>{snapshot.room.game_type === "same_challenge" ? "Same Challenge: turn-based, fair, and resilient." : "Live Race: simultaneous, fast, and mildly dramatic."}</div>
               </div>
 
               {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
 
             <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <Button variant="outline" onClick={closeRoomView}>Back</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={closeRoomView}>Back</Button>
+                <Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button>
+              </div>
               {isHost && roomStatus === "lobby" && (
                 <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
                   {snapshot.players.length < 2 ? "Waiting for Friend" : "Start Game"}
@@ -491,13 +567,13 @@ export default function OnlinePage() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="flex h-full items-center justify-center px-2">
-        <Card className="w-full max-w-xl overflow-hidden">
+    <main className="app-shell overflow-auto">
+      <section className="flex min-h-full items-center justify-center px-2 py-3">
+        <Card className="w-full max-w-2xl overflow-hidden">
           <CardHeader className="border-b pb-4 text-center">
             <Badge variant="secondary" className="mx-auto mb-3 w-fit">Online Play</Badge>
             <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Play with a friend</CardTitle>
-            <CardDescription>Create a room or join one. That is the whole job.</CardDescription>
+            <CardDescription>Create a room, share the code, and pick the online style that fits the moment.</CardDescription>
           </CardHeader>
 
           <CardContent className="grid gap-4 p-4 sm:p-5">
@@ -516,6 +592,8 @@ export default function OnlinePage() {
                 </div>
               </div>
             )}
+
+            <OnlineModeExplainer value={gameType} onChange={setGameType} />
 
             <div className="flex rounded-full border bg-muted/20 p-1" aria-label="Choose online action">
               <button
@@ -550,15 +628,8 @@ export default function OnlinePage() {
               <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
                 <Label htmlFor="room-code">Room code</Label>
                 <div className="flex gap-2">
-                  <Input
-                    id="room-code"
-                    value={roomCode}
-                    onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
-                    placeholder="AB123"
-                  />
-                  <Button onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>
-                    Join
-                  </Button>
+                  <Input id="room-code" value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} placeholder="AB123" />
+                  <Button onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>Join</Button>
                 </div>
               </div>
             )}
@@ -572,24 +643,10 @@ export default function OnlinePage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Game type</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <ChoicePill active={gameType === "same_challenge"} onClick={() => setGameType("same_challenge")}>
-                      Same Challenge
-                    </ChoicePill>
-                    <ChoicePill active={gameType === "live_race"} onClick={() => setGameType("live_race")}>
-                      Live Race
-                    </ChoicePill>
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
                   <Label>Difficulty</Label>
                   <div className="flex flex-wrap gap-2">
                     {DIFFICULTIES.map((item) => (
-                      <ChoicePill key={item.id} active={difficulty === item.id} onClick={() => setDifficulty(item.id)}>
-                        {item.label}
-                      </ChoicePill>
+                      <ChoicePill key={item.id} active={difficulty === item.id} onClick={() => setDifficulty(item.id)}>{item.label}</ChoicePill>
                     ))}
                   </div>
                 </div>
@@ -607,13 +664,15 @@ export default function OnlinePage() {
               </div>
             </details>
 
-            {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
+            <OnlineRecoveryActions message={message} onClear={() => setMessage("")} onCleanup={() => void runStaleRoomCleanup(true)} />
           </CardContent>
 
-          <CardFooter className="border-t p-4 sm:p-5">
-            <Button asChild variant="outline">
-              <Link href="/">Back</Link>
-            </Button>
+          <CardFooter className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-between sm:p-5">
+            <Button asChild variant="outline"><Link href="/">Back</Link></Button>
+            <div className="flex gap-1">
+              <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
+            </div>
           </CardFooter>
         </Card>
       </section>
