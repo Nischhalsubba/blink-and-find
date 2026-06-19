@@ -216,12 +216,13 @@ export default function StartScreen({
         <CardContent className="grid min-h-0 gap-3 p-4 sm:gap-4 sm:p-5">
           <Button size="lg" className="h-16 text-lg" onClick={handleQuickStart}>Play Now</Button>
 
-          <Button asChild size="lg" variant="outline" className="h-16 text-lg">
-            <Link href="/online">Play with Friend</Link>
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild size="lg" variant="outline" className="h-14 text-base"><Link href="/practice">Practice</Link></Button>
+            <Button asChild size="lg" variant="outline" className="h-14 text-base"><Link href="/online">Play with Friend</Link></Button>
+          </div>
 
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-            New here? Try the quick tutorial first, then jump into Normal mode when you feel ready.
+            New here? Try the quick tutorial or pressure-free practice first, then jump into Normal mode.
           </div>
 
           <div className="grid grid-cols-2 gap-2">
