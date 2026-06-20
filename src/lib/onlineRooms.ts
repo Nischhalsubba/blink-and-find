@@ -1,5 +1,6 @@
 import { generateSeededZigZagBoard } from "@/engine/board";
 import { supabase } from "@/lib/supabase";
+import { assertValidTurnResultForSubmission } from "@/lib/scoreValidation";
 import type { GameConfig, Player, TurnResult } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineResult, OnlineRoom, OnlineRoomSnapshot, OnlineRound } from "@/types/online";
 
@@ -181,6 +182,13 @@ export async function joinOnlineRoom(params: {
   }
 
   if (!localPlayer) {
+    const snapshot = await fetchOnlineRoomSnapshot(room.id);
+    const maxPlayers = room.max_players ?? 8;
+
+    if (snapshot.players.length >= maxPlayers) {
+      throw new Error("That room is full. Even chaos needs capacity planning.");
+    }
+
     const { data: playerData, error: playerError } = await client
       .from("online_players")
       .insert({
@@ -330,6 +338,12 @@ export async function submitSameChallengeResult(params: {
   const nextPlayer = sortedPlayers[playerIndex + 1] ?? null;
   const isFinalRound = params.room.current_round >= params.room.settings.totalRounds;
 
+  assertValidTurnResultForSubmission({
+    result: params.result,
+    penaltySeconds: params.room.settings.penaltySeconds,
+    boardSize: params.room.settings.boardSize,
+  });
+
   if (!currentPlayer) {
     throw new Error("Could not find the current online player.");
   }
@@ -406,6 +420,12 @@ export async function submitLiveRaceResult(params: {
   const client = requireSupabase();
   const currentPlayer = params.players.find((player) => player.id === params.result.playerId);
   const isFinalRound = params.room.current_round >= params.room.settings.totalRounds;
+
+  assertValidTurnResultForSubmission({
+    result: params.result,
+    penaltySeconds: params.room.settings.penaltySeconds,
+    boardSize: params.room.settings.boardSize,
+  });
 
   if (!currentPlayer) {
     throw new Error("Could not find the current online player.");
