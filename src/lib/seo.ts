@@ -46,6 +46,12 @@ export const MODES_DESCRIPTION =
 export const FAQ_DESCRIPTION =
   "Read answers to common Blink & Find questions about scoring, wrong taps, saved stats, Daily Challenge, online rooms, and game modes.";
 
+export const LEADERBOARD_DESCRIPTION =
+  "Compare Blink & Find scores on local and global leaderboards for classic number hunting games.";
+
+export const PROFILE_DESCRIPTION =
+  "Manage your Blink & Find player profile for local stats, analytics, and leaderboard submissions.";
+
 export const SEO_KEYWORDS = [
   "Blink and Find",
   "Blink & Find",
@@ -71,6 +77,7 @@ export const SEO_KEYWORDS = [
   "accessible memory game",
   "shared challenge game",
   "focus tips",
+  "game leaderboard",
 ];
 
 export const ROUTES = [
@@ -123,6 +130,16 @@ export const ROUTES = [
     path: "/stats",
     label: "Personal Stats",
     description: STATS_DESCRIPTION,
+  },
+  {
+    path: "/leaderboard",
+    label: "Leaderboard",
+    description: LEADERBOARD_DESCRIPTION,
+  },
+  {
+    path: "/profile",
+    label: "Player Profile",
+    description: PROFILE_DESCRIPTION,
   },
   {
     path: "/tips",
@@ -220,11 +237,11 @@ export function getGameJsonLd() {
           {
             "@type": "HowToStep",
             name: "Avoid wrong taps",
-            text: "Wrong taps add penalty seconds to your time.",
+            text: "Each wrong tap adds penalty time to your score.",
           },
           {
             "@type": "HowToStep",
-            name: "Win with the lowest total time",
+            name: "Win by fastest total time",
             text: "The player with the lowest total time after all rounds wins.",
           },
         ],
