@@ -16,6 +16,22 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
+function shouldOfferSavedSession(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  // Invite links already carry the room code and should not also restore another saved room.
+  if (params.has("room")) {
+    return false;
+  }
+
+  // Saved-room restore is now explicit so opening /online never traps people in the last room.
+  return params.get("resume") === "1" || params.get("restore") === "1";
+}
+
 export function createOnlineRoomSession(snapshot: OnlineRoomSnapshot, localPlayer: OnlinePlayer): OnlineRoomSession {
   return {
     roomId: snapshot.room.id,
@@ -37,7 +53,7 @@ export function saveOnlineRoomSession(snapshot: OnlineRoomSnapshot, localPlayer:
   return session;
 }
 
-export function loadOnlineRoomSession(): OnlineRoomSession | null {
+function readOnlineRoomSession(): OnlineRoomSession | null {
   if (!canUseStorage()) {
     return null;
   }
@@ -73,6 +89,14 @@ export function loadOnlineRoomSession(): OnlineRoomSession | null {
     clearOnlineRoomSession();
     return null;
   }
+}
+
+export function loadOnlineRoomSession(): OnlineRoomSession | null {
+  if (!shouldOfferSavedSession()) {
+    return null;
+  }
+
+  return readOnlineRoomSession();
 }
 
 export function clearOnlineRoomSession(): void {
