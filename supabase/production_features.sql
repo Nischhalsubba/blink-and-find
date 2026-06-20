@@ -61,6 +61,7 @@ create table if not exists public.leaderboard_scores (
 create index if not exists leaderboard_scores_mode_score_idx
   on public.leaderboard_scores(mode, score_ms asc, wrong_taps asc, created_at asc);
 
+drop trigger if exists player_profiles_set_updated_at on public.player_profiles;
 create trigger player_profiles_set_updated_at
 before update on public.player_profiles
 for each row execute function public.set_updated_at();
