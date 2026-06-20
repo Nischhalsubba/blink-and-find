@@ -3,12 +3,15 @@ import type { GameConfig } from "@/types/game";
 export type OnlineGameType = "same_challenge" | "live_race";
 export type OnlineRoomStatus = "lobby" | "ready" | "playing" | "round_summary" | "finished" | "abandoned";
 export type OnlineRoundStatus = "waiting" | "preview" | "playing" | "complete";
+export type OnlineRoomVisibility = "private" | "public";
 
 export interface OnlineRoom {
   id: string;
   code: string;
   game_type: OnlineGameType;
   status: OnlineRoomStatus;
+  visibility?: OnlineRoomVisibility;
+  max_players?: number | null;
   host_player_id: string | null;
   settings: GameConfig;
   current_round: number;
