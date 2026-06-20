@@ -11,6 +11,9 @@ const routes = [
   { path: "/zen", heading: /Endless calm boards/i },
   { path: "/challenge?seed=123&size=100&target=42", heading: /Shared board/i },
   { path: "/stats", heading: /Your progress/i },
+  { path: "/leaderboard", heading: /Fastest humans/i },
+  { path: "/profile", heading: /Player profile/i },
+  { path: "/telemetry", heading: /Local analytics/i },
   { path: "/tips", heading: /Get faster/i },
   { path: "/modes", heading: /Choose your kind of chaos/i },
   { path: "/faq", heading: /Questions, answered/i },
@@ -51,7 +54,7 @@ test("comfort mode can start a gentle round", async ({ page }) => {
   await expect(page.getByText(/Target hides in|Look at the target/i)).toBeVisible();
 });
 
-test("sitemap includes new feature routes", async ({ page }) => {
+test("sitemap includes production feature routes", async ({ page }) => {
   const response = await page.goto("/sitemap.xml");
   expect(response?.ok()).toBeTruthy();
   const text = await page.textContent("body");
@@ -62,4 +65,6 @@ test("sitemap includes new feature routes", async ({ page }) => {
   expect(text).toContain("/tips");
   expect(text).toContain("/modes");
   expect(text).toContain("/faq");
+  expect(text).toContain("/leaderboard");
+  expect(text).toContain("/profile");
 });
