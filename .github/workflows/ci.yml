@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   quality:
-    name: Lint, typecheck, and build
+    name: Lint, typecheck, build, and smoke tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-fund
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Lint
         run: npm run lint
 
@@ -35,6 +38,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Smoke tests
+        run: npm run e2e
 
       - name: Production dependency audit
         run: npm run audit:prod
