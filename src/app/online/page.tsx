@@ -10,20 +10,22 @@ import OnlineSameChallengeGame from "@/components/OnlineSameChallengeGame";
 import ResultScreen from "@/components/ResultScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { trackEvent } from "@/lib/analytics";
 import { getDeviceId } from "@/lib/device";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
 import { abandonStaleOnlineRooms, isOnlineRoomStale } from "@/lib/onlineCleanup";
-import { fetchPublicLobbyRooms, removeOnlinePlayer, setOnlineRoomVisibility, type OnlineRoomVisibility, type PublicLobbyRoom } from "@/lib/onlineRoomExtras";
+import {
+  fetchPublicLobbyRooms,
+  getMinimumPlayersToStart,
+  normalizeMaxPlayers,
+  removeOnlinePlayer,
+  setOnlineRoomVisibility,
+  type OnlineRoomVisibility,
+  type PublicLobbyRoom,
+} from "@/lib/onlineRoomExtras";
 import {
   createOnlineRoom,
   fetchOnlineRoomSnapshot,
@@ -41,7 +43,6 @@ import {
   type OnlineRoomSession,
 } from "@/lib/onlineSession";
 import { hasSupabaseConfig } from "@/lib/supabase";
-import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
@@ -87,15 +88,7 @@ function getInviteUrl(roomCode: string): string {
   return `${window.location.origin}${path}`;
 }
 
-function ChoicePill({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+function ChoicePill({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -103,9 +96,7 @@ function ChoicePill({
       onClick={onClick}
       className={cn(
         "rounded-full border px-4 py-2 text-sm font-medium transition-all",
-        active
-          ? "border-primary bg-primary text-primary-foreground shadow-xs"
-          : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        active ? "border-primary bg-primary text-primary-foreground shadow-xs" : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >
       {children}
@@ -113,15 +104,7 @@ function ChoicePill({
   );
 }
 
-function OnlineRecoveryActions({
-  message,
-  onClear,
-  onCleanup,
-}: {
-  message: string;
-  onClear: () => void;
-  onCleanup: () => void;
-}) {
+function OnlineRecoveryActions({ message, onClear, onCleanup }: { message: string; onClear: () => void; onCleanup: () => void }) {
   if (!message) {
     return null;
   }
@@ -165,20 +148,25 @@ function PublicRoomBrowser({
           Public room browsing needs the latest Supabase migration. The UI is ready; the database needs to catch up, like usual.
         </div>
       ) : rooms.length === 0 ? (
-        <div className="rounded-lg border bg-background/50 p-3 text-sm text-muted-foreground">No public lobbies right now.</div>
+        <div className="rounded-lg border bg-background/50 p-3 text-sm text-muted-foreground">No open public lobbies right now.</div>
       ) : (
         <div className="grid gap-2">
-          {rooms.map(({ room, playerCount }) => (
-            <div key={room.id} className="flex items-center justify-between gap-2 rounded-lg border bg-background/50 p-3 text-sm">
-              <div>
-                <div className="font-semibold">Room {room.code}</div>
-                <div className="text-xs text-muted-foreground">
-                  {room.game_type === "same_challenge" ? "Same Challenge" : "Live Race"} · {playerCount}/{room.max_players ?? 8} players
+          {rooms.map(({ room, playerCount }) => {
+            const capacity = normalizeMaxPlayers(room.max_players ?? 2);
+            const isFull = playerCount >= capacity;
+
+            return (
+              <div key={room.id} className="flex items-center justify-between gap-2 rounded-lg border bg-background/50 p-3 text-sm">
+                <div>
+                  <div className="font-semibold">Room {room.code}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {room.game_type === "same_challenge" ? "Same Challenge" : "Live Race"} · {playerCount}/{capacity} players
+                  </div>
                 </div>
+                <Button size="sm" onClick={() => onJoin(room.code)} disabled={isFull}>{isFull ? "Full" : "Join"}</Button>
               </div>
-              <Button size="sm" onClick={() => onJoin(room.code)}>Join</Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -192,7 +180,7 @@ export default function OnlinePage() {
   const [roomCode, setRoomCode] = useState("");
   const [gameType, setGameType] = useState<OnlineGameType>("same_challenge");
   const [roomVisibility, setRoomVisibility] = useState<OnlineRoomVisibility>("private");
-  const [maxPlayers, setMaxPlayers] = useState(4);
+  const [maxPlayers, setMaxPlayers] = useState(2);
   const [publicRooms, setPublicRooms] = useState<PublicLobbyRoom[]>([]);
   const [publicRoomsUnavailable, setPublicRoomsUnavailable] = useState(false);
   const [isLoadingPublicRooms, setIsLoadingPublicRooms] = useState(false);
@@ -297,9 +285,9 @@ export default function OnlinePage() {
       ...DEFAULT_CONFIG,
       difficulty,
       boardSize: selectedDifficulty.boardSize,
-      totalRounds: Math.max(1, Math.min(rounds, 20)),
+      totalRounds: Math.max(1, Math.min(Math.floor(rounds) || 1, 20)),
       flashDurationMs: selectedDifficulty.flashDurationMs,
-      penaltySeconds: Math.max(0, Math.min(penaltySeconds, 10)),
+      penaltySeconds: Math.max(0, Math.min(Math.floor(penaltySeconds) || 0, 10)),
     };
   }
 
@@ -310,6 +298,7 @@ export default function OnlinePage() {
 
     try {
       await runStaleRoomCleanup(false);
+      const normalizedMaxPlayers = normalizeMaxPlayers(maxPlayers);
       const result = await createOnlineRoom({
         playerName,
         deviceId: getDeviceId(),
@@ -317,11 +306,11 @@ export default function OnlinePage() {
         settings: buildSettings(),
       });
 
-      const visibilityResult = await setOnlineRoomVisibility(result.room.id, roomVisibility, maxPlayers);
+      const visibilityResult = await setOnlineRoomVisibility(result.room.id, roomVisibility, normalizedMaxPlayers);
       const nextSnapshot = visibilityResult.applied ? await fetchOnlineRoomSnapshot(result.room.id) : result;
 
-      trackEvent("online_room_created", { gameType, visibility: roomVisibility, maxPlayers });
-      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, visibilityResult.applied ? "Room created. Share the invite with your friend." : "Room created. Public/private controls need the latest Supabase migration.");
+      trackEvent("online_room_created", { gameType, visibility: roomVisibility, maxPlayers: normalizedMaxPlayers });
+      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, visibilityResult.applied ? "Room created. Share the invite or start solo if capacity is one." : "Room created. Public/private controls need the latest Supabase migration.");
       void loadPublicRooms();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
@@ -344,11 +333,7 @@ export default function OnlinePage() {
 
     try {
       await runStaleRoomCleanup(false);
-      const result = await joinOnlineRoom({
-        code: normalizedCode,
-        playerName: name,
-        deviceId: getDeviceId(),
-      });
+      const result = await joinOnlineRoom({ code: normalizedCode, playerName: name, deviceId: getDeviceId() });
 
       setRoomCode(normalizedCode);
       trackEvent("online_room_joined", { code: normalizedCode, status: result.room.status });
@@ -370,12 +355,7 @@ export default function OnlinePage() {
 
     try {
       await runStaleRoomCleanup(false);
-      const result = await joinOnlineRoom({
-        code: session.roomCode,
-        playerName: session.playerName || playerName,
-        deviceId: getDeviceId(),
-      });
-
+      const result = await joinOnlineRoom({ code: session.roomCode, playerName: session.playerName || playerName, deviceId: getDeviceId() });
       enterOnlineRoom(result, result.room.status === "finished" ? "Rejoined completed room." : "Reconnected to your room.");
     } catch (error) {
       clearOnlineRoomSession();
@@ -441,11 +421,13 @@ export default function OnlinePage() {
       });
 
       const rematchVisibility = snapshot.room.visibility ?? "private";
-      await setOnlineRoomVisibility(result.room.id, rematchVisibility, snapshot.room.max_players ?? maxPlayers);
+      const rematchCapacity = normalizeMaxPlayers(snapshot.room.max_players ?? maxPlayers);
+      await setOnlineRoomVisibility(result.room.id, rematchVisibility, rematchCapacity);
       const nextSnapshot = await fetchOnlineRoomSnapshot(result.room.id);
 
       setGameType(snapshot.room.game_type);
       setRoomVisibility(rematchVisibility);
+      setMaxPlayers(rematchCapacity);
       setDifficulty(snapshot.room.settings.difficulty);
       setRounds(snapshot.room.settings.totalRounds);
       setPenaltySeconds(snapshot.room.settings.penaltySeconds);
@@ -532,6 +514,32 @@ export default function OnlinePage() {
     };
   }, [snapshot?.room.id, localPlayer?.id]);
 
+  useEffect(() => {
+    function refreshVisibleRoom() {
+      if (document.visibilityState === "visible" && snapshot?.room.id) {
+        refreshRoom(snapshot.room.id).catch((error) => setMessage(error.message));
+      }
+    }
+
+    function refreshAfterOnline() {
+      if (snapshot?.room.id) {
+        refreshRoom(snapshot.room.id).catch((error) => setMessage(error.message));
+      } else {
+        void loadPublicRooms();
+      }
+    }
+
+    window.addEventListener("focus", refreshAfterOnline);
+    window.addEventListener("online", refreshAfterOnline);
+    document.addEventListener("visibilitychange", refreshVisibleRoom);
+
+    return () => {
+      window.removeEventListener("focus", refreshAfterOnline);
+      window.removeEventListener("online", refreshAfterOnline);
+      document.removeEventListener("visibilitychange", refreshVisibleRoom);
+    };
+  }, [snapshot?.room.id, localPlayer?.id]);
+
   if (!hasSupabaseConfig()) {
     return (
       <main className="app-shell">
@@ -576,6 +584,14 @@ export default function OnlinePage() {
     const isHost = localPlayer.is_host;
     const roomStatus = snapshot.room.status;
     const inviteUrl = getInviteUrl(snapshot.room.code);
+    const roomCapacity = normalizeMaxPlayers(snapshot.room.max_players ?? 2);
+    const minimumPlayersToStart = getMinimumPlayersToStart(roomCapacity);
+    const canStartRoom = snapshot.players.length >= minimumPlayersToStart;
+    const startLabel = !canStartRoom
+      ? "Waiting for Friend"
+      : roomCapacity === 1
+        ? "Start Solo Online Game"
+        : "Start Game";
 
     if (roomStatus === "finished") {
       return (
@@ -594,25 +610,11 @@ export default function OnlinePage() {
     }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
-      return (
-        <OnlineSameChallengeGame
-          snapshot={snapshot}
-          localPlayer={localPlayer}
-          onRefresh={() => refreshRoom(snapshot.room.id)}
-          onBackToLobby={closeRoomView}
-        />
-      );
+      return <OnlineSameChallengeGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={closeRoomView} />;
     }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "live_race") {
-      return (
-        <OnlineLiveRaceGame
-          snapshot={snapshot}
-          localPlayer={localPlayer}
-          onRefresh={() => refreshRoom(snapshot.room.id)}
-          onBackToLobby={closeRoomView}
-        />
-      );
+      return <OnlineLiveRaceGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={closeRoomView} />;
     }
 
     return (
@@ -623,7 +625,7 @@ export default function OnlinePage() {
               <Badge variant="secondary" className="mx-auto mb-3 w-fit">Room ready</Badge>
               <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
               <CardDescription>
-                {isHost ? "Share the invite, then start when your friend appears." : "You joined. Wait for the host to start."}
+                {isHost ? "Share the invite, or start solo when capacity is one." : "You joined. Wait for the host to start."}
               </CardDescription>
             </CardHeader>
 
@@ -631,7 +633,7 @@ export default function OnlinePage() {
               <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
                 <Badge variant="outline">{snapshot.room.visibility ?? "private"}</Badge>
                 <Badge variant="outline">{snapshot.room.game_type === "same_challenge" ? "Same Challenge" : "Live Race"}</Badge>
-                <Badge variant="outline">{snapshot.players.length}/{snapshot.room.max_players ?? 8} players</Badge>
+                <Badge variant="outline">{snapshot.players.length}/{roomCapacity} players</Badge>
               </div>
 
               <div className="grid gap-2">
@@ -660,7 +662,7 @@ export default function OnlinePage() {
               )}
 
               <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-                <div>{snapshot.players.length < 2 ? "Waiting for your friend..." : "Friend joined. Ready to start."}</div>
+                <div>{canStartRoom ? "Ready to start." : "Waiting for your friend..."}</div>
                 <div>{snapshot.room.game_type === "same_challenge" ? "Same Challenge: turn-based, fair, and resilient." : "Live Race: simultaneous, fast, and mildly dramatic."}</div>
               </div>
 
@@ -673,9 +675,7 @@ export default function OnlinePage() {
                 <Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button>
               </div>
               {isHost && roomStatus === "lobby" && (
-                <Button onClick={handleStartRoom} disabled={isBusy || snapshot.players.length < 2}>
-                  {snapshot.players.length < 2 ? "Waiting for Friend" : "Start Game"}
-                </Button>
+                <Button onClick={handleStartRoom} disabled={isBusy || !canStartRoom}>{startLabel}</Button>
               )}
             </CardFooter>
           </Card>
@@ -718,10 +718,7 @@ export default function OnlinePage() {
                 type="button"
                 aria-pressed={action === "create"}
                 onClick={() => setAction("create")}
-                className={cn(
-                  "flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all",
-                  action === "create" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground"
-                )}
+                className={cn("flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all", action === "create" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground")}
               >
                 Create
               </button>
@@ -729,10 +726,7 @@ export default function OnlinePage() {
                 type="button"
                 aria-pressed={action === "join"}
                 onClick={() => setAction("join")}
-                className={cn(
-                  "flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all",
-                  action === "join" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground"
-                )}
+                className={cn("flex-1 rounded-full px-4 py-2 text-sm font-medium transition-all", action === "join" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground")}
               >
                 Join
               </button>
@@ -747,7 +741,8 @@ export default function OnlinePage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="max-players">Max players</Label>
-                  <Input id="max-players" min={2} max={8} type="number" value={maxPlayers} onChange={(event) => setMaxPlayers(Number(event.target.value))} />
+                  <Input id="max-players" min={1} max={8} type="number" value={maxPlayers} onChange={(event) => setMaxPlayers(normalizeMaxPlayers(Number(event.target.value)))} />
+                  <div className="text-xs text-muted-foreground">Set this to 1 to start a solo online room immediately.</div>
                 </div>
               </div>
             )}
