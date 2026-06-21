@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getPlayerProfile, resetPlayerProfile, savePlayerProfile, type PlayerProfile } from "@/lib/playerProfile";
+import { getPlayerProfile, resetPlayerProfile, savePlayerProfile, syncPlayerProfile, type PlayerProfile } from "@/lib/playerProfile";
 
 export default function ProfileManager() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [name, setName] = useState("Player");
   const [message, setMessage] = useState("Your profile is saved locally in this browser. No account ceremony required. Humanity survives.");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const current = getPlayerProfile();
@@ -25,6 +26,22 @@ export default function ProfileManager() {
     setProfile(nextProfile);
     setName(nextProfile.name);
     setMessage("Profile saved on this device.");
+  }
+
+  async function syncProfile() {
+    const nextProfile = savePlayerProfile({ name });
+    setProfile(nextProfile);
+    setName(nextProfile.name);
+    setIsSyncing(true);
+
+    try {
+      const result = await syncPlayerProfile(nextProfile);
+      setMessage(result.synced ? "Profile synced to Supabase." : "Profile saved locally. Run the production Supabase migration to enable cloud sync.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not sync profile.");
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   function resetProfile() {
@@ -42,7 +59,7 @@ export default function ProfileManager() {
             <Badge variant="secondary" className="mx-auto mb-3 w-fit">Profile</Badge>
             <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">Player profile</CardTitle>
             <CardDescription>
-              This lightweight profile powers local stats, analytics, and leaderboard submissions.
+              This lightweight profile powers local stats, analytics, leaderboard submissions, and optional Supabase sync.
             </CardDescription>
           </CardHeader>
 
@@ -76,8 +93,9 @@ export default function ProfileManager() {
 
           <CardFooter className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-between sm:p-6">
             <Button asChild variant="outline"><Link href="/">Back Home</Link></Button>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={resetProfile}>Reset</Button>
+              <Button variant="outline" onClick={syncProfile} disabled={isSyncing}>{isSyncing ? "Syncing..." : "Sync Profile"}</Button>
               <Button onClick={saveProfile}>Save Profile</Button>
             </div>
           </CardFooter>
