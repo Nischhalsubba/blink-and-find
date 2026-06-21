@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 export interface PlayerProfile {
   id: string;
   name: string;
@@ -76,4 +78,31 @@ export function resetPlayerProfile(): PlayerProfile {
   }
 
   return profile;
+}
+
+function isMissingProfileTableError(error: { code?: string; message?: string } | null) {
+  return error?.code === "42P01" || error?.code === "PGRST205" || error?.message?.toLowerCase().includes("player_profiles");
+}
+
+export async function syncPlayerProfile(profile = getPlayerProfile()) {
+  if (!supabase) {
+    return { synced: false, unavailable: true };
+  }
+
+  const { error } = await supabase
+    .from("player_profiles")
+    .upsert({
+      player_id: profile.id,
+      display_name: profile.name,
+    }, { onConflict: "player_id" });
+
+  if (isMissingProfileTableError(error)) {
+    return { synced: false, unavailable: true };
+  }
+
+  if (error) {
+    throw error;
+  }
+
+  return { synced: true, unavailable: false };
 }
