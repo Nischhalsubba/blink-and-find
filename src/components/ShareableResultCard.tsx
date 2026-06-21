@@ -35,6 +35,16 @@ function truncate(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 }
 
+function sanitizeFilename(value: string) {
+  const safeName = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "blink-find-result";
+
+  return safeName.endsWith(".svg") ? safeName : `${safeName}.svg`;
+}
+
 function createShareCardSvg(props: ShareableResultCardProps) {
   const safeMetrics = props.metrics.slice(0, 4);
   const metricWidth = 248;
@@ -85,44 +95,57 @@ function createShareCardSvg(props: ShareableResultCardProps) {
 export default function ShareableResultCard(props: ShareableResultCardProps) {
   const [status, setStatus] = useState("Share your result as text or download a clean score card.");
   const shareUrl = props.shareUrl ?? absoluteUrl("/");
+  const shareText = `${props.shareText} ${shareUrl}`;
 
   function downloadCard() {
-    const svg = createShareCardSvg(props);
-    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    try {
+      const svg = createShareCardSvg(props);
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-    link.href = url;
-    link.download = props.filename.endsWith(".svg") ? props.filename : `${props.filename}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    setStatus("Score card downloaded. A tiny trophy your files app can understand.");
+      link.href = url;
+      link.download = sanitizeFilename(props.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus("Score card downloaded. A tiny trophy your files app can understand.");
+    } catch {
+      setStatus("Could not download the card in this browser. The browser has chosen drama.");
+    }
   }
 
   async function copyText() {
-    if (!navigator.clipboard) {
-      setStatus("Clipboard is not available in this browser.");
-      return;
-    }
+    try {
+      if (!navigator.clipboard) {
+        setStatus(`Clipboard is not available. Copy manually: ${shareText}`);
+        return;
+      }
 
-    await navigator.clipboard.writeText(`${props.shareText} ${shareUrl}`);
-    setStatus("Result text copied.");
+      await navigator.clipboard.writeText(shareText);
+      setStatus("Result text copied.");
+    } catch {
+      setStatus(`Copy was blocked. Copy manually: ${shareText}`);
+    }
   }
 
   async function shareResult() {
-    if (!navigator.share) {
-      await copyText();
-      return;
-    }
+    try {
+      if (!navigator.share) {
+        await copyText();
+        return;
+      }
 
-    await navigator.share({
-      title: "Blink & Find result",
-      text: props.shareText,
-      url: shareUrl,
-    });
-    setStatus("Share sheet opened.");
+      await navigator.share({
+        title: "Blink & Find result",
+        text: props.shareText,
+        url: shareUrl,
+      });
+      setStatus("Share sheet opened.");
+    } catch {
+      await copyText();
+    }
   }
 
   return (
