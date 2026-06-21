@@ -25,11 +25,23 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
   return error?.code === "42703" || error?.code === "PGRST204" || error?.message?.toLowerCase().includes("visibility");
 }
 
-export async function setOnlineRoomVisibility(roomId: string, visibility: OnlineRoomVisibility, maxPlayers = 4) {
+export function normalizeMaxPlayers(value: number, fallback = 2) {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(1, Math.min(8, Math.floor(value)));
+}
+
+export function getMinimumPlayersToStart(maxPlayers?: number | null) {
+  return normalizeMaxPlayers(maxPlayers ?? 2) === 1 ? 1 : 2;
+}
+
+export async function setOnlineRoomVisibility(roomId: string, visibility: OnlineRoomVisibility, maxPlayers = 2) {
   const client = requireSupabase();
   const { error } = await client
     .from("online_rooms")
-    .update({ visibility, max_players: Math.max(2, Math.min(maxPlayers, 8)) })
+    .update({ visibility, max_players: normalizeMaxPlayers(maxPlayers) })
     .eq("id", roomId);
 
   if (isMissingColumnError(error)) {
@@ -75,7 +87,10 @@ export async function fetchPublicLobbyRooms(): Promise<PublicLobbyResult> {
     })
   );
 
-  return { rooms: publicRooms, unavailable: false };
+  return {
+    rooms: publicRooms.filter(({ room, playerCount }) => playerCount < normalizeMaxPlayers(room.max_players ?? 2)),
+    unavailable: false,
+  };
 }
 
 export async function removeOnlinePlayer(roomId: string, hostPlayerId: string, playerId: string) {
