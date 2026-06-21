@@ -29,7 +29,7 @@ test.describe("core route smoke tests", () => {
   }
 });
 
-test("home exposes primary mode navigation", async ({ page }) => {
+test("home exposes primary mode and production navigation", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: /Daily/i })).toBeVisible();
@@ -38,6 +38,26 @@ test("home exposes primary mode navigation", async ({ page }) => {
   await expect(page.getByRole("link", { name: /Streak/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Comfort/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Zen/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Leaderboard/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Profile/i })).toBeVisible();
+});
+
+test("shared challenge sanitizes bad URL params without crashing", async ({ page }) => {
+  await page.goto("/challenge?seed=-999&size=banana&target=999999");
+
+  await expect(page.getByRole("heading", { name: /Shared board/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Start Challenge/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Copy Challenge Link/i })).toBeVisible();
+});
+
+test("online setup allows one-player room capacity", async ({ page }) => {
+  await page.goto("/online");
+
+  await expect(page.getByRole("heading", { name: /Play with a friend/i })).toBeVisible();
+  const maxPlayersInput = page.getByLabel(/Max players/i);
+  await expect(maxPlayersInput).toHaveAttribute("min", "1");
+  await maxPlayersInput.fill("1");
+  await expect(page.getByText(/start a solo online room/i)).toBeVisible();
 });
 
 test("shared challenge keeps the same seed in copied link UI", async ({ page }) => {
