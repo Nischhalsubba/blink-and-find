@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { createTurnResult, formatTime } from "@/engine/scoring";
+import { LIVE_RACE_ROUND_TIMEOUT_MS, resolveLiveRaceTimeout } from "@/lib/liveRaceTimeout";
 import {
   getCurrentOnlineRound,
   getOnlineBoard,
@@ -47,12 +48,9 @@ function WaitingCard({ title, description, children, onBack }: { title: string; 
   );
 }
 
-/**
- * Online Live Race gameplay.
- * Everyone sees the same target and board, then races simultaneously after a shared countdown.
- */
 export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, onBackToLobby }: OnlineLiveRaceGameProps) {
   const wrongTapsRef = useRef(0);
+  const timeoutCheckRef = useRef(0);
   const [now, setNow] = useState(Date.now());
   const [lastSelectedNumber, setLastSelectedNumber] = useState<number | null>(null);
   const [lastSelectionWasWrong, setLastSelectionWasWrong] = useState(false);
@@ -75,6 +73,7 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   const countdownMs = Math.max(0, roundStartMs - now);
   const countdownSeconds = Math.ceil(countdownMs / 1000);
   const hasStarted = countdownMs <= 0;
+  const isTimedOut = hasStarted && now - roundStartMs >= LIVE_RACE_ROUND_TIMEOUT_MS;
   const localRoundResult = snapshot.results.find((result) => {
     return result.round_number === room.current_round && result.player_id === localPlayer.id;
   });
@@ -91,8 +90,12 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
       return `You finished in ${formatTime(localRoundResult.final_time_ms)}. Waiting for the others.`;
     }
 
+    if (isTimedOut) {
+      return "This round timed out. Resolving unfinished players now.";
+    }
+
     return "Go. Find the hidden target before everyone else does.";
-  }, [countdownSeconds, hasStarted, localRoundResult]);
+  }, [countdownSeconds, hasStarted, isTimedOut, localRoundResult]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 80);
@@ -101,6 +104,7 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
 
   useEffect(() => {
     wrongTapsRef.current = 0;
+    timeoutCheckRef.current = 0;
     setCurrentWrongTaps(0);
     setLastSelectedNumber(null);
     setLastSelectionWasWrong(false);
@@ -108,8 +112,27 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
     setMessage("");
   }, [room.current_round]);
 
+  useEffect(() => {
+    if (!isTimedOut || room.status !== "playing" || timeoutCheckRef.current === room.current_round) {
+      return;
+    }
+
+    timeoutCheckRef.current = room.current_round;
+    setMessage("Live Race timeout reached. Resolving the round so nobody is held hostage by one sleeping tab.");
+
+    resolveLiveRaceTimeout(snapshot)
+      .then((changed) => {
+        if (changed) {
+          return onRefresh();
+        }
+
+        return undefined;
+      })
+      .catch((error) => setMessage(error instanceof Error ? error.message : "Could not resolve the live race timeout."));
+  }, [isTimedOut, room.current_round, room.status, snapshot, onRefresh]);
+
   async function handleNumberSelect(value: number) {
-    if (!hasStarted || isSubmitting || localRoundResult || targetNumber === null || !currentRound) {
+    if (!hasStarted || isTimedOut || isSubmitting || localRoundResult || targetNumber === null || !currentRound) {
       return;
     }
 
@@ -169,34 +192,21 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   }
 
   if (!currentRound || targetNumber === null) {
-    return (
-      <WaitingCard title="Preparing Live Race" description="Waiting for the shared board and target to appear." onBack={onBackToLobby} />
-    );
+    return <WaitingCard title="Preparing Live Race" description="Waiting for the shared board and target to appear." onBack={onBackToLobby} />;
   }
 
   if (room.status === "round_summary") {
     if (localPlayer.is_host) {
       return (
         <main className="app-shell">
-          <RoundSummary
-            round={room.current_round}
-            totalRounds={room.settings.totalRounds}
-            players={gamePlayers}
-            results={gameResults}
-            onNextRound={handleNextRound}
-            onFinishGame={handleFinishGame}
-          />
+          <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={handleNextRound} onFinishGame={handleFinishGame} />
           {message && <p className="sr-only" role="status">{message}</p>}
         </main>
       );
     }
 
     return (
-      <WaitingCard
-        title={`Round ${room.current_round} complete`}
-        description="Waiting for the host to start the next live race."
-        onBack={onBackToLobby}
-      >
+      <WaitingCard title={`Round ${room.current_round} complete`} description="Waiting for the host to start the next live race." onBack={onBackToLobby}>
         <div className="rounded-xl border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
           {roundResults.length} / {snapshot.players.length} players finished this round.
         </div>
@@ -207,25 +217,14 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   if (room.status === "finished") {
     return (
       <main className="app-shell">
-        <ResultScreen
-          players={gamePlayers}
-          results={gameResults}
-          bestScore={null}
-          latestScore={null}
-          isNewBest={false}
-          onPlayAgain={onBackToLobby}
-        />
+        <ResultScreen players={gamePlayers} results={gameResults} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={onBackToLobby} />
       </main>
     );
   }
 
   if (localRoundResult) {
     return (
-      <WaitingCard
-        title="Result submitted"
-        description="Your time is saved. Waiting for every player to finish this live race round."
-        onBack={onBackToLobby}
-      >
+      <WaitingCard title="Result submitted" description="Your time is saved. Waiting for every player to finish this live race round." onBack={onBackToLobby}>
         <div className="grid gap-3 text-center">
           <div className="text-4xl font-semibold tracking-tight">{formatTime(localRoundResult.final_time_ms)}</div>
           <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">
