@@ -7,7 +7,7 @@ alter table public.online_rooms
   add column if not exists visibility text not null default 'private';
 
 alter table public.online_rooms
-  add column if not exists max_players integer not null default 4;
+  add column if not exists max_players integer not null default 2;
 
 do $$
 begin
@@ -16,10 +16,13 @@ begin
       add constraint online_rooms_visibility_check check (visibility in ('private', 'public'));
   end if;
 
-  if not exists (select 1 from pg_constraint where conname = 'online_rooms_max_players_check') then
+  if exists (select 1 from pg_constraint where conname = 'online_rooms_max_players_check') then
     alter table public.online_rooms
-      add constraint online_rooms_max_players_check check (max_players between 2 and 8);
+      drop constraint online_rooms_max_players_check;
   end if;
+
+  alter table public.online_rooms
+    add constraint online_rooms_max_players_check check (max_players between 1 and 8);
 
   if not exists (select 1 from pg_constraint where conname = 'online_results_basic_score_check') then
     alter table public.online_results
