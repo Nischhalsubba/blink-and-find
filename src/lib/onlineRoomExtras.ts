@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { OnlineRoom } from "@/types/online";
+import type { OnlinePlayer, OnlineRoom, OnlineRoomSnapshot } from "@/types/online";
 
 export type OnlineRoomVisibility = "private" | "public";
 
@@ -13,6 +13,8 @@ export interface PublicLobbyResult {
   unavailable: boolean;
 }
 
+const HOST_STALE_MS = 45_000;
+
 function requireSupabase() {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
@@ -25,6 +27,10 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
   return error?.code === "42703" || error?.code === "PGRST204" || error?.message?.toLowerCase().includes("visibility");
 }
 
+function isActivePlayer(player: OnlinePlayer, staleMs = HOST_STALE_MS) {
+  return player.is_connected && Date.now() - new Date(player.updated_at).getTime() < staleMs;
+}
+
 export function normalizeMaxPlayers(value: number, fallback = 2) {
   if (!Number.isFinite(value)) {
     return fallback;
@@ -35,6 +41,67 @@ export function normalizeMaxPlayers(value: number, fallback = 2) {
 
 export function getMinimumPlayersToStart(maxPlayers?: number | null) {
   return normalizeMaxPlayers(maxPlayers ?? 2) === 1 ? 1 : 2;
+}
+
+export async function touchOnlinePlayerPresence(playerId: string, isConnected = true) {
+  const client = requireSupabase();
+  const { error } = await client
+    .from("online_players")
+    .update({ is_connected: isConnected })
+    .eq("id", playerId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function repairOnlineRoomHost(snapshot: OnlineRoomSnapshot, staleMs = HOST_STALE_MS) {
+  const room = snapshot.room;
+
+  if (room.status === "finished" || room.status === "abandoned") {
+    return { repaired: false, hostPlayerId: room.host_player_id };
+  }
+
+  const currentHost = snapshot.players.find((player) => player.id === room.host_player_id || player.is_host) ?? null;
+
+  if (currentHost && isActivePlayer(currentHost, staleMs)) {
+    return { repaired: false, hostPlayerId: currentHost.id };
+  }
+
+  const nextHost = snapshot.players
+    .filter((player) => isActivePlayer(player, staleMs))
+    .sort((a, b) => a.joined_at.localeCompare(b.joined_at))[0] ?? null;
+
+  if (!nextHost) {
+    return { repaired: false, hostPlayerId: room.host_player_id };
+  }
+
+  const client = requireSupabase();
+  const roomUpdate: Partial<OnlineRoom> = { host_player_id: nextHost.id };
+
+  if (room.status === "lobby" && room.current_player_id === room.host_player_id) {
+    roomUpdate.current_player_id = nextHost.id;
+  }
+
+  const [clearHostsResponse, setHostResponse, roomResponse] = await Promise.all([
+    client.from("online_players").update({ is_host: false }).eq("room_id", room.id),
+    client.from("online_players").update({ is_host: true, is_connected: true }).eq("id", nextHost.id),
+    client.from("online_rooms").update(roomUpdate).eq("id", room.id),
+  ]);
+
+  if (clearHostsResponse.error) {
+    throw clearHostsResponse.error;
+  }
+
+  if (setHostResponse.error) {
+    throw setHostResponse.error;
+  }
+
+  if (roomResponse.error) {
+    throw roomResponse.error;
+  }
+
+  return { repaired: true, hostPlayerId: nextHost.id };
 }
 
 export async function setOnlineRoomVisibility(roomId: string, visibility: OnlineRoomVisibility, maxPlayers = 2) {
