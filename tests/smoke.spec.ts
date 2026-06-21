@@ -50,10 +50,18 @@ test("shared challenge sanitizes bad URL params without crashing", async ({ page
   await expect(page.getByRole("button", { name: /Copy Challenge Link/i })).toBeVisible();
 });
 
-test("online setup allows one-player room capacity", async ({ page }) => {
+test("online setup handles one-player rooms when Supabase is configured", async ({ page }) => {
   await page.goto("/online");
 
-  await expect(page.getByRole("heading", { name: /Play with a friend/i })).toBeVisible();
+  const setupHeading = page.getByRole("heading", { name: /Play with a friend/i });
+  const missingConfigHeading = page.getByRole("heading", { name: /Online Play needs Supabase/i });
+
+  if (await missingConfigHeading.isVisible().catch(() => false)) {
+    await expect(missingConfigHeading).toBeVisible();
+    return;
+  }
+
+  await expect(setupHeading).toBeVisible();
   const maxPlayersInput = page.getByLabel(/Max players/i);
   await expect(maxPlayersInput).toHaveAttribute("min", "1");
   await maxPlayersInput.fill("1");
