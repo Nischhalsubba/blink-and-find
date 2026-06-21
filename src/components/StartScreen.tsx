@@ -218,6 +218,8 @@ export default function StartScreen({
           <div className="grid grid-cols-2 gap-2">
             <Button asChild variant="outline" className="h-12 text-base"><Link href="/online">Play with Friend</Link></Button>
             <Button asChild variant="outline" className="h-12 text-base"><Link href="/challenge">Challenge Link</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/leaderboard">Leaderboard</Link></Button>
+            <Button asChild variant="outline" className="h-12 text-base"><Link href="/profile">Profile</Link></Button>
           </div>
 
           <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
@@ -238,6 +240,7 @@ export default function StartScreen({
             <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
             <Button asChild variant="ghost" size="sm"><Link href="/stats">Stats</Link></Button>
             <Button asChild variant="ghost" size="sm"><Link href="/history">History</Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/telemetry">QA</Link></Button>
           </div>
         </CardFooter>
       </Card>
