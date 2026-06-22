@@ -17,7 +17,7 @@ export default function Timer({ elapsedMs }: TimerProps) {
           Time
         </Badge>
 
-        <div className="font-display text-2xl font-black tracking-[-0.06em] text-slate-950 sm:text-4xl">
+        <div className="text-2xl font-black tracking-[-0.06em] text-slate-950 sm:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
           {(elapsedMs / 1000).toFixed(2)}s
         </div>
         <p className="mt-1 text-[11px] font-medium text-muted-foreground sm:text-xs">Lower is better.</p>
