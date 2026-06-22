@@ -20,8 +20,8 @@ const toneClasses: Record<NonNullable<GameModeCardProps["tone"]>, string> = {
   soft: "from-violet-100 via-fuchsia-100 to-pink-100 text-violet-950 border-violet-200",
 };
 
-export default function GameModeCard({ title, description, eyebrow, href, actionLabel = "Open", tone = "warm", onClick }: GameModeCardProps) {
-  const content = (
+function ModeCardShell({ title, description, eyebrow, actionLabel, tone }: Required<Pick<GameModeCardProps, "title" | "description" | "eyebrow" | "actionLabel" | "tone">) {
+  return (
     <Card className={cn("group h-full overflow-hidden border bg-gradient-to-br shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md", toneClasses[tone])}>
       <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
@@ -32,22 +32,26 @@ export default function GameModeCard({ title, description, eyebrow, href, action
           <h3 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h3>
           <p className="text-sm leading-6 opacity-75">{description}</p>
         </div>
-        <div className="mt-auto">
-          <Button type={onClick ? "button" : undefined} onClick={onClick} className="w-full rounded-full bg-white/85 text-current shadow-xs hover:bg-white" variant="secondary">
-            {actionLabel}
-          </Button>
-        </div>
+        <span className="mt-auto inline-flex h-10 w-full items-center justify-center rounded-full bg-white/85 px-4 text-sm font-semibold shadow-xs transition-colors group-hover:bg-white">
+          {actionLabel}
+        </span>
       </CardContent>
     </Card>
   );
+}
 
+export default function GameModeCard({ title, description, eyebrow, href, actionLabel = "Open", tone = "warm", onClick }: GameModeCardProps) {
   if (href) {
     return (
       <Link href={href} className="block h-full focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
-        {content}
+        <ModeCardShell title={title} description={description} eyebrow={eyebrow} actionLabel={actionLabel} tone={tone} />
       </Link>
     );
   }
 
-  return content;
+  return (
+    <button type="button" onClick={onClick} className="block h-full w-full text-left focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
+      <ModeCardShell title={title} description={description} eyebrow={eyebrow} actionLabel={actionLabel} tone={tone} />
+    </button>
+  );
 }
