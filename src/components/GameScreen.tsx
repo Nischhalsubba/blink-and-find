@@ -33,9 +33,22 @@ interface GameScreenProps {
   onToggleAutoContinue: () => void;
 }
 
-/**
- * Active gameplay screen.
- */
+function getObjective(phase: GamePhase, targetHidden: boolean) {
+  if (phase === "preview") {
+    return "Remember the target number.";
+  }
+
+  if (phase === "playing" && targetHidden) {
+    return "Find the hidden match on the board.";
+  }
+
+  if (phase === "turnSummary") {
+    return "Round complete. Take the win.";
+  }
+
+  return "Get ready.";
+}
+
 export default function GameScreen({
   phase,
   config,
@@ -62,27 +75,28 @@ export default function GameScreen({
 }: GameScreenProps) {
   return (
     <main className="app-shell">
-      <div className="flex h-full min-h-0 flex-col gap-1.5 sm:gap-2">
-        <Card className="shrink-0 gap-0 overflow-hidden py-0">
-          <CardContent className="grid gap-1.5 p-1.5 sm:flex sm:items-center sm:justify-between sm:gap-2 sm:p-3">
-            <div className="flex min-w-0 items-center justify-between gap-2 sm:block">
-              <div className="truncate text-xs font-semibold sm:text-base">{currentPlayer?.name}</div>
-              <div className="shrink-0 text-[11px] text-muted-foreground sm:text-xs">
-                Round {currentRound}/{config.totalRounds}
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col gap-2 sm:gap-3">
+        <Card className="shrink-0 overflow-hidden border-white/70 bg-white/85 py-0 shadow-sm backdrop-blur">
+          <CardContent className="grid gap-2 p-2.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:p-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="rounded-full">Round {currentRound}/{config.totalRounds}</Badge>
+                <span className="truncate text-sm font-black sm:text-base">{currentPlayer?.name ?? "Player"}</span>
               </div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">{getObjective(phase, targetHidden)}</p>
             </div>
 
-            <div className="grid min-w-0 grid-cols-[auto_auto_1fr_1fr_1fr] items-center gap-1 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-1.5">
-              <Badge variant="outline" className="h-7 justify-center px-2 text-[11px] sm:h-auto sm:text-xs">
+            <div className="grid min-w-0 grid-cols-[auto_auto_1fr_1fr_1fr] items-center gap-1.5 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-2">
+              <Badge variant="outline" className="h-8 justify-center rounded-full px-3 text-[11px] sm:text-xs">
                 Wrong {currentWrongTaps}
               </Badge>
-              <Badge variant="secondary" className="h-7 justify-center px-2 text-[11px] sm:h-auto sm:text-xs">
-                +{config.penaltySeconds}s
+              <Badge variant="secondary" className="h-8 justify-center rounded-full px-3 text-[11px] sm:text-xs">
+                Penalty +{config.penaltySeconds}s
               </Badge>
-              <Button variant="outline" size="sm" className="h-7 min-w-0 px-2 text-xs sm:h-8 sm:px-3" onClick={onToggleMute}>
+              <Button variant="outline" size="sm" className="h-8 min-w-0 rounded-full px-2 text-xs sm:px-3" onClick={onToggleMute}>
                 <span className="truncate">{isMuted ? "Muted" : "Sound"}</span>
               </Button>
-              <Button variant="outline" size="sm" className="h-7 min-w-0 px-2 text-xs sm:h-8 sm:px-3" onClick={onToggleAutoContinue}>
+              <Button variant="outline" size="sm" className="h-8 min-w-0 rounded-full px-2 text-xs sm:px-3" onClick={onToggleAutoContinue}>
                 <span className="truncate">{autoContinue ? "Auto" : "Manual"}</span>
               </Button>
               <QuitGameDialog onConfirm={onBackToSetup} />
@@ -90,13 +104,13 @@ export default function GameScreen({
           </CardContent>
         </Card>
 
-        <div className="grid shrink-0 grid-cols-[1fr_0.72fr] gap-1.5 sm:grid-cols-[1fr_0.62fr] sm:gap-2">
+        <div className="grid shrink-0 grid-cols-[1fr_0.72fr] gap-2 sm:grid-cols-[1fr_0.62fr] sm:gap-3">
           <TargetDisplay targetNumber={targetNumber} hidden={targetHidden} />
           <Timer elapsedMs={elapsedMs} />
         </div>
 
-        <Card className="min-h-0 flex-1 gap-0 py-0">
-          <CardContent className="flex h-full min-h-0 items-center justify-center p-1.5 sm:p-2">
+        <Card className="min-h-0 flex-1 border-white/70 bg-white/80 py-0 shadow-sm backdrop-blur">
+          <CardContent className="flex h-full min-h-0 items-center justify-center p-1.5 sm:p-3">
             <NumberGrid
               numbers={board}
               targetNumber={targetNumber}
@@ -109,11 +123,11 @@ export default function GameScreen({
           </CardContent>
         </Card>
 
-        <Card className="shrink-0 gap-0 py-0">
-          <CardContent className="p-2 text-center text-xs sm:text-sm" role="status" aria-live="polite">
+        <Card className="shrink-0 border-white/70 bg-white/85 py-0 shadow-sm backdrop-blur">
+          <CardContent className="p-3 text-center text-xs sm:p-4 sm:text-sm" role="status" aria-live="polite">
             {phase === "preview" && (
               <span>
-                Remember this number. It hides in <Badge variant="secondary" className="ml-1">{previewCountdown}</Badge>
+                Look closely. The target hides in <Badge variant="secondary" className="ml-1 rounded-full">{previewCountdown}</Badge>
               </span>
             )}
             {phase === "playing" && (
@@ -127,12 +141,12 @@ export default function GameScreen({
               </span>
             )}
             {phase === "turnSummary" && lastResult && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
                 <span>
                   Nice. {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
                   {autoContinue && <span className="ml-2 text-muted-foreground">Next screen is coming...</span>}
                 </span>
-                <Button size="sm" onClick={onContinue}>Continue</Button>
+                <Button size="sm" className="rounded-full" onClick={onContinue}>Continue</Button>
               </div>
             )}
           </CardContent>
