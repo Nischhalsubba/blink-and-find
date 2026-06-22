@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const routes = [
-  { path: "/", heading: /tiny focus game/i },
+  { path: "/", heading: /Memorize fast/i },
   { path: "/tutorial", heading: /Learn Blink & Find|Tutorial|Memorize/i },
   { path: "/practice", heading: /Practice Mode/i },
   { path: "/daily", heading: /Daily Challenge/i },
@@ -15,7 +15,7 @@ const routes = [
   { path: "/profile", heading: /Player profile/i },
   { path: "/telemetry", heading: /Local analytics/i },
   { path: "/tips", heading: /Get faster/i },
-  { path: "/modes", heading: /Choose your kind of chaos/i },
+  { path: "/modes", heading: /Choose your kind of play/i },
   { path: "/faq", heading: /Questions, answered/i },
   { path: "/rules", heading: /Rules|How to Play/i },
 ];
@@ -29,13 +29,13 @@ test.describe("core route smoke tests", () => {
   }
 });
 
-test("home explains the new concept and exposes primary navigation", async ({ page }) => {
+test("home explains the new player flow and exposes primary navigation", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText(/Remember one number/i)).toBeVisible();
-  await expect(page.getByText(/Find/i).first()).toBeVisible();
+  await expect(page.getByText(/You see one number/i)).toBeVisible();
+  await expect(page.getByText(/Watch the target/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /^Play now$/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Learn in 20 seconds/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Learn the game/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Comfort mode/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Zen practice/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Daily/i })).toBeVisible();
