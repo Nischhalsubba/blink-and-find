@@ -64,45 +64,43 @@ export default function ResultScreen({
 
   return (
     <section className="flex h-full items-center justify-center px-1">
-      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-hidden border-white/70 bg-white/85 shadow-xl shadow-amber-950/5 backdrop-blur">
-        <CardHeader className="relative overflow-hidden border-b border-amber-100 text-center">
-          <div className="absolute -left-12 -top-16 h-40 w-40 rounded-full bg-amber-200/60 blur-3xl" aria-hidden="true" />
-          <div className="absolute -bottom-20 right-10 h-44 w-44 rounded-full bg-sky-200/60 blur-3xl" aria-hidden="true" />
+      <Card className="glass-panel max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-hidden rounded-[2rem]">
+        <CardHeader className="relative overflow-hidden border-b p-6 text-center sm:p-8">
           <div className="relative">
-            <CardDescription>{isNewBest ? "New best saved. Nicely hunted." : "Game complete. Here is the friendly little scoreboard."}</CardDescription>
-            <CardTitle className="mt-2 text-4xl font-black tracking-[-0.06em] sm:text-6xl">
+            <CardDescription>{isNewBest ? "New personal best saved." : "Game complete. Review the run."}</CardDescription>
+            <CardTitle className="hero-title mt-2 text-5xl sm:text-7xl">
               {winner?.name ?? "Nobody"} wins
             </CardTitle>
           </div>
         </CardHeader>
 
         <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
-          <div className="grid gap-2 sm:grid-cols-4">
-            <Card className="gap-1 rounded-3xl border-amber-100 bg-amber-50/80 p-4 shadow-none">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Average turn</div>
-              <div className="text-lg font-black">{formatTime(stats.averageTurnMs)}</div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Card className="gap-1 rounded-[1.5rem] border-blue-100 bg-white p-4 shadow-none">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Average</div>
+              <div className="text-xl font-black">{formatTime(stats.averageTurnMs)}</div>
             </Card>
-            <Card className="gap-1 rounded-3xl border-emerald-100 bg-emerald-50/80 p-4 shadow-none">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Accuracy</div>
-              <div className="text-lg font-black">{stats.accuracyPercent.toFixed(0)}%</div>
+            <Card className="gap-1 rounded-[1.5rem] border-emerald-100 bg-white p-4 shadow-none">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Accuracy</div>
+              <div className="text-xl font-black">{stats.accuracyPercent.toFixed(0)}%</div>
             </Card>
-            <Card className="gap-1 rounded-3xl border-sky-100 bg-sky-50/80 p-4 shadow-none">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Fastest find</div>
-              <div className="text-lg font-black">{stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-"}</div>
+            <Card className="gap-1 rounded-[1.5rem] border-indigo-100 bg-white p-4 shadow-none">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Fastest</div>
+              <div className="text-xl font-black">{stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-"}</div>
             </Card>
-            <Card className="gap-1 rounded-3xl border-rose-100 bg-rose-50/80 p-4 shadow-none">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Penalty time</div>
-              <div className="text-lg font-black">{formatTime(stats.totalPenaltyMs)}</div>
+            <Card className="gap-1 rounded-[1.5rem] border-amber-100 bg-white p-4 shadow-none">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Penalty</div>
+              <div className="text-xl font-black">{formatTime(stats.totalPenaltyMs)}</div>
             </Card>
           </div>
 
-          <div className="mt-3 rounded-3xl border border-amber-100 bg-white/70 p-4 text-sm shadow-sm">
+          <div className="mt-4 rounded-[1.5rem] border bg-white p-4 text-sm shadow-sm">
             <div className="flex flex-col justify-between gap-1 sm:flex-row">
               <span className="text-muted-foreground">
                 {isNewBest ? "Personal best updated" : "Best saved result"}
               </span>
               <strong>
-                {bestScore ? `${bestScore.winnerName} - ${formatTime(bestScore.winnerTimeMs)}` : "No saved score yet. First victory gets the throne."}
+                {bestScore ? `${bestScore.winnerName} - ${formatTime(bestScore.winnerTimeMs)}` : "No saved score yet."}
               </strong>
             </div>
             {latestScore && !isNewBest && (
@@ -132,10 +130,10 @@ export default function ResultScreen({
           )}
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-            <Card className="gap-3 rounded-3xl border-white/70 bg-white/70 py-4 shadow-none">
+            <Card className="gap-3 rounded-[1.75rem] bg-white py-4 shadow-none">
               <CardHeader className="px-4">
                 <CardTitle className="text-base font-black">Final ranking</CardTitle>
-                <CardDescription>Lowest total time wins. Calm hands help, annoyingly.</CardDescription>
+                <CardDescription>Lowest total time wins.</CardDescription>
               </CardHeader>
               <CardContent className="px-4">
                 <Table>
@@ -161,10 +159,10 @@ export default function ResultScreen({
               </CardContent>
             </Card>
 
-            <Card className="gap-3 rounded-3xl border-white/70 bg-white/70 py-4 shadow-none">
+            <Card className="gap-3 rounded-[1.75rem] bg-white py-4 shadow-none">
               <CardHeader className="px-4">
                 <CardTitle className="text-base font-black">Round history</CardTitle>
-                <CardDescription>Every turn is saved here so the scoreboard has receipts.</CardDescription>
+                <CardDescription>Every turn, target, and final time.</CardDescription>
               </CardHeader>
               <CardContent className="px-4">
                 <Table>
@@ -205,8 +203,8 @@ export default function ResultScreen({
               accuracyPercent={stats.accuracyPercent}
             />
           )}
-          <Button className="rounded-full" variant="outline" onClick={copyResult}>Copy Result</Button>
-          <Button className="rounded-full" onClick={onPlayAgain}>{playAgainLabel}</Button>
+          <Button className="rounded-2xl" variant="outline" onClick={copyResult}>Copy Result</Button>
+          <Button className="rounded-2xl" onClick={onPlayAgain}>{playAgainLabel}</Button>
         </CardFooter>
       </Card>
     </section>
