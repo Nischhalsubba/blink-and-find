@@ -28,27 +28,27 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #09090b;
-  --card-foreground: #fafafa;
-  --popover: #09090b;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #18181b;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #ef4444;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
-  --success: #22c55e;
-  --warning: #eab308;
+  --radius: 1rem;
+  --background: #fff8ed;
+  --foreground: #211a13;
+  --card: #fffcf7;
+  --card-foreground: #211a13;
+  --popover: #fffcf7;
+  --popover-foreground: #211a13;
+  --primary: #3f46d6;
+  --primary-foreground: #ffffff;
+  --secondary: #f6e5c9;
+  --secondary-foreground: #312415;
+  --muted: #f3e7d7;
+  --muted-foreground: #756656;
+  --accent: #dff7ee;
+  --accent-foreground: #12382c;
+  --destructive: #dc2626;
+  --border: #ead8bd;
+  --input: #ead8bd;
+  --ring: #3f46d6;
+  --success: #16a34a;
+  --warning: #d97706;
 }
 
 * {
@@ -66,6 +66,12 @@ body {
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.23), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.18), transparent 30rem),
+    linear-gradient(135deg, #fff8ed 0%, #fffdf7 48%, #edf9ff 100%);
   font-feature-settings: "rlig" 1, "calt" 1;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -112,9 +118,9 @@ button:not(:disabled),
   min-width: 0;
   min-height: 0;
   padding: 0;
-  border-radius: clamp(0.25rem, 0.8vw, 0.65rem);
+  border-radius: clamp(0.35rem, 0.9vw, 0.8rem);
   font-size: clamp(0.55rem, 1.8vw, 1rem);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
   transform: rotate(var(--tile-rotate, 0deg));
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease, background-color 140ms ease;
@@ -123,41 +129,41 @@ button:not(:disabled),
 .number-tile:not(:disabled):hover {
   z-index: 2;
   transform: translateY(-1px) scale(1.04) rotate(var(--tile-rotate, 0deg));
-  box-shadow: 0 0 0 2px rgba(212, 212, 216, 0.24);
+  box-shadow: 0 0 0 3px rgba(63, 70, 214, 0.22), 0 10px 22px rgba(49, 36, 21, 0.12);
 }
 
 .number-tile:focus-visible {
   z-index: 4;
   outline: 3px solid var(--ring);
   outline-offset: 3px;
-  box-shadow: 0 0 0 6px rgba(212, 212, 216, 0.18);
+  box-shadow: 0 0 0 7px rgba(63, 70, 214, 0.16);
 }
 
 .number-tile:disabled {
-  opacity: 0.7;
+  opacity: 0.72;
 }
 
 .tile-correct {
   z-index: 3;
   animation: correct-pop 260ms ease;
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.38), 0 10px 24px rgba(22, 163, 74, 0.12);
 }
 
 .tile-wrong {
   z-index: 3;
   animation: wrong-shake 220ms ease;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.36), 0 10px 24px rgba(220, 38, 38, 0.12);
 }
 
 .target-number {
   font-size: clamp(1.6rem, 6vw, 4rem);
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.06em;
 }
 
 .target-pulse {
   color: var(--foreground);
-  text-shadow: none;
+  text-shadow: 0 10px 28px rgba(63, 70, 214, 0.16);
   animation: target-pulse 700ms ease infinite alternate;
 }
 
