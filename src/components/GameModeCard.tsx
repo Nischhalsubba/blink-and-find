@@ -2,24 +2,34 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+type ModeCardTone = "warm" | "calm" | "bright" | "soft";
+
 interface GameModeCardProps {
   title: string;
   description: string;
   eyebrow: string;
   href?: string;
   actionLabel?: string;
-  tone?: "warm" | "calm" | "bright" | "soft";
+  tone?: ModeCardTone;
   onClick?: () => void;
 }
 
-const toneClasses: Record<NonNullable<GameModeCardProps["tone"]>, string> = {
+interface ModeCardShellProps {
+  title: string;
+  description: string;
+  eyebrow: string;
+  actionLabel: string;
+  tone: ModeCardTone;
+}
+
+const toneClasses: Record<ModeCardTone, string> = {
   warm: "from-amber-100 via-orange-100 to-rose-100 text-orange-950 border-orange-200",
   calm: "from-sky-100 via-cyan-100 to-teal-100 text-sky-950 border-sky-200",
   bright: "from-lime-100 via-emerald-100 to-teal-100 text-emerald-950 border-emerald-200",
   soft: "from-violet-100 via-fuchsia-100 to-pink-100 text-violet-950 border-violet-200",
 };
 
-function ModeCardShell({ title, description, eyebrow, actionLabel, tone }: Required<Pick<GameModeCardProps, "title" | "description" | "eyebrow" | "actionLabel" | "tone">) {
+function ModeCardShell({ title, description, eyebrow, actionLabel, tone }: ModeCardShellProps) {
   return (
     <Card className={cn("group h-full overflow-hidden border bg-gradient-to-br shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md", toneClasses[tone])}>
       <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
