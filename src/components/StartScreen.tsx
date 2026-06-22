@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import GameModeCard from "@/components/GameModeCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,28 +33,18 @@ interface StartScreenProps {
   onStart: (config: GameConfig) => void;
 }
 
-function ChoicePill({
-  active,
-  children,
-  compact = false,
-  onClick,
-}: {
-  active: boolean;
-  children: ReactNode;
-  compact?: boolean;
-  onClick: () => void;
-}) {
+function ChoicePill({ active, children, compact = false, onClick }: { active: boolean; children: ReactNode; compact?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "rounded-full border font-medium transition-all",
-        compact ? "min-h-10 px-3 py-2 text-sm" : "px-4 py-2 text-sm",
+        "rounded-full border font-semibold transition-all focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        compact ? "min-h-11 px-3 py-2 text-sm" : "px-4 py-2 text-sm",
         active
           ? "border-primary bg-primary text-primary-foreground shadow-xs"
-          : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          : "border-border bg-white/65 text-foreground hover:border-primary/40 hover:bg-white"
       )}
     >
       {children}
@@ -61,9 +52,16 @@ function ChoicePill({
   );
 }
 
-/**
- * Quick-first setup screen. Most people should press one button and play.
- */
+function StepCard({ number, title, description }: { number: string; title: string; description: string }) {
+  return (
+    <div className="rounded-3xl border bg-white/70 p-4 shadow-sm">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground">{number}</div>
+      <div className="font-black tracking-tight">{title}</div>
+      <div className="mt-1 text-sm leading-6 text-muted-foreground">{description}</div>
+    </div>
+  );
+}
+
 export default function StartScreen({
   mode,
   playerNames,
@@ -80,12 +78,10 @@ export default function StartScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
   const normalDifficulty = DIFFICULTIES.find((item) => item.id === "normal") ?? selectedDifficulty;
+  const easyDifficulty = DIFFICULTIES.find((item) => item.id === "easy") ?? normalDifficulty;
 
   function updatePlayerCount(count: number) {
-    const nextNames = Array.from({ length: count }, (_, index) => {
-      return playerNames[index] ?? `Player ${index + 1}`;
-    });
-
+    const nextNames = Array.from({ length: count }, (_, index) => playerNames[index] ?? `Player ${index + 1}`);
     onPlayerNamesChange(nextNames);
   }
 
@@ -106,6 +102,17 @@ export default function StartScreen({
     });
   }
 
+  function handleGentleStart() {
+    onStart({
+      mode: "single",
+      difficulty: easyDifficulty.id,
+      boardSize: easyDifficulty.boardSize,
+      totalRounds: 3,
+      flashDurationMs: easyDifficulty.flashDurationMs,
+      penaltySeconds: 1,
+    });
+  }
+
   function handleCustomStart() {
     onStart({
       mode,
@@ -119,131 +126,179 @@ export default function StartScreen({
 
   if (settingsOpen) {
     return (
-      <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto px-2 py-2 sm:items-center">
-        <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden">
-          <CardHeader className="shrink-0 border-b p-3 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <Badge variant="secondary" className="mb-2 w-fit">Settings</Badge>
-                <CardTitle className="truncate text-xl font-semibold tracking-tight sm:text-3xl">Make it yours</CardTitle>
-                <CardDescription className="mt-1 hidden sm:block">Choose the board, rounds, and players. Defaults are already beginner-friendly.</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(false)}>Done</Button>
-            </div>
-          </CardHeader>
+      <section className="min-h-full overflow-y-auto px-2 py-3 sm:px-4 sm:py-6">
+        <div className="mx-auto grid w-full max-w-5xl gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <Card className="overflow-hidden border-white/70 bg-white/80 shadow-xl shadow-amber-950/5 backdrop-blur">
+            <CardHeader className="border-b border-amber-100 p-5 sm:p-6">
+              <Badge variant="secondary" className="mb-3 w-fit rounded-full">Customize</Badge>
+              <CardTitle className="text-3xl font-black tracking-tight sm:text-5xl">Make your first round feel right.</CardTitle>
+              <CardDescription className="mt-3 text-base leading-7">
+                Keep it gentle, add friends on one device, or make the board harder. Defaults stay friendly because starting with chaos is bad hospitality.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-5 sm:p-6">
+              <Button className="h-14 rounded-full text-base" onClick={handleGentleStart}>Start gentle 3-round game</Button>
+              <Button variant="outline" className="h-14 rounded-full text-base" onClick={() => setSettingsOpen(false)}>Back to welcome</Button>
+            </CardContent>
+          </Card>
 
-          <CardContent className="grid min-h-0 gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-5">
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-              <Label>Local mode</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <ChoicePill compact active={mode === "single"} onClick={() => onModeChange("single")}>Solo</ChoicePill>
-                <ChoicePill compact active={mode === "multiplayer"} onClick={() => onModeChange("multiplayer")}>Same Device</ChoicePill>
-              </div>
-            </div>
-
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-              <Label>Difficulty</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {DIFFICULTIES.map((item) => (
-                  <ChoicePill key={item.id} compact active={difficulty === item.id} onClick={() => onDifficultyChange(item.id)}>{item.label}</ChoicePill>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-              <Label>Players</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((count) => (
-                  <ChoicePill key={count} compact active={(mode === "single" ? 1 : playerNames.length) === count} onClick={() => { onModeChange(count === 1 ? "single" : "multiplayer"); updatePlayerCount(count); }}>{count}</ChoicePill>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-                <Label htmlFor="rounds">Rounds</Label>
-                <Input id="rounds" className="h-10 text-center text-base sm:h-11" min={1} max={20} type="number" value={totalRounds} onChange={(event) => onTotalRoundsChange(Number(event.target.value))} />
-              </div>
-
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-                <Label htmlFor="penalty">Penalty</Label>
-                <Input id="penalty" className="h-10 text-center text-base sm:h-11" min={0} max={10} type="number" value={penaltySeconds} onChange={(event) => onPenaltySecondsChange(Number(event.target.value))} />
-              </div>
-            </div>
-
-            {mode === "multiplayer" && (
-              <div className="grid gap-2 rounded-xl border bg-muted/20 p-2.5 sm:p-3">
-                <div className="flex items-center justify-between">
-                  <Label>Names</Label>
-                  <Badge variant="outline">{playerNames.length}</Badge>
+          <Card className="overflow-hidden border-white/70 bg-white/85 shadow-xl shadow-amber-950/5 backdrop-blur">
+            <CardHeader className="border-b border-amber-100 p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Badge variant="secondary" className="mb-2 w-fit rounded-full">Game setup</Badge>
+                  <CardTitle className="text-2xl font-black tracking-tight">Advanced options</CardTitle>
                 </div>
+                <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)}>Close</Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="grid gap-4 p-5 sm:p-6">
+              <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                <Label>Local mode</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {playerNames.map((name, index) => (
-                    <Input key={index} className="h-10" value={name} aria-label={`Player ${index + 1} name`} onChange={(event) => updatePlayerName(index, event.target.value)} />
+                  <ChoicePill compact active={mode === "single"} onClick={() => onModeChange("single")}>Solo</ChoicePill>
+                  <ChoicePill compact active={mode === "multiplayer"} onClick={() => onModeChange("multiplayer")}>Same Device</ChoicePill>
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                <Label>Difficulty</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {DIFFICULTIES.map((item) => (
+                    <ChoicePill key={item.id} compact active={difficulty === item.id} onClick={() => onDifficultyChange(item.id)}>{item.label}</ChoicePill>
                   ))}
                 </div>
               </div>
-            )}
-          </CardContent>
 
-          <CardFooter className="shrink-0 border-t p-3 sm:p-5">
-            <Button className="h-12 w-full text-base" onClick={handleCustomStart}>Start Custom Game</Button>
-          </CardFooter>
-        </Card>
+              <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                <Label>Players</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4].map((count) => (
+                    <ChoicePill key={count} compact active={(mode === "single" ? 1 : playerNames.length) === count} onClick={() => { onModeChange(count === 1 ? "single" : "multiplayer"); updatePlayerCount(count); }}>{count}</ChoicePill>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                  <Label htmlFor="rounds">Rounds</Label>
+                  <Input id="rounds" className="h-12 rounded-2xl text-center text-base" min={1} max={20} type="number" value={totalRounds} onChange={(event) => onTotalRoundsChange(Number(event.target.value))} />
+                </div>
+                <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                  <Label htmlFor="penalty">Wrong tap penalty</Label>
+                  <Input id="penalty" className="h-12 rounded-2xl text-center text-base" min={0} max={10} type="number" value={penaltySeconds} onChange={(event) => onPenaltySecondsChange(Number(event.target.value))} />
+                </div>
+              </div>
+
+              {mode === "multiplayer" && (
+                <div className="grid gap-2 rounded-3xl border bg-background/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Player names</Label>
+                    <Badge variant="outline">{playerNames.length}</Badge>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {playerNames.map((name, index) => (
+                      <Input key={index} className="h-12 rounded-2xl" value={name} aria-label={`Player ${index + 1} name`} onChange={(event) => updatePlayerName(index, event.target.value)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="border-t border-amber-100 p-5 sm:p-6">
+              <Button className="h-14 w-full rounded-full text-base" onClick={handleCustomStart}>Start custom game</Button>
+            </CardFooter>
+          </Card>
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="flex h-full min-h-0 items-center justify-center overflow-y-auto px-2 py-2">
-      <Card className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden">
-        <CardHeader className="shrink-0 border-b pb-3 text-center">
-          <Badge variant="secondary" className="mx-auto mb-2 w-fit">Blink &amp; Find</Badge>
-          <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Ready to play?</CardTitle>
-          <CardDescription className="mt-2">Memorize one number, find it on the board, and try to beat your time.</CardDescription>
-        </CardHeader>
+    <section className="min-h-full overflow-y-auto px-2 py-3 sm:px-4 sm:py-6">
+      <div className="mx-auto grid w-full max-w-6xl gap-5">
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+          <Card className="overflow-hidden border-white/70 bg-white/85 shadow-xl shadow-amber-950/5 backdrop-blur">
+            <CardHeader className="relative overflow-hidden p-5 sm:p-8">
+              <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-amber-200/60 blur-3xl" aria-hidden="true" />
+              <div className="absolute -bottom-16 left-12 h-48 w-48 rounded-full bg-sky-200/60 blur-3xl" aria-hidden="true" />
+              <div className="relative">
+                <Badge variant="secondary" className="mb-4 w-fit rounded-full px-3 py-1">New concept game</Badge>
+                <CardTitle className="max-w-3xl text-4xl font-black tracking-[-0.06em] text-balance sm:text-6xl">
+                  A tiny focus game for fast eyes.
+                </CardTitle>
+                <CardDescription className="mt-4 max-w-2xl text-base leading-7 sm:text-lg">
+                  Remember one number. Find it on the board. Beat your time. That is the whole loop.
+                </CardDescription>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  <Button size="lg" className="h-14 rounded-full px-8 text-base font-black" onClick={handleQuickStart}>Play now</Button>
+                  <Button asChild size="lg" variant="outline" className="h-14 rounded-full px-8 text-base">
+                    <Link href="/tutorial">Learn in 20 seconds</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
 
-        <CardContent className="grid min-h-0 gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-5">
-          <Button size="lg" className="h-14 text-lg" onClick={handleQuickStart}>Play Now</Button>
+          <Card className="overflow-hidden border-white/70 bg-white/80 shadow-xl shadow-amber-950/5 backdrop-blur">
+            <CardHeader className="p-5 sm:p-6">
+              <Badge variant="outline" className="mb-3 w-fit rounded-full">Start here</Badge>
+              <CardTitle className="text-2xl font-black tracking-tight">New to Blink & Find?</CardTitle>
+              <CardDescription className="mt-2 leading-7">Try the calm route first. It teaches the game without turning your thumbs into unpaid interns.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-5 pt-0 sm:p-6 sm:pt-0">
+              <Button className="h-14 rounded-full" onClick={handleGentleStart}>Start gentle game</Button>
+              <Button asChild variant="outline" className="h-14 rounded-full"><Link href="/comfort">Comfort mode</Link></Button>
+              <Button asChild variant="ghost" className="h-14 rounded-full"><Link href="/zen">Zen practice</Link></Button>
+            </CardContent>
+          </Card>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/daily">Daily</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/practice">Practice</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/time-attack">Time Attack</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/streak">Streak</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/comfort">Comfort</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/zen">Zen</Link></Button>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StepCard number="1" title="Remember" description="The game flashes one target number. Give it one calm second." />
+          <StepCard number="2" title="Find" description="The target hides in a grid. Tap it as fast as your eyes allow." />
+          <StepCard number="3" title="Improve" description="Replay, challenge friends, and slowly bully your old score." />
+        </div>
+
+        <div className="grid gap-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">Choose your kind of play</h2>
+              <p className="text-sm text-muted-foreground">Beginner-safe paths first, spicy modes after. Civilization survives another day.</p>
+            </div>
+            <Button variant="outline" className="rounded-full" onClick={() => setSettingsOpen(true)}>Customize first game</Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/online">Play with Friend</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/challenge">Challenge Link</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/leaderboard">Leaderboard</Link></Button>
-            <Button asChild variant="outline" className="h-12 text-base"><Link href="/profile">Profile</Link></Button>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <GameModeCard title="Daily" eyebrow="habit" description="One shared board each day. Perfect for a quick focus ritual." href="/daily" actionLabel="Play daily" tone="warm" />
+            <GameModeCard title="Practice" eyebrow="classic" description="Replay the core game and learn the number-hunting rhythm." href="/practice" actionLabel="Practice" tone="calm" />
+            <GameModeCard title="Time Attack" eyebrow="speed" description="A 60-second sprint for players who enjoy pressure, somehow." href="/time-attack" actionLabel="Start sprint" tone="bright" />
+            <GameModeCard title="Streak" eyebrow="precision" description="One wrong tap ends the run. Tiny stakes, huge betrayal." href="/streak" actionLabel="Build streak" tone="soft" />
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-            New here? Try the tutorial or Zen first, then come back for Daily, Time Attack, Streak, or online play.
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <GameModeCard title="Play with Friend" eyebrow="social" description="Create a room, share a code, and race or take turns online." href="/online" actionLabel="Create room" tone="calm" />
+            <GameModeCard title="Challenge Link" eyebrow="share" description="Send the same board to someone and compare results fairly." href="/challenge" actionLabel="Make link" tone="warm" />
+            <GameModeCard title="Leaderboard" eyebrow="progress" description="See fastest local and global scores after you save a result." href="/leaderboard" actionLabel="View scores" tone="bright" />
+            <GameModeCard title="Profile" eyebrow="identity" description="Set your display name before sharing rooms and scores." href="/profile" actionLabel="Edit profile" tone="soft" />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="secondary" className="h-11"><Link href="/tutorial">Learn in 20s</Link></Button>
-            <Button variant="secondary" className="h-11" onClick={() => setSettingsOpen(true)}>Change settings</Button>
-          </div>
-        </CardContent>
-
-        <CardFooter className="flex shrink-0 flex-col gap-2 border-t p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <span>Tip: quick eyes beat frantic fingers.</span>
-          <div className="flex flex-wrap justify-center gap-1">
-            <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/tips">Tips</Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/stats">Stats</Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/history">History</Link></Button>
-            <Button asChild variant="ghost" size="sm"><Link href="/telemetry">QA</Link></Button>
-          </div>
-        </CardFooter>
-      </Card>
+        <Card className="border-white/70 bg-white/75 shadow-sm">
+          <CardFooter className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>Tip: slow eyes first, fast fingers second.</span>
+            <div className="flex flex-wrap justify-center gap-1">
+              <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/tips">Tips</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/stats">Stats</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/history">History</Link></Button>
+              <Button asChild variant="ghost" size="sm"><Link href="/telemetry">QA</Link></Button>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </section>
   );
 }
