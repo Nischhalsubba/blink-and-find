@@ -62,13 +62,28 @@ function FlowCard({ number, title, description }: { number: string; title: strin
   );
 }
 
-function IntentButton({ href, title, description }: { href: string; title: string; description: string }) {
-  return (
-    <Link href={href} className="flow-pill rounded-[1.35rem] p-4 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
-      <span className="block text-sm font-black text-slate-950">{title}</span>
-      <span className="mt-1 block text-sm leading-5 text-muted-foreground">{description}</span>
-    </Link>
+function PlayChoiceCard({ title, description, bestFor, action, href, onClick }: { title: string; description: string; bestFor: string; action: string; href?: string; onClick?: () => void }) {
+  const inner = (
+    <Card className="mode-intent-card h-full rounded-[1.75rem] transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <CardContent className="flex h-full flex-col gap-4 p-5 sm:p-6">
+        <div>
+          <h3 className="text-2xl font-black tracking-[-0.04em]">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        <div className="mt-auto rounded-2xl bg-secondary p-3 text-sm">
+          <span className="font-bold text-slate-950">Best for: </span>
+          <span className="text-muted-foreground">{bestFor}</span>
+        </div>
+        <span className="inline-flex h-11 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-black text-primary-foreground">{action}</span>
+      </CardContent>
+    </Card>
   );
+
+  if (href) {
+    return <Link href={href} className="block h-full rounded-[1.75rem] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">{inner}</Link>;
+  }
+
+  return <button type="button" onClick={onClick} className="block h-full w-full rounded-[1.75rem] text-left focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">{inner}</button>;
 }
 
 export default function StartScreen({
@@ -131,6 +146,12 @@ export default function StartScreen({
       flashDurationMs: selectedDifficulty.flashDurationMs,
       penaltySeconds,
     });
+  }
+
+  function openSameDeviceSetup() {
+    onModeChange("multiplayer");
+    updatePlayerCount(Math.max(2, playerNames.length));
+    setSettingsOpen(true);
   }
 
   if (settingsOpen) {
@@ -226,21 +247,21 @@ export default function StartScreen({
 
   return (
     <section className="min-h-full overflow-y-auto px-3 py-4 sm:px-6 sm:py-8">
-      <div className="design-shell grid gap-6">
+      <div className="design-shell grid gap-7">
         <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
           <Card className="glass-panel overflow-hidden rounded-[2.25rem]">
             <CardHeader className="relative overflow-hidden p-6 sm:p-10">
               <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" aria-hidden="true" />
               <div className="relative max-w-3xl">
-                <Badge variant="secondary" className="mb-5 w-fit rounded-full px-3 py-1">Focus game</Badge>
-                <CardTitle className="hero-title text-5xl sm:text-7xl">Memorize fast. Find faster.</CardTitle>
+                <Badge variant="secondary" className="mb-5 w-fit rounded-full px-3 py-1">New concept game</Badge>
+                <CardTitle className="hero-title text-5xl sm:text-7xl">Memorize the number. Find it faster.</CardTitle>
                 <CardDescription className="hero-copy mt-5 max-w-2xl text-base sm:text-lg">
-                  Blink & Find is a quick visual memory game. You see one number, it disappears, and you race to find the match on the board.
+                  Blink & Find shows you a number, hides it, then challenges you to find the match on the board. Play solo, on one device, or online with someone far away.
                 </CardDescription>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-black" onClick={handleQuickStart}>Play now</Button>
+                  <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-black" onClick={handleQuickStart}>Play first round</Button>
                   <Button asChild size="lg" variant="outline" className="h-14 rounded-2xl px-8 text-base font-bold">
-                    <Link href="/tutorial">Learn the game</Link>
+                    <Link href="/tutorial">Learn how it works</Link>
                   </Button>
                 </div>
               </div>
@@ -249,29 +270,47 @@ export default function StartScreen({
 
           <Card className="glass-panel overflow-hidden rounded-[2.25rem]">
             <CardHeader className="p-6 sm:p-8">
-              <Badge variant="outline" className="mb-4 w-fit rounded-full">Recommended start</Badge>
-              <CardTitle className="text-3xl font-black tracking-[-0.05em]">New player route</CardTitle>
-              <CardDescription className="hero-copy mt-3">Start with a smaller board, then move into timed or social modes once the loop clicks.</CardDescription>
+              <Badge variant="outline" className="mb-4 w-fit rounded-full">For new players</Badge>
+              <CardTitle className="text-3xl font-black tracking-[-0.045em]">Start simple, then compete.</CardTitle>
+              <CardDescription className="hero-copy mt-3">Best first route for ages 10-60: try a small board, understand the loop, then invite others.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 p-6 pt-0 sm:p-8 sm:pt-0">
               <Button className="h-14 rounded-2xl text-base font-black" onClick={handleGentleStart}>Start guided game</Button>
-              <IntentButton href="/comfort" title="Comfort mode" description="Bigger tiles, easier pace, lower pressure." />
-              <IntentButton href="/zen" title="Zen practice" description="Practice the loop without a timer." />
+              <Link href="/comfort" className="flow-pill rounded-[1.35rem] p-4 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
+                <span className="block text-sm font-black text-slate-950">Comfort mode</span>
+                <span className="mt-1 block text-sm leading-5 text-muted-foreground">Bigger tiles, easier pace, lower pressure.</span>
+              </Link>
+              <Link href="/rules" className="flow-pill rounded-[1.35rem] p-4 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
+                <span className="block text-sm font-black text-slate-950">Rules in one minute</span>
+                <span className="mt-1 block text-sm leading-5 text-muted-foreground">Quick explanation before you play.</span>
+              </Link>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <FlowCard number="01" title="Watch the target" description="The game briefly shows one number. That is the only thing to remember." />
-          <FlowCard number="02" title="Scan the grid" description="When the target hides, scan the board and tap the matching number." />
-          <FlowCard number="03" title="Improve the run" description="Review your time, wrong taps, and best score, then replay or challenge someone." />
+          <FlowCard number="01" title="Watch" description="Remember the target number before it hides." />
+          <FlowCard number="02" title="Find" description="Scan the board and tap the matching number." />
+          <FlowCard number="03" title="Compare" description="Beat your time or challenge another player." />
+        </div>
+
+        <div className="grid gap-4">
+          <div>
+            <h2 className="text-3xl font-black tracking-[-0.045em]">How do you want to play?</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">Three clear choices first. All other modes come after.</p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            <PlayChoiceCard title="Play solo" description="Learn the game and beat your own best time." bestFor="first-time players and quick practice" action="Start solo" onClick={handleQuickStart} />
+            <PlayChoiceCard title="Play together" description="Use one device with people sitting near you." bestFor="family, classroom, friends nearby" action="Set up players" onClick={openSameDeviceSetup} />
+            <PlayChoiceCard title="Play online" description="Create a room and match with someone on another device." bestFor="friends away from you" action="Create room" href="/online" />
+          </div>
         </div>
 
         <div className="grid gap-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-3xl font-black tracking-[-0.05em]">Choose a mode</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">Modes are grouped by intent so new players know where to start.</p>
+              <h2 className="text-3xl font-black tracking-[-0.045em]">Explore modes</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">Once the loop clicks, choose a mode by mood: learn, relax, race, or compete.</p>
             </div>
             <Button variant="outline" className="h-11 rounded-2xl font-bold" onClick={() => setSettingsOpen(true)}>Customize setup</Button>
           </div>
@@ -284,16 +323,16 @@ export default function StartScreen({
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <GameModeCard title="Online Room" eyebrow="social" description="Create a room, share a code, and play the same challenge together." href="/online" actionLabel="Create room" tone="social" />
             <GameModeCard title="Challenge Link" eyebrow="share" description="Send a fixed board so friends can compare the same exact run." href="/challenge" actionLabel="Make link" tone="focus" />
+            <GameModeCard title="Zen" eyebrow="relax" description="Practice without a timer when you want calm repetition." href="/zen" actionLabel="Play zen" tone="calm" />
             <GameModeCard title="Leaderboard" eyebrow="progress" description="Compare saved times after you finish a strong run." href="/leaderboard" actionLabel="View scores" tone="progress" />
-            <GameModeCard title="Profile" eyebrow="identity" description="Set your display name before rooms, scores, and shared results." href="/profile" actionLabel="Edit profile" tone="calm" />
+            <GameModeCard title="Profile" eyebrow="identity" description="Set your display name before rooms, scores, and shared results." href="/profile" actionLabel="Edit profile" tone="social" />
           </div>
         </div>
 
         <Card className="soft-panel rounded-[1.75rem]">
           <CardFooter className="flex flex-col gap-3 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>Start simple. Add speed once the pattern feels familiar.</span>
+            <span>Clear first, fast second. The game should make sense before it gets competitive.</span>
             <div className="flex flex-wrap justify-center gap-1">
               <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
               <Button asChild variant="ghost" size="sm"><Link href="/tips">Tips</Link></Button>
