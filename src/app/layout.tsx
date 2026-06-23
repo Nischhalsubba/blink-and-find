@@ -4,6 +4,7 @@ import AppTelemetry from "@/components/AppTelemetry";
 import { absoluteUrl, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 import "./design-system.css";
+import "./colorful.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-body" });
 const nunitoSans = Nunito_Sans({ subsets: ["latin"], display: "swap", variable: "--font-display" });
@@ -69,7 +70,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#f7faff",
+  themeColor: "#fff7fd",
 };
 
 /**
