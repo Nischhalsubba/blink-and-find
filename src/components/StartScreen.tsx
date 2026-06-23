@@ -55,22 +55,22 @@ function ChoicePill({ active, children, compact = false, onClick }: { active: bo
 function FlowCard({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <article className="soft-panel rounded-[1.75rem] p-5">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">{number}</div>
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-sm font-black text-white">{number}</div>
       <h3 className="text-lg font-black tracking-[-0.03em]">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
     </article>
   );
 }
 
-function PlayChoiceCard({ title, description, bestFor, action, href, onClick }: { title: string; description: string; bestFor: string; action: string; href?: string; onClick?: () => void }) {
+function PlayChoiceCard({ title, description, bestFor, action, href, tone, onClick }: { title: string; description: string; bestFor: string; action: string; href?: string; tone: "solo" | "together" | "online"; onClick?: () => void }) {
   const inner = (
-    <Card className="mode-intent-card h-full rounded-[1.75rem] transition-all hover:-translate-y-0.5 hover:shadow-lg">
+    <Card className={cn("mode-intent-card h-full rounded-[1.75rem] transition-all hover:-translate-y-0.5 hover:shadow-lg", tone === "solo" && "choice-solo", tone === "together" && "choice-together", tone === "online" && "choice-online")}>
       <CardContent className="flex h-full flex-col gap-4 p-5 sm:p-6">
         <div>
           <h3 className="text-2xl font-black tracking-[-0.04em]">{title}</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
-        <div className="mt-auto rounded-2xl bg-secondary p-3 text-sm">
+        <div className="mt-auto rounded-2xl bg-white/70 p-3 text-sm shadow-xs">
           <span className="font-bold text-slate-950">Best for: </span>
           <span className="text-muted-foreground">{bestFor}</span>
         </div>
@@ -249,12 +249,11 @@ export default function StartScreen({
     <section className="min-h-full overflow-y-auto px-3 py-4 sm:px-6 sm:py-8">
       <div className="design-shell grid gap-7">
         <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-          <Card className="glass-panel overflow-hidden rounded-[2.25rem]">
+          <Card className="hero-card overflow-hidden rounded-[2.25rem]">
             <CardHeader className="relative overflow-hidden p-6 sm:p-10">
-              <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" aria-hidden="true" />
               <div className="relative max-w-3xl">
                 <Badge variant="secondary" className="mb-5 w-fit rounded-full px-3 py-1">New concept game</Badge>
-                <CardTitle className="hero-title text-5xl sm:text-7xl">Memorize the number. Find it faster.</CardTitle>
+                <CardTitle className="hero-title rainbow-title text-5xl sm:text-7xl">Memorize the number. Find it faster.</CardTitle>
                 <CardDescription className="hero-copy mt-5 max-w-2xl text-base sm:text-lg">
                   Blink & Find shows you a number, hides it, then challenges you to find the match on the board. Play solo, on one device, or online with someone far away.
                 </CardDescription>
@@ -300,9 +299,9 @@ export default function StartScreen({
             <p className="mt-1 text-sm leading-6 text-muted-foreground">Three clear choices first. All other modes come after.</p>
           </div>
           <div className="grid gap-3 lg:grid-cols-3">
-            <PlayChoiceCard title="Play solo" description="Learn the game and beat your own best time." bestFor="first-time players and quick practice" action="Start solo" onClick={handleQuickStart} />
-            <PlayChoiceCard title="Play together" description="Use one device with people sitting near you." bestFor="family, classroom, friends nearby" action="Set up players" onClick={openSameDeviceSetup} />
-            <PlayChoiceCard title="Play online" description="Create a room and match with someone on another device." bestFor="friends away from you" action="Create room" href="/online" />
+            <PlayChoiceCard title="Play solo" description="Learn the game and beat your own best time." bestFor="first-time players and quick practice" action="Start solo" tone="solo" onClick={handleQuickStart} />
+            <PlayChoiceCard title="Play together" description="Use one device with people sitting near you." bestFor="family, classroom, friends nearby" action="Set up players" tone="together" onClick={openSameDeviceSetup} />
+            <PlayChoiceCard title="Play online" description="Create a room and match with someone on another device." bestFor="friends away from you" action="Create room" tone="online" href="/online" />
           </div>
         </div>
 
