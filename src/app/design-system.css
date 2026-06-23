@@ -1,42 +1,49 @@
 :root {
-  --font-body: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: "Space Grotesk", "Inter", "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --radius: 1.25rem;
-  --background: #f6f8ff;
-  --foreground: #111827;
+  --font-body: "Inter", "Atkinson Hyperlegible", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Nunito Sans", "Inter", "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius: 1.35rem;
+  --background: #f7faff;
+  --foreground: #172033;
   --card: #ffffff;
-  --card-foreground: #111827;
+  --card-foreground: #172033;
   --popover: #ffffff;
-  --popover-foreground: #111827;
+  --popover-foreground: #172033;
   --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #e8eefc;
+  --secondary: #eef6ff;
   --secondary-foreground: #172033;
-  --muted: #edf2fb;
-  --muted-foreground: #5f6f89;
-  --accent: #e7fbf3;
-  --accent-foreground: #0b3b2e;
-  --destructive: #dc2626;
-  --border: #dce5f5;
-  --input: #cbd7ec;
+  --muted: #eef3fb;
+  --muted-foreground: #667085;
+  --accent: #ecfdf5;
+  --accent-foreground: #0f3f33;
+  --destructive: #ef4444;
+  --border: #d9e4f2;
+  --input: #c9d7ea;
   --ring: #2563eb;
-  --success: #16a34a;
-  --warning: #f59e0b;
-  --surface-soft: rgba(255, 255, 255, 0.78);
-  --surface-glass: rgba(255, 255, 255, 0.88);
-  --shadow-product: 0 22px 70px rgba(35, 54, 95, 0.14);
-  --shadow-card: 0 14px 40px rgba(35, 54, 95, 0.10);
+  --success: #22c55e;
+  --warning: #fbbf24;
+  --play-blue: #2563eb;
+  --play-teal: #14b8a6;
+  --play-yellow: #fbbf24;
+  --play-purple: #7c3aed;
+  --play-green: #22c55e;
+  --tile-text: #1e293b;
+  --tile-surface: #ffffff;
+  --surface-soft: rgba(238, 246, 255, 0.86);
+  --surface-glass: rgba(255, 255, 255, 0.92);
+  --shadow-product: 0 18px 48px rgba(23, 32, 51, 0.11);
+  --shadow-card: 0 10px 26px rgba(23, 32, 51, 0.08);
 }
 
 body {
   background:
-    radial-gradient(circle at 14% 10%, rgba(37, 99, 235, 0.16), transparent 24rem),
-    radial-gradient(circle at 88% 16%, rgba(20, 184, 166, 0.14), transparent 26rem),
-    radial-gradient(circle at 48% 94%, rgba(245, 158, 11, 0.10), transparent 22rem),
-    linear-gradient(135deg, #f6f8ff 0%, #ffffff 52%, #eef7ff 100%);
+    radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.13), transparent 23rem),
+    radial-gradient(circle at 88% 15%, rgba(20, 184, 166, 0.13), transparent 25rem),
+    radial-gradient(circle at 52% 96%, rgba(251, 191, 36, 0.12), transparent 24rem),
+    linear-gradient(135deg, #f7faff 0%, #ffffff 50%, #eef6ff 100%);
   color: var(--foreground);
   font-family: var(--font-body);
-  letter-spacing: -0.012em;
+  letter-spacing: -0.006em;
 }
 
 h1,
@@ -58,24 +65,24 @@ h3,
 
 .hero-title {
   font-family: var(--font-display);
-  letter-spacing: -0.07em;
-  line-height: 0.92;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
 }
 
 .hero-copy {
   color: var(--muted-foreground);
-  line-height: 1.7;
+  line-height: 1.72;
 }
 
 .glass-panel {
-  border: 1px solid rgba(220, 229, 245, 0.9);
+  border: 1px solid rgba(217, 228, 242, 0.94);
   background: var(--surface-glass);
   box-shadow: var(--shadow-product);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(16px);
 }
 
 .soft-panel {
-  border: 1px solid rgba(220, 229, 245, 0.95);
+  border: 1px solid rgba(217, 228, 242, 0.95);
   background: var(--surface-soft);
   box-shadow: var(--shadow-card);
 }
@@ -85,8 +92,14 @@ h3,
 }
 
 .flow-pill {
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(201, 215, 234, 0.95);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.mode-intent-card {
+  border: 1px solid rgba(217, 228, 242, 0.95);
+  background: #ffffff;
+  box-shadow: var(--shadow-card);
 }
 
 .target-number {
@@ -104,9 +117,11 @@ h3,
 }
 
 .number-tile {
-  border-radius: clamp(0.5rem, 1vw, 0.9rem);
+  border-radius: clamp(0.6rem, 1vw, 1rem);
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 900;
+  color: var(--tile-text);
+  background: var(--tile-surface);
 }
 
 .number-tile:not(:disabled):hover {
@@ -116,4 +131,10 @@ h3,
 .number-tile:focus-visible {
   outline-color: var(--ring);
   box-shadow: 0 0 0 7px rgba(37, 99, 235, 0.16);
+}
+
+@media (max-width: 576px) {
+  .hero-title {
+    letter-spacing: -0.045em;
+  }
 }
