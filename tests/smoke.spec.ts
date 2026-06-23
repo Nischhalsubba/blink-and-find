@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const routes = [
-  { path: "/", heading: /Memorize fast/i },
+  { path: "/", heading: /Memorize the number/i },
   { path: "/tutorial", heading: /Learn Blink & Find|Tutorial|Memorize/i },
   { path: "/practice", heading: /Practice Mode/i },
   { path: "/daily", heading: /Daily Challenge/i },
@@ -29,15 +29,16 @@ test.describe("core route smoke tests", () => {
   }
 });
 
-test("home explains the new player flow and exposes primary navigation", async ({ page }) => {
+test("home explains the ClearPlay flow and exposes primary navigation", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText(/You see one number/i)).toBeVisible();
-  await expect(page.getByText(/Watch the target/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Play now$/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Learn the game/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Comfort mode/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Zen practice/i })).toBeVisible();
+  await expect(page.getByText(/shows you a number/i)).toBeVisible();
+  await expect(page.getByText(/Watch/i).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Play first round/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Learn how it works/i })).toBeVisible();
+  await expect(page.getByText(/Play solo/i)).toBeVisible();
+  await expect(page.getByText(/Play together/i)).toBeVisible();
+  await expect(page.getByText(/Play online/i)).toBeVisible();
   await expect(page.getByRole("link", { name: /Daily/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Practice/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /Time Attack/i })).toBeVisible();
