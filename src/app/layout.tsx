@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Nunito_Sans } from "next/font/google";
 import AppTelemetry from "@/components/AppTelemetry";
 import { absoluteUrl, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 import "./design-system.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-body" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "--font-display" });
+const nunitoSans = Nunito_Sans({ subsets: ["latin"], display: "swap", variable: "--font-display" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -69,7 +69,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#f6f8ff",
+  themeColor: "#f7faff",
 };
 
 /**
@@ -77,7 +77,7 @@ export const viewport: Viewport = {
  */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en" className={`${inter.variable} ${nunitoSans.variable}`}>
       <body>
         <script
           type="application/ld+json"
