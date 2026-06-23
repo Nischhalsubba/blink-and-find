@@ -1,8 +1,37 @@
 :root {
   --background: #fff7fd;
+  --foreground: #182033;
   --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #fff1c7;
+  --muted: #f1f5ff;
+  --accent: #dff7ff;
+  --border: #eadcff;
+  --ring: #7c3aed;
 }
 
 body {
-  background: linear-gradient(135deg, #fff7fd 0%, #f3f0ff 45%, #ecfeff 100%);
+  background: linear-gradient(135deg, #fff7fd 0%, #f3f0ff 35%, #ecfeff 70%, #fff7d6 100%);
+}
+
+.rainbow-title {
+  color: #7c3aed;
+}
+
+.hero-card {
+  border: 1px solid #ffffff;
+  background: linear-gradient(135deg, #ffffff 0%, #f5e9ff 34%, #dcfaff 68%, #fff1c7 100%);
+  box-shadow: 0 28px 80px #d8c8f9;
+}
+
+.choice-solo {
+  background: linear-gradient(145deg, #ffffff 0%, #eef2ff 40%, #dff7ff 100%);
+}
+
+.choice-together {
+  background: linear-gradient(145deg, #ffffff 0%, #fff1c7 42%, #ffe4e6 100%);
+}
+
+.choice-online {
+  background: linear-gradient(145deg, #ffffff 0%, #dcfce7 38%, #cffafe 100%);
 }
