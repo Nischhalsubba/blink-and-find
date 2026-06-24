@@ -142,7 +142,7 @@ body {
 .creator-credit {
   position: fixed;
   right: max(0.75rem, env(safe-area-inset-right));
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 5.25rem);
   z-index: 50;
   display: inline-flex;
   align-items: center;
@@ -173,9 +173,8 @@ body {
 @media (max-width: 640px) {
   .site-breadcrumb {
     top: max(0.55rem, env(safe-area-inset-top));
-    left: 50%;
+    left: max(0.55rem, env(safe-area-inset-left));
     max-width: min(22rem, calc(100vw - 1rem));
-    transform: translateX(-50%);
     font-size: 0.7rem;
   }
 
@@ -187,6 +186,7 @@ body {
   .creator-credit {
     left: 50%;
     right: auto;
+    bottom: calc(max(0.55rem, env(safe-area-inset-bottom)) + 6.75rem);
     transform: translateX(-50%);
     justify-content: center;
     font-size: 0.72rem;
