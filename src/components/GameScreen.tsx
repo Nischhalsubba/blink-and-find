@@ -75,9 +75,9 @@ export default function GameScreen({
 }: GameScreenProps) {
   return (
     <main className="app-shell">
-      <div className="design-shell flex h-full min-h-0 flex-col gap-3">
-        <Card className="glass-panel shrink-0 overflow-hidden rounded-[1.75rem] py-0">
-          <CardContent className="grid gap-3 p-3 sm:flex sm:items-center sm:justify-between sm:p-4">
+      <div className="game-play-shell">
+        <Card className="glass-panel game-play-topbar py-0">
+          <CardContent className="grid h-full gap-3 p-3 sm:flex sm:items-center sm:justify-between sm:p-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="rounded-full px-3 py-1">Round {currentRound}/{config.totalRounds}</Badge>
@@ -104,12 +104,12 @@ export default function GameScreen({
           </CardContent>
         </Card>
 
-        <div className="grid shrink-0 grid-cols-[1fr_0.72fr] gap-3 sm:grid-cols-[1fr_0.58fr]">
+        <div className="game-play-meta">
           <TargetDisplay targetNumber={targetNumber} hidden={targetHidden} />
           <Timer elapsedMs={elapsedMs} />
         </div>
 
-        <Card className="glass-panel min-h-0 flex-1 overflow-hidden rounded-[2rem] py-0">
+        <Card className="glass-panel game-play-board-card py-0">
           <CardContent className="flex h-full min-h-0 items-center justify-center p-2 sm:p-4">
             <NumberGrid
               numbers={board}
@@ -123,8 +123,8 @@ export default function GameScreen({
           </CardContent>
         </Card>
 
-        <Card className="soft-panel shrink-0 rounded-[1.5rem] py-0">
-          <CardContent className="p-3 text-center text-sm" role="status" aria-live="polite">
+        <Card className="soft-panel game-play-status py-0">
+          <CardContent className="flex h-full items-center justify-center p-3 text-center text-sm" role="status" aria-live="polite">
             {phase === "preview" && (
               <span>
                 Target hides in <Badge variant="secondary" className="ml-1 rounded-full">{previewCountdown}</Badge>
@@ -141,12 +141,12 @@ export default function GameScreen({
               </span>
             )}
             {phase === "turnSummary" && lastResult && (
-              <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+              <div className="flex w-full flex-col items-center justify-between gap-2 sm:flex-row">
                 <span>
                   {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
                   {autoContinue && <span className="ml-2 text-muted-foreground">Next screen is coming...</span>}
                 </span>
-                <Button size="sm" className="rounded-2xl" onClick={onContinue}>Continue</Button>
+                <Button size="sm" className="min-w-32 rounded-2xl" onClick={onContinue}>Continue</Button>
               </div>
             )}
           </CardContent>
