@@ -32,6 +32,8 @@ export default function ReadyScreen({
   onStartTurn,
   onBackToSetup,
 }: ReadyScreenProps) {
+  const customCount = config.customNumbers?.length ?? 0;
+
   return (
     <section className="game-stage">
       <div className="game-stage-shell game-stage-shell--center">
@@ -49,10 +51,14 @@ export default function ReadyScreen({
           </CardHeader>
 
           <CardContent className="game-stage-content grid gap-4">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-4">
               <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
                 <div className="text-sm text-muted-foreground">Board</div>
                 <div className="text-lg font-black">{config.boardSize} numbers</div>
+              </div>
+              <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
+                <div className="text-sm text-muted-foreground">Custom</div>
+                <div className="text-lg font-black">{customCount}</div>
               </div>
               <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
                 <div className="text-sm text-muted-foreground">Preview</div>
@@ -65,7 +71,9 @@ export default function ReadyScreen({
             </div>
 
             <p className="rounded-[1.25rem] bg-white/70 p-4 text-center text-sm leading-6 text-muted-foreground">
-              Take a breath. Accuracy matters more than frantic tapping, which is rude but mathematically true.
+              {customCount > 0
+                ? `${customCount} chosen number${customCount === 1 ? "" : "s"} will stay on the board each round. The board still rearranges every round.`
+                : "Take a breath. Accuracy matters more than frantic tapping, which is rude but mathematically true."}
             </p>
           </CardContent>
 
