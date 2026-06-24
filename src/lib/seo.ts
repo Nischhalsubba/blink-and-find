@@ -4,6 +4,10 @@ export const SITE_NAME = "Blink & Find";
 
 export const SITE_TITLE = "Blink & Find | Free Online Number Hunting Memory Game";
 
+export const CREATOR_NAME = "Nischhal Subba";
+
+export const CREATOR_URL = "https://hinischalsubba.com.np/";
+
 export const SITE_DESCRIPTION =
   "Play Blink & Find, a free online number hunting memory game. Memorize a target number, find it on a scattered board, train focus, and race friends in Same Challenge or Live Race mode.";
 
@@ -177,6 +181,13 @@ export function absoluteUrl(path = "/") {
   return new URL(path, SITE_URL).toString();
 }
 
+const creatorPerson = {
+  "@type": "Person",
+  "@id": `${CREATOR_URL}#person`,
+  name: CREATOR_NAME,
+  url: CREATOR_URL,
+};
+
 export function getGameJsonLd() {
   return {
     "@context": "https://schema.org",
@@ -188,6 +199,8 @@ export function getGameJsonLd() {
         url: SITE_URL,
         description: SITE_DESCRIPTION,
         inLanguage: "en",
+        creator: creatorPerson,
+        publisher: creatorPerson,
         potentialAction: {
           "@type": "SearchAction",
           target: `${SITE_URL}/?q={search_term_string}`,
@@ -208,14 +221,14 @@ export function getGameJsonLd() {
         playMode: ["SinglePlayer", "MultiPlayer"],
         numberOfPlayers: "1-4 local players or online friends",
         isAccessibleForFree: true,
+        creator: creatorPerson,
+        author: creatorPerson,
+        designer: creatorPerson,
+        publisher: creatorPerson,
         offers: {
           "@type": "Offer",
           price: "0",
           priceCurrency: "USD",
-        },
-        publisher: {
-          "@type": "Person",
-          name: "Nischhal Subba",
         },
       },
       {
