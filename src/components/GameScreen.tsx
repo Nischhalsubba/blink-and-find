@@ -88,7 +88,7 @@ export default function GameScreen({
               <p className="mt-1 text-sm leading-5 text-muted-foreground">{getObjective(phase, targetHidden)}</p>
             </div>
 
-            <div className="grid min-w-0 grid-cols-[auto_auto_1fr_1fr_1fr] items-center gap-1.5 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-2">
+            <div className="grid min-w-0 grid-cols-[auto_auto_1fr_1fr] items-center gap-1.5 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-2">
               <Badge variant="outline" className="h-9 justify-center rounded-2xl px-3 text-[11px] sm:text-xs">
                 Wrong {currentWrongTaps}
               </Badge>
@@ -115,7 +115,6 @@ export default function GameScreen({
               >
                 <span className="truncate">{autoContinue ? "Auto next" : "Manual next"}</span>
               </Button>
-              <QuitGameDialog onConfirm={onBackToSetup} />
             </div>
           </CardContent>
         </Card>
@@ -162,16 +161,20 @@ export default function GameScreen({
               </span>
             )}
             {phase === "turnSummary" && lastResult && (
-              <div className="flex w-full flex-col items-center justify-between gap-2 sm:flex-row">
-                <span>
-                  {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
-                  {autoContinue && <span className="ml-2 text-muted-foreground">Auto next is on.</span>}
-                </span>
-                <Button size="sm" className="min-w-32 rounded-2xl" onClick={onContinue}>Continue</Button>
-              </div>
+              <span>
+                {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
+                {autoContinue && <span className="ml-2 text-muted-foreground">Auto next is on.</span>}
+              </span>
             )}
           </CardContent>
         </Card>
+
+        <div className="game-stage-actions" aria-label="Game actions">
+          <QuitGameDialog onConfirm={onBackToSetup} />
+          {phase === "turnSummary" && lastResult && (
+            <Button className="h-12 rounded-2xl font-black" onClick={onContinue}>Continue</Button>
+          )}
+        </div>
       </div>
     </main>
   );
