@@ -1,4 +1,5 @@
 import { createOnlineRoom, joinOnlineRoom } from "@/lib/onlineRooms";
+import { modeToDatabasePresence, type UserPresenceMode } from "@/lib/presencePreference";
 import { supabase } from "@/lib/supabase";
 import type { GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
@@ -27,8 +28,8 @@ export interface OnlineGameInvite {
   from_name: string;
   to_device_id: string;
   to_name: string;
-  room_id: string;
-  room_code: string;
+  room_id: string | null;
+  room_code: string | null;
   game_type: OnlineGameType;
   settings: GameConfig;
   status: InviteStatus;
@@ -69,12 +70,17 @@ function inviteExpiryIso() {
 export async function upsertOnlinePresence(params: {
   deviceId: string;
   displayName: string;
-  availableToPlay: boolean;
+  availableToPlay?: boolean;
   currentRoomId?: string | null;
+  preferredMode?: UserPresenceMode;
 }): Promise<PresenceResult<OnlinePresence | null>> {
   const client = requireSupabase();
   const displayName = params.displayName.trim() || "Player";
-  const status: PresenceStatus = params.currentRoomId ? "in_game" : params.availableToPlay ? "available" : "online";
+  const mapped = params.preferredMode
+    ? modeToDatabasePresence(params.preferredMode)
+    : { status: (params.currentRoomId ? "in_game" : params.availableToPlay ? "available" : "online") as PresenceStatus, availableToPlay: Boolean(params.availableToPlay) };
+  const status = params.currentRoomId ? "in_game" : mapped.status;
+  const availableToPlay = status === "available" && !params.currentRoomId;
 
   const { data, error } = await client
     .from("online_presence")
@@ -82,7 +88,7 @@ export async function upsertOnlinePresence(params: {
       device_id: params.deviceId,
       display_name: displayName,
       status,
-      available_to_play: params.availableToPlay && !params.currentRoomId,
+      available_to_play: availableToPlay,
       current_room_id: params.currentRoomId ?? null,
       last_seen_at: new Date().toISOString(),
     }, { onConflict: "device_id" })
@@ -121,9 +127,10 @@ export async function fetchAvailableOnlinePlayers(deviceId: string): Promise<Pre
   const { data, error } = await client
     .from("online_presence")
     .select("*")
-    .eq("available_to_play", true)
     .neq("device_id", deviceId)
+    .neq("status", "offline")
     .gte("last_seen_at", staleCutoffIso())
+    .order("available_to_play", { ascending: false })
     .order("last_seen_at", { ascending: false })
     .limit(20);
 
@@ -213,18 +220,16 @@ export async function createOnlineInvite(params: {
   settings: GameConfig;
 }): Promise<PresenceResult<OnlineGameInvite | null>> {
   const client = requireSupabase();
+
+  if (!params.toPlayer.available_to_play || params.toPlayer.status !== "available") {
+    throw new Error(`${params.toPlayer.display_name} is not available for invites right now.`);
+  }
+
   const existingInvite = await findPendingInviteBetween(params.fromDeviceId, params.toPlayer.device_id);
 
   if (existingInvite) {
     return { data: existingInvite, unavailable: false };
   }
-
-  const roomResult = await createOnlineRoom({
-    playerName: params.fromName,
-    deviceId: params.fromDeviceId,
-    gameType: params.gameType,
-    settings: params.settings,
-  });
 
   const { data, error } = await client
     .from("online_game_invites")
@@ -233,8 +238,8 @@ export async function createOnlineInvite(params: {
       from_name: params.fromName.trim() || "Player",
       to_device_id: params.toPlayer.device_id,
       to_name: params.toPlayer.display_name,
-      room_id: roomResult.room.id,
-      room_code: roomResult.room.code,
+      room_id: null,
+      room_code: null,
       game_type: params.gameType,
       settings: params.settings,
       status: "pending",
@@ -254,26 +259,58 @@ export async function createOnlineInvite(params: {
   return { data: data as OnlineGameInvite, unavailable: false };
 }
 
+async function ensureInviteRoom(invite: OnlineGameInvite): Promise<OnlineGameInvite> {
+  if (invite.room_code && invite.room_id) {
+    return invite;
+  }
+
+  const client = requireSupabase();
+  const roomResult = await createOnlineRoom({
+    playerName: invite.from_name,
+    deviceId: invite.from_device_id,
+    gameType: invite.game_type,
+    settings: invite.settings,
+  });
+
+  const { data, error } = await client
+    .from("online_game_invites")
+    .update({ room_id: roomResult.room.id, room_code: roomResult.room.code })
+    .eq("id", invite.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as OnlineGameInvite;
+}
+
 export async function acceptOnlineInvite(params: {
   invite: OnlineGameInvite;
   playerName: string;
   deviceId: string;
 }): Promise<OnlineRoomSnapshot & { localPlayer: OnlinePlayer }> {
   const client = requireSupabase();
+  const inviteWithRoom = await ensureInviteRoom(params.invite);
 
   const { error } = await client
     .from("online_game_invites")
     .update({ status: "accepted", responded_at: new Date().toISOString() })
-    .eq("id", params.invite.id)
+    .eq("id", inviteWithRoom.id)
     .eq("status", "pending");
 
   if (error) {
     throw error;
   }
 
+  if (!inviteWithRoom.room_code) {
+    throw new Error("Invite accepted but room code is missing.");
+  }
+
   return joinOnlineRoom({
-    code: params.invite.room_code,
-    playerName: params.playerName || params.invite.to_name,
+    code: inviteWithRoom.room_code,
+    playerName: params.playerName || inviteWithRoom.to_name,
     deviceId: params.deviceId,
   });
 }
@@ -283,6 +320,10 @@ export async function joinAcceptedOnlineInvite(params: {
   playerName: string;
   deviceId: string;
 }): Promise<OnlineRoomSnapshot & { localPlayer: OnlinePlayer }> {
+  if (!params.invite.room_code) {
+    throw new Error("Invite was accepted, but the room is not ready yet.");
+  }
+
   return joinOnlineRoom({
     code: params.invite.room_code,
     playerName: params.playerName || params.invite.from_name,
