@@ -33,13 +33,26 @@ export default function SiteBreadcrumb() {
     }),
   ];
 
+  function resetHome(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (cleanPath !== "/") {
+      return;
+    }
+
+    event.preventDefault();
+    window.location.assign("/");
+  }
+
   return (
     <nav className="site-breadcrumb" aria-label={`${SITE_NAME} breadcrumb navigation`}>
       <ol>
         {items.map((item, index) => (
           <li key={item.href}>
             {index > 0 && <span className="site-breadcrumb-separator" aria-hidden="true">/</span>}
-            {item.current ? (
+            {item.href === "/" ? (
+              <Link href="/" aria-current={item.current ? "page" : undefined} onClick={resetHome}>
+                {item.label}
+              </Link>
+            ) : item.current ? (
               <span aria-current="page">{item.label}</span>
             ) : (
               <Link href={item.href}>{item.label}</Link>
