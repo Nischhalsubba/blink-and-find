@@ -8,6 +8,8 @@ import "./colorful.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-body" });
 const nunitoSans = Nunito_Sans({ subsets: ["latin"], display: "swap", variable: "--font-display" });
+const SOCIAL_IMAGE_URL = absoluteUrl("/opengraph-image?v=clearplay-color-2");
+const SOCIAL_IMAGE_ALT = "Blink & Find colorful number-memory game preview with bright scattered number tiles";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -50,10 +52,12 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: "/og-image.svg",
+        url: SOCIAL_IMAGE_URL,
+        secureUrl: SOCIAL_IMAGE_URL,
         width: 1200,
         height: 630,
-        alt: "Blink & Find scattered number memory game board",
+        alt: SOCIAL_IMAGE_ALT,
+        type: "image/png",
       },
     ],
   },
@@ -61,7 +65,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ["/og-image.svg"],
+    images: [
+      {
+        url: SOCIAL_IMAGE_URL,
+        alt: SOCIAL_IMAGE_ALT,
+      },
+    ],
   },
 };
 
