@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Nunito_Sans } from "next/font/google";
+import AppOnlinePresence from "@/components/AppOnlinePresence";
 import AppTelemetry from "@/components/AppTelemetry";
 import SiteBreadcrumb from "@/components/SiteBreadcrumb";
 import { absoluteUrl, CREATOR_NAME, CREATOR_URL, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
@@ -96,6 +97,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dangerouslySetInnerHTML={{ __html: JSON.stringify(getGameJsonLd()) }}
         />
         <AppTelemetry />
+        <AppOnlinePresence />
         <SiteBreadcrumb />
         {children}
         <a
