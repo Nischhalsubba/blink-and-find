@@ -1,7 +1,7 @@
 import { createOnlineRoom, joinOnlineRoom } from "@/lib/onlineRooms";
 import { supabase } from "@/lib/supabase";
 import type { GameConfig } from "@/types/game";
-import type { OnlineGameType, OnlineRoomSnapshot } from "@/types/online";
+import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
 const PRESENCE_STALE_SECONDS = 60;
 const INVITE_EXPIRES_SECONDS = 90;
@@ -182,14 +182,43 @@ export async function fetchSentInvites(deviceId: string): Promise<PresenceResult
   return { data: (data ?? []) as OnlineGameInvite[], unavailable: false };
 }
 
+async function findPendingInviteBetween(fromDeviceId: string, toDeviceId: string): Promise<OnlineGameInvite | null> {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from("online_game_invites")
+    .select("*")
+    .eq("status", "pending")
+    .gte("expires_at", new Date().toISOString())
+    .or(`and(from_device_id.eq.${fromDeviceId},to_device_id.eq.${toDeviceId}),and(from_device_id.eq.${toDeviceId},to_device_id.eq.${fromDeviceId})`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (isMissingPresenceTableError(error)) {
+    return null;
+  }
+
+  if (error) {
+    throw error;
+  }
+
+  return data as OnlineGameInvite | null;
+}
+
 export async function createOnlineInvite(params: {
   fromDeviceId: string;
   fromName: string;
   toPlayer: OnlinePresence;
   gameType: OnlineGameType;
   settings: GameConfig;
-}): Promise<PresenceResult<OnlineRoomSnapshot & { localPlayer: import("@/types/online").OnlinePlayer; invite: OnlineGameInvite | null }>> {
+}): Promise<PresenceResult<OnlineGameInvite | null>> {
   const client = requireSupabase();
+  const existingInvite = await findPendingInviteBetween(params.fromDeviceId, params.toPlayer.device_id);
+
+  if (existingInvite) {
+    return { data: existingInvite, unavailable: false };
+  }
+
   const roomResult = await createOnlineRoom({
     playerName: params.fromName,
     deviceId: params.fromDeviceId,
@@ -215,31 +244,48 @@ export async function createOnlineInvite(params: {
     .single();
 
   if (isMissingPresenceTableError(error)) {
-    return { data: { ...roomResult, invite: null }, unavailable: true };
+    return { data: null, unavailable: true };
   }
 
   if (error) {
     throw error;
   }
 
-  return { data: { ...roomResult, invite: data as OnlineGameInvite }, unavailable: false };
+  return { data: data as OnlineGameInvite, unavailable: false };
 }
 
 export async function acceptOnlineInvite(params: {
   invite: OnlineGameInvite;
   playerName: string;
   deviceId: string;
-}): Promise<OnlineRoomSnapshot & { localPlayer: import("@/types/online").OnlinePlayer }> {
+}): Promise<OnlineRoomSnapshot & { localPlayer: OnlinePlayer }> {
   const client = requireSupabase();
 
-  await client
+  const { error } = await client
     .from("online_game_invites")
     .update({ status: "accepted", responded_at: new Date().toISOString() })
-    .eq("id", params.invite.id);
+    .eq("id", params.invite.id)
+    .eq("status", "pending");
+
+  if (error) {
+    throw error;
+  }
 
   return joinOnlineRoom({
     code: params.invite.room_code,
     playerName: params.playerName || params.invite.to_name,
+    deviceId: params.deviceId,
+  });
+}
+
+export async function joinAcceptedOnlineInvite(params: {
+  invite: OnlineGameInvite;
+  playerName: string;
+  deviceId: string;
+}): Promise<OnlineRoomSnapshot & { localPlayer: OnlinePlayer }> {
+  return joinOnlineRoom({
+    code: params.invite.room_code,
+    playerName: params.playerName || params.invite.from_name,
     deviceId: params.deviceId,
   });
 }
