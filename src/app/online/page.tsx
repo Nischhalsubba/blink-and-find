@@ -29,6 +29,7 @@ import {
   subscribeToOnlineRoom,
 } from "@/lib/onlineRooms";
 import { clearOnlineRoomSession, loadOnlineRoomSession, saveOnlineRoomSession } from "@/lib/onlineSession";
+import { getPlayerProfile } from "@/lib/playerProfile";
 import { hasSupabaseConfig } from "@/lib/supabase";
 import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
@@ -50,12 +51,19 @@ function getDefaultOnlineName(): string {
     return "Player";
   }
 
-  return window.localStorage.getItem(ONLINE_NAME_KEY) || "Player";
+  const savedName = window.localStorage.getItem(ONLINE_NAME_KEY);
+  if (savedName && savedName.trim().toLowerCase() !== "player") {
+    return savedName;
+  }
+
+  const profile = getPlayerProfile();
+  window.localStorage.setItem(ONLINE_NAME_KEY, profile.name);
+  return profile.name;
 }
 
 function saveOnlineName(name: string) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(ONLINE_NAME_KEY, name.trim() || "Player");
+    window.localStorage.setItem(ONLINE_NAME_KEY, name.trim() || getPlayerProfile().name);
   }
 }
 
@@ -460,7 +468,7 @@ export default function OnlinePage() {
           <CardHeader className="border-b p-6 text-center sm:p-8">
             <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Online Play</Badge>
             <CardTitle className="text-4xl font-black tracking-[-0.05em] sm:text-6xl">Online in 3 moves</CardTitle>
-            <CardDescription className="mx-auto max-w-2xl text-base leading-7">Pick someone online, create an invite room, or join a code. The advanced settings are tucked away where they belong, because mercy is real.</CardDescription>
+            <CardDescription className="mx-auto max-w-2xl text-base leading-7">Pick someone online, create an invite room, or join a code. The advanced settings are tucked away where they belong.</CardDescription>
           </CardHeader>
 
           <CardContent className="grid gap-4 p-4 sm:p-6">
