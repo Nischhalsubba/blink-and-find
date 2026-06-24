@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ROUTES, SITE_NAME } from "@/lib/seo";
@@ -33,7 +34,7 @@ export default function SiteBreadcrumb() {
     }),
   ];
 
-  function resetHome(event: React.MouseEvent<HTMLAnchorElement>) {
+  function resetHome(event: MouseEvent<HTMLAnchorElement>) {
     if (cleanPath !== "/") {
       return;
     }
