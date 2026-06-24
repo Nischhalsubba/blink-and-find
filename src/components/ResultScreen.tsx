@@ -201,6 +201,7 @@ export default function ResultScreen({
                 accuracyPercent={stats.accuracyPercent}
               />
             )}
+            <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><a href="/">Back Home</a></Button>
             <Button className="h-12 rounded-2xl font-bold" variant="outline" onClick={copyResult}>Copy Result</Button>
             <Button className="h-12 rounded-2xl font-black" onClick={onPlayAgain}>{playAgainLabel}</Button>
           </CardFooter>
