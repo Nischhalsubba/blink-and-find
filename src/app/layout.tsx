@@ -101,9 +101,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           target="_blank"
           rel="noopener noreferrer"
           className="creator-credit"
-          aria-label={`Designed and developed by ${CREATOR_NAME}`}
+          aria-label={`Designed and coded by ${CREATOR_NAME}`}
         >
-          <span>Designed &amp; developed by</span>
+          <span>Designed &amp; coded by</span>
           <strong>{CREATOR_NAME}</strong>
         </a>
       </body>
