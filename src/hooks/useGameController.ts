@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { generateZigZagBoard } from "@/engine/board";
+import { generateCustomZigZagBoard } from "@/engine/board";
 import { applyTurnResultToPlayers, createTurnResult } from "@/engine/scoring";
 import { generateTarget } from "@/engine/target";
 import {
@@ -21,6 +21,7 @@ const DEFAULT_CONFIG: GameConfig = {
   totalRounds: 5,
   flashDurationMs: 2000,
   penaltySeconds: 3,
+  customNumbers: [],
 };
 
 type FeedbackTone = "target" | "wrong" | "correct" | "round" | "finish";
@@ -35,8 +36,25 @@ function createPlayers(names: string[]): Player[] {
   }));
 }
 
-function createRound(boardSize: number): { board: number[]; target: number } {
-  const board = generateZigZagBoard(boardSize);
+function normalizeCustomNumbers(numbers: number[], boardSize: number): number[] {
+  const seen = new Set<number>();
+
+  return numbers
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .filter((value) => {
+      if (seen.has(value)) {
+        return false;
+      }
+
+      seen.add(value);
+      return true;
+    })
+    .slice(0, Math.max(0, boardSize));
+}
+
+function createRound(boardSize: number, customNumbers: number[] = []): { board: number[]; target: number } {
+  const requiredNumbers = normalizeCustomNumbers(customNumbers, boardSize);
+  const board = generateCustomZigZagBoard(boardSize, requiredNumbers);
   return {
     board,
     target: generateTarget(board),
@@ -98,6 +116,7 @@ export function useGameController() {
   const [totalRounds, setTotalRounds] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [penaltySeconds, setPenaltySeconds] = useState(3);
+  const [customNumbersInput, setCustomNumbersInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [autoContinue, setAutoContinue] = useState(true);
 
@@ -152,6 +171,7 @@ export function useGameController() {
       setTotalRounds(savedSettings.totalRounds);
       setDifficulty(savedSettings.difficulty);
       setPenaltySeconds(savedSettings.penaltySeconds);
+      setCustomNumbersInput(savedSettings.customNumbersInput ?? "");
       setIsMuted(Boolean(savedSettings.isMuted));
       setAutoContinue(savedSettings.autoContinue ?? true);
     }
@@ -171,10 +191,11 @@ export function useGameController() {
       totalRounds,
       difficulty,
       penaltySeconds,
+      customNumbersInput,
       isMuted,
       autoContinue,
     });
-  }, [mode, playerNames, totalRounds, difficulty, penaltySeconds, isMuted, autoContinue]);
+  }, [mode, playerNames, totalRounds, difficulty, penaltySeconds, customNumbersInput, isMuted, autoContinue]);
 
   useEffect(() => {
     if (phase !== "playing" || turnStartedAt === null) {
@@ -259,10 +280,11 @@ export function useGameController() {
       ...nextConfig,
       totalRounds: Math.max(1, Math.min(nextConfig.totalRounds, 20)),
       penaltySeconds: Math.max(0, Math.min(nextConfig.penaltySeconds, 10)),
+      customNumbers: normalizeCustomNumbers(nextConfig.customNumbers ?? [], nextConfig.boardSize),
     };
     const names = safeConfig.mode === "single" ? ["Player 1"] : playerNames;
     const nextPlayers = createPlayers(names);
-    const firstRound = createRound(safeConfig.boardSize);
+    const firstRound = createRound(safeConfig.boardSize, safeConfig.customNumbers);
 
     setConfig(safeConfig);
     setPlayers(nextPlayers);
@@ -346,7 +368,7 @@ export function useGameController() {
 
   function startNextRound() {
     const nextRound = currentRound + 1;
-    const next = createRound(config.boardSize);
+    const next = createRound(config.boardSize, config.customNumbers);
 
     setCurrentRound(nextRound);
     setCurrentPlayerIndex(0);
@@ -403,11 +425,13 @@ export function useGameController() {
     totalRounds,
     difficulty,
     penaltySeconds,
+    customNumbersInput,
     setMode,
     setPlayerNames,
     setTotalRounds,
     setDifficulty,
     setPenaltySeconds,
+    setCustomNumbersInput,
     config,
     phase,
     players,
