@@ -37,6 +37,18 @@ function applyZigZagOrder(numbers: number[], boardSize: number): number[] {
   return zigZagBoard;
 }
 
+function createCandidateNumbers(boardSize: number, requiredNumbers: number[] = []): { safeBoardSize: number; required: number[]; candidates: number[] } {
+  const safeBoardSize = Math.max(1, Math.floor(boardSize));
+  const required = uniquePositiveIntegers(requiredNumbers).slice(0, safeBoardSize);
+  const requiredSet = new Set(required);
+  const fillerCount = safeBoardSize - required.length;
+  const highestRequired = Math.max(0, ...required);
+  const candidateLimit = Math.max(safeBoardSize, highestRequired + fillerCount + safeBoardSize);
+  const candidates = Array.from({ length: candidateLimit }, (_, index) => index + 1).filter((value) => !requiredSet.has(value));
+
+  return { safeBoardSize, required, candidates };
+}
+
 /**
  * Creates a randomized board from 1..boardSize.
  */
@@ -54,18 +66,13 @@ export function generateBoard(boardSize: number): number[] {
  * Extra slots are filled with unique random numbers that do not duplicate the user's choices.
  */
 export function generateCustomBoard(boardSize: number, requiredNumbers: number[] = []): number[] {
-  const safeBoardSize = Math.max(1, Math.floor(boardSize));
-  const required = uniquePositiveIntegers(requiredNumbers).slice(0, safeBoardSize);
+  const { safeBoardSize, required, candidates } = createCandidateNumbers(boardSize, requiredNumbers);
 
   if (required.length >= safeBoardSize) {
     return shuffle(required).slice(0, safeBoardSize);
   }
 
-  const requiredSet = new Set(required);
   const fillerCount = safeBoardSize - required.length;
-  const highestRequired = Math.max(0, ...required);
-  const candidateLimit = Math.max(safeBoardSize, highestRequired + fillerCount + safeBoardSize);
-  const candidates = Array.from({ length: candidateLimit }, (_, index) => index + 1).filter((value) => !requiredSet.has(value));
   const fillers = shuffle(candidates).slice(0, fillerCount);
 
   return shuffle([...required, ...fillers]);
@@ -83,6 +90,22 @@ export function generateSeededBoard(boardSize: number, seed: number): number[] {
     ),
     seed
   );
+}
+
+/**
+ * Creates a deterministic randomized board that always includes required user numbers.
+ */
+export function generateSeededCustomBoard(boardSize: number, seed: number, requiredNumbers: number[] = []): number[] {
+  const { safeBoardSize, required, candidates } = createCandidateNumbers(boardSize, requiredNumbers);
+
+  if (required.length >= safeBoardSize) {
+    return shuffleWithSeed(required, seed).slice(0, safeBoardSize);
+  }
+
+  const fillerCount = safeBoardSize - required.length;
+  const fillers = shuffleWithSeed(candidates, seed + 17).slice(0, fillerCount);
+
+  return shuffleWithSeed([...required, ...fillers], seed + 31);
 }
 
 /**
@@ -108,4 +131,11 @@ export function generateCustomZigZagBoard(boardSize: number, requiredNumbers: nu
  */
 export function generateSeededZigZagBoard(boardSize: number, seed: number): number[] {
   return applyZigZagOrder(generateSeededBoard(boardSize, seed), boardSize);
+}
+
+/**
+ * Creates a deterministic zig-zag board that keeps required user numbers for online play.
+ */
+export function generateSeededCustomZigZagBoard(boardSize: number, seed: number, requiredNumbers: number[] = []): number[] {
+  return applyZigZagOrder(generateSeededCustomBoard(boardSize, seed, requiredNumbers), boardSize);
 }
