@@ -6,7 +6,7 @@ export const SITE_TITLE = "Blink & Find | Free Online Number Hunting Memory Game
 
 export const CREATOR_NAME = "Nischhal Subba";
 
-export const CREATOR_URL = "https://hinischalsubba.com.np/";
+export const CREATOR_URL = "https://nischhalsubba.com.np/";
 
 export const CREATOR_ROLE_DESCRIPTION = "Nischhal Subba designed and coded Blink & Find.";
 
