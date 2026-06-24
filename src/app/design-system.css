@@ -68,6 +68,11 @@ h3,
   margin-inline: auto;
 }
 
+.app-shell > section.min-h-full {
+  padding-top: var(--stage-top-space);
+  padding-bottom: var(--stage-bottom-space);
+}
+
 .game-stage {
   display: flex;
   min-height: 100%;
