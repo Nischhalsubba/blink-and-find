@@ -30,7 +30,6 @@ import {
 } from "@/lib/onlineRooms";
 import { clearOnlineRoomSession, loadOnlineRoomSession, saveOnlineRoomSession } from "@/lib/onlineSession";
 import { hasSupabaseConfig } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
 import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
@@ -63,10 +62,6 @@ function saveOnlineName(name: string) {
 function getInviteUrl(roomCode: string): string {
   const path = `/online?room=${roomCode}&join=1`;
   return typeof window === "undefined" ? path : `${window.location.origin}${path}`;
-}
-
-function getDifficultyConfig(difficulty: Difficulty) {
-  return DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
 }
 
 function expandRange(start: number, end: number) {
@@ -108,19 +103,16 @@ function clampNumber(value: number, min: number, max: number, fallback: number) 
   return Math.max(min, Math.min(Math.floor(value), max));
 }
 
-function ChoicePill({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+function QuickActionCard({ title, description, badge, children }: { title: string; description: string; badge: string; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-4 py-2 text-sm font-medium transition-all",
-        active ? "border-primary bg-primary text-primary-foreground shadow-xs" : "border-border bg-muted/20 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      )}
-    >
-      {children}
-    </button>
+    <Card className="rounded-[1.6rem] border bg-background/75 shadow-none">
+      <CardHeader className="pb-3">
+        <Badge variant="outline" className="mb-2 w-fit rounded-full">{badge}</Badge>
+        <CardTitle className="text-xl font-black tracking-[-0.03em]">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
@@ -147,6 +139,7 @@ export default function OnlinePage() {
   const safePreviewSeconds = clampNumber(previewSeconds, 1, 15, 2);
   const safePenaltySeconds = clampNumber(penaltySeconds, 0, 10, 3);
   const customNumbers = parseCustomNumbers(customNumbersInput, safeBoardSize);
+  const gridSize = Math.ceil(Math.sqrt(safeBoardSize));
 
   function buildSettings(): GameConfig {
     return {
@@ -192,9 +185,9 @@ export default function OnlinePage() {
     }
   }
 
-  async function quickCreateRoom() {
+  async function createInviteRoom() {
     setIsBusy(true);
-    setMessage("Creating room...");
+    setMessage("Creating invite room...");
     saveOnlineName(playerName);
 
     try {
@@ -210,7 +203,7 @@ export default function OnlinePage() {
       const nextSnapshot = visibilityResult.applied ? await fetchOnlineRoomSnapshot(result.room.id) : result;
 
       trackEvent("online_room_created", { gameType, visibility: roomVisibility, maxPlayers: normalizedMaxPlayers });
-      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, "Room created. Share the invite or wait for an accepted player invite.");
+      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, "Invite room created. Share the code or wait for invited players.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -310,19 +303,15 @@ export default function OnlinePage() {
       if (Number.isFinite(boardParam) && boardParam > 0) {
         setBoardSize(clampNumber(boardParam, 4, 225, 100));
       }
-
       if (Number.isFinite(roundsParam) && roundsParam > 0) {
         setRounds(clampNumber(roundsParam, 1, 20, 5));
       }
-
       if (Number.isFinite(previewParam) && previewParam > 0) {
         setPreviewSeconds(clampNumber(previewParam, 1, 15, 2));
       }
-
       if (Number.isFinite(penaltyParam)) {
         setPenaltySeconds(clampNumber(penaltyParam, 0, 10, 3));
       }
-
       if (numbersParam) {
         setCustomNumbersInput(numbersParam);
       }
@@ -347,12 +336,7 @@ export default function OnlinePage() {
         return;
       }
 
-      await upsertOnlinePresence({
-        deviceId: getDeviceId(),
-        displayName: savedName,
-        availableToPlay: true,
-        currentRoomId: null,
-      });
+      await upsertOnlinePresence({ deviceId: getDeviceId(), displayName: savedName, availableToPlay: true, currentRoomId: null });
     }
 
     void initializeOnlinePage();
@@ -389,12 +373,8 @@ export default function OnlinePage() {
               <CardTitle>Online Play needs Supabase</CardTitle>
               <CardDescription>Add the Supabase environment variables locally and in Cloudflare Pages.</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then run the SQL in supabase/schema.sql.
-            </CardContent>
-            <CardFooter>
-              <Button asChild variant="outline"><Link href="/">Back</Link></Button>
-            </CardFooter>
+            <CardContent className="text-sm text-muted-foreground">Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then run the SQL in supabase/schema.sql.</CardContent>
+            <CardFooter><Button asChild variant="outline"><Link href="/">Back</Link></Button></CardFooter>
           </Card>
         </section>
       </main>
@@ -413,15 +393,7 @@ export default function OnlinePage() {
     if (roomStatus === "finished") {
       return (
         <main className="app-shell">
-          <ResultScreen
-            players={onlinePlayersToGamePlayers(snapshot.players)}
-            results={onlineResultsToTurnResults(snapshot.results)}
-            bestScore={null}
-            latestScore={null}
-            isNewBest={false}
-            onPlayAgain={closeRoomView}
-            playAgainLabel="Back to Online"
-          />
+          <ResultScreen players={onlinePlayersToGamePlayers(snapshot.players)} results={onlineResultsToTurnResults(snapshot.results)} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={closeRoomView} playAgainLabel="Back to Online" />
         </main>
       );
     }
@@ -435,22 +407,21 @@ export default function OnlinePage() {
     }
 
     return (
-      <main className="app-shell">
-        <section className="flex h-full items-center justify-center px-2">
-          <Card className="w-full max-w-2xl overflow-hidden">
+      <main className="app-shell overflow-auto">
+        <section className="flex min-h-full items-center justify-center px-2 py-3">
+          <Card className="w-full max-w-2xl overflow-hidden rounded-[1.7rem]">
             <CardHeader className="border-b pb-4 text-center">
-              <Badge variant="secondary" className="mx-auto mb-3 w-fit">Room ready</Badge>
-              <CardTitle className="text-4xl font-semibold tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
-              <CardDescription>{isHost ? "Share the invite, wait for accepted invites, or start when enough players join." : "You joined. Wait for the host to start."}</CardDescription>
+              <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Room ready</Badge>
+              <CardTitle className="text-4xl font-black tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
+              <CardDescription>{isHost ? "Share the code, wait for players, then start." : "You joined. Wait for the host to start."}</CardDescription>
             </CardHeader>
 
             <CardContent className="grid gap-4 p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline">{snapshot.room.visibility ?? "private"}</Badge>
                 <Badge variant="outline">{snapshot.room.game_type === "same_challenge" ? "Same Challenge" : "Live Race"}</Badge>
                 <Badge variant="outline">{snapshot.players.length}/{roomCapacity} players</Badge>
                 <Badge variant="outline">{snapshot.room.settings.boardSize} slots</Badge>
-                <Badge variant="outline">+{snapshot.room.settings.penaltySeconds}s penalty</Badge>
+                <Badge variant="outline">{snapshot.room.settings.totalRounds} rounds</Badge>
               </div>
 
               <div className="grid gap-2">
@@ -462,33 +433,19 @@ export default function OnlinePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <OnlinePlayerPresence player={player} localPlayerId={localPlayer.id} snapshot={snapshot} />
-                      {isHost && !player.is_host && roomStatus === "lobby" && (
-                        <Button size="sm" variant="ghost" onClick={() => handleRemovePlayer(player)} disabled={isBusy}>Remove</Button>
-                      )}
+                      {isHost && !player.is_host && roomStatus === "lobby" && <Button size="sm" variant="ghost" onClick={() => handleRemovePlayer(player)} disabled={isBusy}>Remove</Button>}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {isHost ? (
-                <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} />
-              ) : (
-                <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-                  You are in room <span className="font-semibold text-foreground">{snapshot.room.code}</span>. Keep this screen open and wait for the host to start.
-                </div>
-              )}
-
+              {isHost ? <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} /> : <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">Keep this screen open. The game starts when the host taps Start.</div>}
               {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
 
             <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={closeRoomView}>Back</Button>
-                <Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button>
-              </div>
-              {isHost && roomStatus === "lobby" && (
-                <Button onClick={handleStartRoom} disabled={isBusy || !canStartRoom}>{startLabel}</Button>
-              )}
+              <div className="flex gap-2"><Button variant="outline" onClick={closeRoomView}>Leave</Button><Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button></div>
+              {isHost && roomStatus === "lobby" && <Button onClick={handleStartRoom} disabled={isBusy || !canStartRoom}>{startLabel}</Button>}
             </CardFooter>
           </Card>
         </section>
@@ -498,98 +455,89 @@ export default function OnlinePage() {
 
   return (
     <main className="app-shell overflow-auto">
-      <section className="flex min-h-full items-center justify-center px-2 py-3">
-        <Card className="w-full max-w-3xl overflow-hidden">
-          <CardHeader className="border-b pb-4 text-center">
-            <Badge variant="secondary" className="mx-auto mb-3 w-fit">Online Play</Badge>
-            <CardTitle className="text-3xl font-semibold tracking-tight sm:text-5xl">Play with someone online now</CardTitle>
-            <CardDescription>Show your availability, invite available players, create a room, or join with a code.</CardDescription>
+      <section className="mx-auto grid min-h-full w-full max-w-5xl gap-4 px-3 py-4 sm:px-6">
+        <Card className="overflow-hidden rounded-[2rem] border bg-white/85 shadow-xl shadow-slate-950/5">
+          <CardHeader className="border-b p-6 text-center sm:p-8">
+            <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Online Play</Badge>
+            <CardTitle className="text-4xl font-black tracking-[-0.05em] sm:text-6xl">Online in 3 moves</CardTitle>
+            <CardDescription className="mx-auto max-w-2xl text-base leading-7">Pick someone online, create an invite room, or join a code. The advanced settings are tucked away where they belong, because mercy is real.</CardDescription>
           </CardHeader>
 
-          <CardContent className="grid gap-4 p-4 sm:p-5">
-            <OnlineModeExplainer value={gameType} onChange={setGameType} />
-
-            <OnlineAvailablePlayers
-              playerName={playerName}
-              gameType={gameType}
-              settings={buildSettings()}
-              onEnterRoom={enterOnlineRoom}
-              onMessage={setMessage}
-            />
-
-            <div className="grid gap-3 rounded-xl border bg-muted/20 p-3">
+          <CardContent className="grid gap-4 p-4 sm:p-6">
+            <div className="grid gap-2 rounded-[1.4rem] border bg-muted/20 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
               <div className="grid gap-2">
                 <Label htmlFor="player-name">Your name</Label>
-                <Input id="player-name" value={playerName} onChange={(event) => updatePlayerName(event.target.value)} />
+                <Input id="player-name" className="h-12 rounded-2xl" value={playerName} onChange={(event) => updatePlayerName(event.target.value)} />
               </div>
+              <Badge variant="outline" className="h-12 justify-center rounded-2xl px-4">{gridSize}x{gridSize} · {safeRounds} rounds</Badge>
+            </div>
 
-              <div className="grid gap-2">
-                <Label>Room privacy</Label>
-                <div className="flex flex-wrap gap-2">
-                  <ChoicePill active={roomVisibility === "private"} onClick={() => setRoomVisibility("private")}>Private invite</ChoicePill>
-                  <ChoicePill active={roomVisibility === "public"} onClick={() => setRoomVisibility("public")}>Public lobby</ChoicePill>
-                </div>
+            <div className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr]">
+              <OnlineAvailablePlayers playerName={playerName} gameType={gameType} settings={buildSettings()} onEnterRoom={enterOnlineRoom} onMessage={setMessage} />
+
+              <div className="grid gap-3">
+                <QuickActionCard title="Invite a friend" badge="2" description="Create a private room and share the code.">
+                  <Button className="h-14 w-full rounded-2xl text-base font-black" onClick={createInviteRoom} disabled={isBusy}>{isBusy ? "Creating..." : "Create Invite Room"}</Button>
+                </QuickActionCard>
+
+                <QuickActionCard title="Join with code" badge="3" description="Paste the code your friend sent you.">
+                  <div className="flex gap-2">
+                    <Input className="h-12 rounded-2xl" value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} placeholder="AB123" />
+                    <Button className="h-12 rounded-2xl" onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>Join</Button>
+                  </div>
+                </QuickActionCard>
               </div>
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="board-size">Board slots</Label>
-                  <Input id="board-size" min={4} max={225} type="number" value={safeBoardSize} onChange={(event) => setBoardSize(clampNumber(Number(event.target.value), 4, 225, 100))} />
+            <details className="rounded-[1.4rem] border bg-muted/20 p-4">
+              <summary className="cursor-pointer text-sm font-black">Advanced match setup</summary>
+              <div className="mt-4 grid gap-4">
+                <OnlineModeExplainer value={gameType} onChange={setGameType} />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>Board preset</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {DIFFICULTIES.map((item) => (
+                        <Button key={item.id} type="button" variant={safeBoardSize === item.boardSize ? "default" : "outline"} className="rounded-full" onClick={() => { setDifficulty(item.id); setBoardSize(item.boardSize); setPreviewSeconds(Math.max(1, Math.round(item.flashDurationMs / 1000))); }}>{Math.ceil(Math.sqrt(item.boardSize))}x{Math.ceil(Math.sqrt(item.boardSize))}</Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="board-size">Custom slots</Label>
+                    <Input id="board-size" className="h-12 rounded-2xl" min={4} max={225} type="number" value={safeBoardSize} onChange={(event) => setBoardSize(clampNumber(Number(event.target.value), 4, 225, 100))} />
+                  </div>
                 </div>
+
                 <div className="grid gap-2">
-                  <Label>Preset</Label>
+                  <Label htmlFor="custom-numbers">Required numbers</Label>
+                  <Input id="custom-numbers" className="h-12 rounded-2xl" value={customNumbersInput} onChange={(event) => setCustomNumbersInput(event.target.value)} placeholder="Example: 1 to 20" />
+                  <div className="text-xs text-muted-foreground">{customNumbers.length}/{safeBoardSize} required numbers. Remaining {Math.max(0, safeBoardSize - customNumbers.length)} slots become random.</div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="grid gap-2"><Label htmlFor="rounds">Rounds</Label><Input id="rounds" min={1} max={20} type="number" value={safeRounds} onChange={(event) => setRounds(clampNumber(Number(event.target.value), 1, 20, 5))} /></div>
+                  <div className="grid gap-2"><Label htmlFor="preview">Preview</Label><Input id="preview" min={1} max={15} type="number" value={safePreviewSeconds} onChange={(event) => setPreviewSeconds(clampNumber(Number(event.target.value), 1, 15, 2))} /></div>
+                  <div className="grid gap-2"><Label htmlFor="penalty">Penalty</Label><Input id="penalty" min={0} max={10} type="number" value={safePenaltySeconds} onChange={(event) => setPenaltySeconds(clampNumber(Number(event.target.value), 0, 10, 3))} /></div>
+                  <div className="grid gap-2"><Label htmlFor="players">Players</Label><Input id="players" min={1} max={8} type="number" value={maxPlayers} onChange={(event) => setMaxPlayers(normalizeMaxPlayers(Number(event.target.value)))} /></div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Room type</Label>
                   <div className="flex flex-wrap gap-2">
-                    {DIFFICULTIES.map((item) => (
-                      <ChoicePill key={item.id} active={safeBoardSize === item.boardSize} onClick={() => { setDifficulty(item.id); setBoardSize(item.boardSize); setPreviewSeconds(Math.max(1, Math.round(getDifficultyConfig(item.id).flashDurationMs / 1000))); }}>{Math.ceil(Math.sqrt(item.boardSize))}x{Math.ceil(Math.sqrt(item.boardSize))}</ChoicePill>
-                    ))}
+                    <Button type="button" variant={roomVisibility === "private" ? "default" : "outline"} className="rounded-full" onClick={() => setRoomVisibility("private")}>Private</Button>
+                    <Button type="button" variant={roomVisibility === "public" ? "default" : "outline"} className="rounded-full" onClick={() => setRoomVisibility("public")}>Public</Button>
                   </div>
                 </div>
               </div>
+            </details>
 
-              <div className="grid gap-2">
-                <Label htmlFor="custom-numbers">Required numbers</Label>
-                <Input id="custom-numbers" value={customNumbersInput} onChange={(event) => setCustomNumbersInput(event.target.value)} placeholder="Example: 1 to 20" />
-                <div className="text-xs text-muted-foreground">{customNumbers.length}/{safeBoardSize} required numbers. The remaining {Math.max(0, safeBoardSize - customNumbers.length)} slots are random.</div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="max-players">Max players</Label>
-                  <Input id="max-players" min={1} max={8} type="number" value={maxPlayers} onChange={(event) => setMaxPlayers(normalizeMaxPlayers(Number(event.target.value)))} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="online-rounds">Rounds</Label>
-                  <Input id="online-rounds" min={1} max={20} type="number" value={safeRounds} onChange={(event) => setRounds(clampNumber(Number(event.target.value), 1, 20, 5))} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="preview">Preview</Label>
-                  <Input id="preview" min={1} max={15} type="number" value={safePreviewSeconds} onChange={(event) => setPreviewSeconds(clampNumber(Number(event.target.value), 1, 15, 2))} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="online-penalty">Penalty</Label>
-                  <Input id="online-penalty" min={0} max={10} type="number" value={safePenaltySeconds} onChange={(event) => setPenaltySeconds(clampNumber(Number(event.target.value), 0, 10, 3))} />
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button size="lg" className="h-14 text-base" onClick={quickCreateRoom} disabled={isBusy}>{isBusy ? "Creating..." : "Create Room"}</Button>
-                <div className="flex gap-2">
-                  <Input value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} placeholder="Room code" />
-                  <Button onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>Join</Button>
-                </div>
-              </div>
-            </div>
-
-            {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
+            {message && <div className="rounded-2xl border bg-muted/20 p-3 text-center text-sm text-muted-foreground" role="status">{message}</div>}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:justify-between sm:p-5">
-            <Button asChild variant="outline"><Link href="/">Back</Link></Button>
-            <div className="flex gap-1">
-              <Button asChild variant="ghost" size="sm"><Link href="/modes">Modes</Link></Button>
-              <Button asChild variant="ghost" size="sm"><Link href="/leaderboard">Leaderboard</Link></Button>
-              <Button asChild variant="ghost" size="sm"><Link href="/faq">FAQ</Link></Button>
-            </div>
+            <Button asChild variant="outline" className="rounded-full"><Link href="/">Back</Link></Button>
+            <Button asChild variant="ghost" className="rounded-full"><Link href="/modes">All Modes</Link></Button>
           </CardFooter>
         </Card>
       </section>
