@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -47,85 +46,85 @@ export default function RoundSummary({
   const isFinalRound = round >= totalRounds;
 
   return (
-    <section className="flex h-full items-center justify-center px-1">
-      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-hidden">
-        <CardHeader className="border-b text-center">
-          <CardDescription>
-            {isFinalRound ? "All rounds are complete. One final look, then results." : `Great round. Round ${round + 1} is ready when you are.`}
-          </CardDescription>
-          <CardTitle className="text-3xl tracking-tight sm:text-5xl">
-            Round {round} complete
-          </CardTitle>
-        </CardHeader>
+    <section className="game-stage">
+      <div className="game-stage-shell game-stage-shell--center">
+        <Card className="glass-panel game-stage-card game-stage-card--wide py-0">
+          <CardHeader className="game-stage-header">
+            <CardDescription className="hero-copy mx-auto max-w-2xl">
+              {isFinalRound ? "All rounds are complete. One final look, then results." : `Great round. Round ${round + 1} is ready when you are.`}
+            </CardDescription>
+            <CardTitle className="hero-title mt-2 text-4xl sm:text-6xl">
+              Round {round} complete
+            </CardTitle>
+          </CardHeader>
 
-        <CardContent className="min-h-0 overflow-auto p-4 sm:p-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
-              <CardHeader className="px-4">
-                <CardTitle className="text-base">This round</CardTitle>
-                <CardDescription>Fastest clean search rises to the top. Wrong taps add time.</CardDescription>
-              </CardHeader>
-              <CardContent className="px-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Wrong</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {roundResults.map((result, index) => (
-                      <TableRow key={result.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{result.playerName}</TableCell>
-                        <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
-                        <TableCell>{result.wrongTaps}</TableCell>
+          <CardContent className="game-stage-content">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="gap-3 rounded-[1.5rem] bg-white/80 py-4 shadow-none">
+                <CardHeader className="px-4">
+                  <CardTitle className="text-base font-black">This round</CardTitle>
+                  <CardDescription>Fastest clean search rises to the top. Wrong taps add time.</CardDescription>
+                </CardHeader>
+                <CardContent className="px-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Player</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Wrong</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {roundResults.map((result, index) => (
+                        <TableRow key={result.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{result.playerName}</TableCell>
+                          <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
+                          <TableCell>{result.wrongTaps}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
 
-            <Card className="gap-3 bg-muted/20 py-4 shadow-none">
-              <CardHeader className="px-4">
-                <CardTitle className="text-base">Overall standings</CardTitle>
-                <CardDescription>Lowest total time is leading the game.</CardDescription>
-              </CardHeader>
-              <CardContent className="px-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ranking.map((player, index) => (
-                      <TableRow key={player.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{player.name}</TableCell>
-                        <TableCell>{formatTime(player.totalTimeMs)}</TableCell>
+              <Card className="gap-3 rounded-[1.5rem] bg-white/80 py-4 shadow-none">
+                <CardHeader className="px-4">
+                  <CardTitle className="text-base font-black">Overall standings</CardTitle>
+                  <CardDescription>Lowest total time is leading the game.</CardDescription>
+                </CardHeader>
+                <CardContent className="px-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Player</TableHead>
+                        <TableHead>Total</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                      {ranking.map((player, index) => (
+                        <TableRow key={player.id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{player.name}</TableCell>
+                          <TableCell>{formatTime(player.totalTimeMs)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
 
-        <Separator />
-
-        <CardFooter className="justify-end p-4 sm:p-6">
-          <Button onClick={isFinalRound ? onFinishGame : onNextRound}>
-            {isFinalRound ? "See Final Results" : "Start Next Round"}
-          </Button>
-        </CardFooter>
-      </Card>
+          <CardFooter className="game-stage-actions">
+            <Button className="h-12 rounded-2xl font-black" onClick={isFinalRound ? onFinishGame : onNextRound}>
+              {isFinalRound ? "See Final Results" : "Start Next Round"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </section>
   );
 }
