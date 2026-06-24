@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Nunito_Sans } from "next/font/google";
 import AppTelemetry from "@/components/AppTelemetry";
-import { absoluteUrl, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
+import { absoluteUrl, CREATOR_NAME, CREATOR_URL, getGameJsonLd, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 import "./design-system.css";
 import "./colorful.css";
@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   keywords: SEO_KEYWORDS,
-  authors: [{ name: "Nischhal Subba" }],
-  creator: "Nischhal Subba",
-  publisher: "Nischhal Subba",
+  authors: [{ name: CREATOR_NAME, url: CREATOR_URL }],
+  creator: CREATOR_NAME,
+  publisher: CREATOR_NAME,
   category: "game",
   manifest: "/manifest.json",
   alternates: {
@@ -96,6 +96,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
         <AppTelemetry />
         {children}
+        <a
+          href={CREATOR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="creator-credit"
+          aria-label={`Designed and developed by ${CREATOR_NAME}`}
+        >
+          <span>Designed &amp; developed by</span>
+          <strong>{CREATOR_NAME}</strong>
+        </a>
       </body>
     </html>
   );
