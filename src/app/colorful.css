@@ -6,7 +6,7 @@
   --secondary: #fff1c7;
   --secondary-foreground: #2b2140;
   --muted: #f3f0ff;
-  --muted-foreground: #5c5470;
+  --muted-foreground: #4b3f62;
   --accent: #dff7ff;
   --accent-foreground: #083344;
   --border: #eadcff;
@@ -72,7 +72,8 @@ body {
 
 .number-tile {
   background: linear-gradient(145deg, #ffffff, #f8fbff);
-  border: 1px solid rgba(124, 58, 237, 0.16);
+  border-color: rgba(124, 58, 237, 0.32);
+  color: #111827;
 }
 
 .site-breadcrumb {
