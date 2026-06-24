@@ -5,19 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDeviceId } from "@/lib/device";
-import {
-  acceptOnlineInvite,
-  createOnlineInvite,
-  declineOnlineInvite,
-  fetchAvailableOnlinePlayers,
-  fetchIncomingInvites,
-  fetchSentInvites,
-  joinAcceptedOnlineInvite,
-  subscribeToOnlinePresence,
-  upsertOnlinePresence,
-  type OnlineGameInvite,
-  type OnlinePresence,
-} from "@/lib/onlinePresence";
+import { acceptOnlineInvite, createOnlineInvite, declineOnlineInvite, fetchAvailableOnlinePlayers, fetchIncomingInvites, fetchSentInvites, joinAcceptedOnlineInvite, subscribeToOnlinePresence, upsertOnlinePresence, type OnlineGameInvite, type OnlinePresence } from "@/lib/onlinePresence";
+import { databasePresenceToUserLabel } from "@/lib/presencePreference";
 import type { GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
@@ -50,14 +39,11 @@ function shortDeviceId(deviceId: string) {
   return deviceId.slice(0, 8).toUpperCase();
 }
 
-export default function OnlineAvailablePlayers({
-  playerName,
-  gameType,
-  settings,
-  currentRoomId = null,
-  onEnterRoom,
-  onMessage,
-}: OnlineAvailablePlayersProps) {
+function playerStatusLabel(player: OnlinePresence) {
+  return databasePresenceToUserLabel(player.status, player.available_to_play);
+}
+
+export default function OnlineAvailablePlayers({ playerName, gameType, settings, currentRoomId = null, onEnterRoom, onMessage }: OnlineAvailablePlayersProps) {
   const deviceId = useMemo(() => getDeviceId(), []);
   const handledAcceptedInviteIds = useRef(new Set<string>());
   const [availableToPlay, setAvailableToPlay] = useState(loadAvailability);
@@ -73,6 +59,11 @@ export default function OnlineAvailablePlayers({
 
   async function enterAcceptedInvite(invite: OnlineGameInvite) {
     if (handledAcceptedInviteIds.current.has(invite.id)) {
+      return;
+    }
+
+    if (!invite.room_code) {
+      onMessage("Invite accepted. Waiting for room to be ready...");
       return;
     }
 
@@ -109,7 +100,8 @@ export default function OnlineAvailablePlayers({
       if (nextUnavailable) {
         setStatusMessage("Presence tables are missing. Run supabase/presence_invites.sql.");
       } else {
-        setStatusMessage(`Presence connected. Found ${availableResult.data.length} other available player${availableResult.data.length === 1 ? "" : "s"}.`);
+        const inviteableCount = availableResult.data.filter((player) => player.available_to_play && player.status === "available").length;
+        setStatusMessage(`Presence connected. Found ${inviteableCount} inviteable player${inviteableCount === 1 ? "" : "s"}.`);
       }
 
       const acceptedInvite = sentResult.data.find((invite) => invite.status === "accepted" && invite.room_code);
@@ -125,13 +117,7 @@ export default function OnlineAvailablePlayers({
 
   async function heartbeat() {
     try {
-      const result = await upsertOnlinePresence({
-        deviceId,
-        displayName: playerName,
-        availableToPlay,
-        currentRoomId,
-      });
-
+      const result = await upsertOnlinePresence({ deviceId, displayName: playerName, availableToPlay, currentRoomId });
       setUnavailable(result.unavailable);
       setLastHeartbeatAt(new Date());
 
@@ -140,7 +126,7 @@ export default function OnlineAvailablePlayers({
         return;
       }
 
-      setStatusMessage(availableToPlay ? "You are visible to other players." : "You are hidden from the online player list.");
+      setStatusMessage(availableToPlay ? "You are visible and inviteable." : "You are hidden from the invite list.");
       await refreshPresenceData();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not update online availability.";
@@ -153,18 +139,12 @@ export default function OnlineAvailablePlayers({
     saveAvailability(availableToPlay);
     void heartbeat();
 
-    const timer = window.setInterval(() => {
-      void heartbeat();
-    }, 5_000);
-
+    const timer = window.setInterval(() => void heartbeat(), 5000);
     let unsubscribe: (() => void) | undefined;
-    subscribeToOnlinePresence(deviceId, () => {
-      void heartbeat();
-    }).then((cleanup) => {
-      unsubscribe = cleanup;
-    }).catch(() => {
-      // Missing migration or realtime permissions should not break the online page.
-    });
+
+    subscribeToOnlinePresence(deviceId, () => void heartbeat())
+      .then((cleanup) => { unsubscribe = cleanup; })
+      .catch(() => {});
 
     function refreshWhenVisible() {
       if (document.visibilityState === "visible") {
@@ -205,17 +185,16 @@ export default function OnlineAvailablePlayers({
       return;
     }
 
+    if (!player.available_to_play || player.status !== "available") {
+      onMessage(`${player.display_name} is ${playerStatusLabel(player).toLowerCase()} right now.`);
+      return;
+    }
+
     setIsBusy(true);
     onMessage(`Sending invite to ${player.display_name}...`);
 
     try {
-      const result = await createOnlineInvite({
-        fromDeviceId: deviceId,
-        fromName: playerName,
-        toPlayer: player,
-        gameType,
-        settings,
-      });
+      const result = await createOnlineInvite({ fromDeviceId: deviceId, fromName: playerName, toPlayer: player, gameType, settings });
 
       if (result.unavailable || !result.data) {
         onMessage("Player invites need the latest Supabase migration.");
@@ -270,13 +249,9 @@ export default function OnlineAvailablePlayers({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-lg font-black">Players online now</CardTitle>
-            <CardDescription>Turn availability on, tap a player, and send an invite.</CardDescription>
+            <CardDescription>Online players can be invited. Away and busy players are shown, but not inviteable.</CardDescription>
           </div>
-          <Button
-            size="sm"
-            variant={availableToPlay ? "default" : "outline"}
-            onClick={() => setAvailableToPlay((current) => !current)}
-          >
+          <Button size="sm" variant={availableToPlay ? "default" : "outline"} onClick={() => setAvailableToPlay((current) => !current)}>
             {availableToPlay ? "Available" : "Hidden"}
           </Button>
         </div>
@@ -289,15 +264,12 @@ export default function OnlineAvailablePlayers({
             <Badge variant={isVisibleToOthers ? "default" : "outline"}>{isVisibleToOthers ? "Visible" : "Not visible"}</Badge>
           </div>
           <div>{statusMessage}</div>
-          <div>
-            This browser: <span className="font-mono text-foreground">{shortDeviceId(deviceId)}</span>
-            {lastHeartbeatAt ? ` · Last heartbeat ${lastHeartbeatAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
-          </div>
+          <div>This browser: <span className="font-mono text-foreground">{shortDeviceId(deviceId)}</span>{lastHeartbeatAt ? ` · Last heartbeat ${lastHeartbeatAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}</div>
         </div>
 
         {unavailable && (
           <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
-            Online player discovery needs the new Supabase presence migration. Run <span className="font-mono text-foreground">supabase/presence_invites.sql</span> in Supabase SQL Editor. Room codes still work until the database catches up, because naturally the database wants paperwork.
+            Online player discovery needs the Supabase presence migrations.
           </div>
         )}
 
@@ -306,16 +278,15 @@ export default function OnlineAvailablePlayers({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <div className="text-base font-black text-foreground">Game invite waiting</div>
-                <div className="text-xs text-muted-foreground">Accept to enter the same room, or decline and continue browsing.</div>
+                <div className="text-xs text-muted-foreground">Accept to create and enter the same room.</div>
               </div>
-              <Badge variant="secondary">Popup</Badge>
+              <Badge variant="secondary">Invite</Badge>
             </div>
-
             {incomingInvites.map((invite) => (
               <div key={invite.id} className="grid gap-2 rounded-xl border bg-background/90 p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
                 <div>
                   <div className="font-semibold">{invite.from_name} invited you</div>
-                  <div className="text-xs text-muted-foreground">Room {invite.room_code} · {invite.game_type === "same_challenge" ? "Same Challenge" : "Live Race"}</div>
+                  <div className="text-xs text-muted-foreground">{invite.game_type === "same_challenge" ? "Same Challenge" : "Live Race"}</div>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => acceptInvite(invite)} disabled={isBusy}>Accept</Button>
@@ -328,34 +299,25 @@ export default function OnlineAvailablePlayers({
 
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-bold">Available players</div>
+            <div className="text-sm font-bold">Players</div>
             <Button size="sm" variant="outline" onClick={() => void heartbeat()} disabled={isBusy}>{isBusy ? "Working..." : "Refresh"}</Button>
           </div>
 
           {players.length === 0 ? (
-            <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
-              No other available players found yet. Open this page in another browser, keep both set to Available, then press Refresh on both. Because apparently even games need a seance sometimes.
-            </div>
+            <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">No other players found yet.</div>
           ) : (
             players.map((player) => {
               const incomingInvite = getIncomingInviteFrom(player);
               const pendingInvite = getPendingInviteTo(player);
+              const canInvitePlayer = player.available_to_play && player.status === "available";
 
               return (
-                <button
-                  key={player.device_id}
-                  type="button"
-                  className="flex items-center justify-between gap-3 rounded-xl border bg-background/70 p-3 text-left text-sm transition hover:border-primary/50 hover:bg-background focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  onClick={() => invitePlayer(player)}
-                  disabled={isBusy || Boolean(pendingInvite)}
-                >
+                <button key={player.device_id} type="button" className="flex items-center justify-between gap-3 rounded-xl border bg-background/70 p-3 text-left text-sm transition hover:border-primary/50 hover:bg-background focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring" onClick={() => invitePlayer(player)} disabled={isBusy || Boolean(pendingInvite) || (!canInvitePlayer && !incomingInvite)}>
                   <div>
                     <div className="font-semibold">{player.display_name}</div>
-                    <div className="text-xs text-muted-foreground">Seen {new Date(player.last_seen_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {shortDeviceId(player.device_id)}</div>
+                    <div className="text-xs text-muted-foreground">{playerStatusLabel(player)} · Seen {new Date(player.last_seen_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {shortDeviceId(player.device_id)}</div>
                   </div>
-                  <Badge variant={incomingInvite ? "default" : pendingInvite ? "outline" : "secondary"}>
-                    {incomingInvite ? "Accept" : pendingInvite ? "Waiting" : "Invite"}
-                  </Badge>
+                  <Badge variant={incomingInvite ? "default" : pendingInvite ? "outline" : canInvitePlayer ? "secondary" : "outline"}>{incomingInvite ? "Accept" : pendingInvite ? "Waiting" : canInvitePlayer ? "Invite" : playerStatusLabel(player)}</Badge>
                 </button>
               );
             })
