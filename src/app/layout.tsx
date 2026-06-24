@@ -8,7 +8,7 @@ import "./colorful.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-body" });
 const nunitoSans = Nunito_Sans({ subsets: ["latin"], display: "swap", variable: "--font-display" });
-const SOCIAL_IMAGE_URL = absoluteUrl("/opengraph-image?v=clearplay-color-2");
+const SOCIAL_IMAGE_URL = absoluteUrl("/social-preview.png?v=clearplay-card-3");
 const SOCIAL_IMAGE_ALT = "Blink & Find colorful number-memory game preview with bright scattered number tiles";
 
 export const metadata: Metadata = {
