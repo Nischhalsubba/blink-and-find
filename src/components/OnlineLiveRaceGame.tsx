@@ -66,7 +66,7 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   const gamePlayers = onlinePlayersToGamePlayers(snapshot.players);
   const gameResults = onlineResultsToTurnResults(snapshot.results);
   const gameCurrentPlayer = onlinePlayerToGamePlayer(localPlayer);
-  const board = currentRound ? getOnlineBoard(currentRound.board_size, currentRound.seed) : [];
+  const board = currentRound ? getOnlineBoard(room.settings, currentRound.seed) : [];
   const targetNumber = currentRound?.target_number ?? null;
   const roundStartAt = room.round_start_at ?? currentRound?.start_at ?? null;
   const roundStartMs = roundStartAt ? new Date(roundStartAt).getTime() : now;
@@ -143,16 +143,13 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
       setCurrentWrongTaps(wrongTapsRef.current);
       setLastSelectionWasWrong(true);
       setMessage(`${value} is wrong. ${room.settings.penaltySeconds} second penalty added.`);
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate(35);
-      }
       return;
     }
 
-    const rawTimeMs = Math.max(0, Date.now() - roundStartMs);
+    const rawTimeMs = Date.now() - roundStartMs;
     const result = createTurnResult({
       round: room.current_round,
-      player: onlinePlayerToGamePlayer(localPlayer),
+      player: gameCurrentPlayer,
       targetNumber,
       rawTimeMs,
       wrongTaps: wrongTapsRef.current,
@@ -162,75 +159,52 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
     setIsSubmitting(true);
     setLastSelectionWasWrong(false);
     setLastResult(result);
-    setMessage(`Finished in ${formatTime(result.finalTimeMs)}. Waiting for everyone else.`);
-
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([15, 35, 15]);
-    }
+    setMessage(`Correct. You finished in ${formatTime(result.finalTimeMs)}.`);
 
     try {
       await submitLiveRaceResult({ room, players: snapshot.players, result });
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not submit live race result.");
+      setMessage(error instanceof Error ? error.message : "Could not submit result.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleNextRound() {
+  async function nextRound() {
     try {
       await startNextOnlineRound(room, snapshot.players);
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start next live round.");
+      setMessage(error instanceof Error ? error.message : "Could not start next round.");
     }
   }
 
-  async function handleFinishGame() {
-    await onRefresh();
-  }
-
-  if (!currentRound || targetNumber === null) {
-    return <WaitingCard title="Preparing Live Race" description="Waiting for the shared board and target to appear." onBack={onBackToLobby} />;
+  if (!currentRound) {
+    return <WaitingCard title="Waiting for race" description="The host has not started the race yet." onBack={onBackToLobby} />;
   }
 
   if (room.status === "round_summary") {
-    if (localPlayer.is_host) {
-      return (
-        <main className="app-shell">
-          <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={handleNextRound} onFinishGame={handleFinishGame} />
-          {message && <p className="sr-only" role="status">{message}</p>}
-        </main>
-      );
-    }
-
     return (
-      <WaitingCard title={`Round ${room.current_round} complete`} description="Waiting for the host to start the next live race." onBack={onBackToLobby}>
-        <div className="rounded-xl border bg-muted/20 p-3 text-center text-sm text-muted-foreground">
-          {roundResults.length} / {snapshot.players.length} players finished this round.
-        </div>
-      </WaitingCard>
+      <RoundSummary
+        round={room.current_round}
+        totalRounds={room.settings.totalRounds}
+        players={gamePlayers}
+        results={gameResults}
+        onNextRound={nextRound}
+        onFinishGame={() => onRefresh()}
+      />
     );
   }
 
   if (room.status === "finished") {
-    return (
-      <main className="app-shell">
-        <ResultScreen players={gamePlayers} results={gameResults} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={onBackToLobby} />
-      </main>
-    );
+    return <ResultScreen players={gamePlayers} results={gameResults} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={onBackToLobby} playAgainLabel="Back to Lobby" />;
   }
 
-  if (localRoundResult) {
+  if (!hasStarted) {
     return (
-      <WaitingCard title="Result submitted" description="Your time is saved. Waiting for every player to finish this live race round." onBack={onBackToLobby}>
-        <div className="grid gap-3 text-center">
-          <div className="text-4xl font-semibold tracking-tight">{formatTime(localRoundResult.final_time_ms)}</div>
-          <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">
-            {roundResults.length} / {snapshot.players.length} players finished.
-          </div>
-        </div>
+      <WaitingCard title="Get ready" description={liveStatus} onBack={onBackToLobby}>
+        <div className="text-center text-5xl font-black tracking-tight">{targetNumber ?? "?"}</div>
       </WaitingCard>
     );
   }
@@ -249,13 +223,23 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
       currentWrongTaps={currentWrongTaps}
       lastSelectedNumber={lastSelectedNumber}
       lastSelectionWasWrong={lastSelectionWasWrong}
-      lastResult={lastResult}
+      lastResult={lastResult ?? (localRoundResult ? {
+        id: localRoundResult.id,
+        round: localRoundResult.round_number,
+        playerId: localRoundResult.player_id,
+        playerName: localRoundResult.player_name,
+        targetNumber: localRoundResult.target_number,
+        rawTimeMs: localRoundResult.raw_time_ms,
+        penaltyMs: localRoundResult.penalty_ms,
+        finalTimeMs: localRoundResult.final_time_ms,
+        wrongTaps: localRoundResult.wrong_taps,
+      } : null)}
       statusMessage={message || liveStatus}
       isMuted={isMuted}
       autoContinue={autoContinue}
-      boardScatterKey={currentRound ? `${currentRound.seed}-${room.current_round}` : room.current_round}
+      boardScatterKey={`${room.id}-${room.current_round}`}
       onNumberSelect={handleNumberSelect}
-      onContinue={onRefresh}
+      onContinue={() => onRefresh()}
       onBackToSetup={onBackToLobby}
       onToggleMute={() => setIsMuted((current) => !current)}
       onToggleAutoContinue={() => setAutoContinue((current) => !current)}
