@@ -247,7 +247,7 @@ export default function OnlineSameChallengeGame({
 
   async function finishRoom() {
     try {
-      await finishOnlineRoom(room.id);
+      await finishOnlineRoom(room);
       await onRefresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not finish room.");
