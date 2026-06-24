@@ -73,6 +73,8 @@ export default function GameScreen({
   onToggleMute,
   onToggleAutoContinue,
 }: GameScreenProps) {
+  const isDenseBoard = board.length >= 100;
+
   return (
     <main className="app-shell">
       <div className="game-play-shell">
@@ -93,11 +95,25 @@ export default function GameScreen({
               <Badge variant="secondary" className="h-9 justify-center rounded-2xl px-3 text-[11px] sm:text-xs">
                 +{config.penaltySeconds}s penalty
               </Badge>
-              <Button variant="outline" size="sm" className="h-9 min-w-0 rounded-2xl px-2 text-xs sm:px-3" onClick={onToggleMute}>
-                <span className="truncate">{isMuted ? "Muted" : "Sound"}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 min-w-0 rounded-2xl px-2 text-xs sm:px-3"
+                aria-label={isMuted ? "Sound is muted. Tap to turn sound on." : "Sound is on. Tap to mute."}
+                title={isMuted ? "Sound is muted. Tap to turn sound on." : "Sound is on. Tap to mute."}
+                onClick={onToggleMute}
+              >
+                <span className="truncate">{isMuted ? "Muted" : "Sound on"}</span>
               </Button>
-              <Button variant="outline" size="sm" className="h-9 min-w-0 rounded-2xl px-2 text-xs sm:px-3" onClick={onToggleAutoContinue}>
-                <span className="truncate">{autoContinue ? "Auto" : "Manual"}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 min-w-0 rounded-2xl px-2 text-xs sm:px-3"
+                aria-label={autoContinue ? "Auto next is on. Turn summaries advance automatically." : "Manual next is on. Use Continue after each turn."}
+                title={autoContinue ? "Auto next advances after each turn summary." : "Manual next waits for the Continue button after each turn."}
+                onClick={onToggleAutoContinue}
+              >
+                <span className="truncate">{autoContinue ? "Auto next" : "Manual next"}</span>
               </Button>
               <QuitGameDialog onConfirm={onBackToSetup} />
             </div>
@@ -110,7 +126,12 @@ export default function GameScreen({
         </div>
 
         <Card className="glass-panel game-play-board-card py-0">
-          <CardContent className="flex h-full min-h-0 items-center justify-center p-2 sm:p-4">
+          <CardContent className="flex h-full min-h-0 flex-col items-center justify-center gap-2 p-2 sm:p-4">
+            {isDenseBoard && (
+              <div className="rounded-full bg-white/85 px-3 py-1 text-center text-xs font-bold text-slate-700 shadow-sm" role="note">
+                100-number board: all numbers fit inside this square. Tap the center of a tile.
+              </div>
+            )}
             <NumberGrid
               numbers={board}
               targetNumber={targetNumber}
@@ -134,7 +155,7 @@ export default function GameScreen({
               <span>
                 {statusMessage || "Find the matching number on the board."}
                 {lastSelectionWasWrong && lastSelectedNumber !== null && (
-                  <span className="ml-2 font-bold text-destructive">
+                  <span className="ml-2 rounded-full bg-red-50 px-2 py-1 font-black text-destructive">
                     Not {lastSelectedNumber}. +{config.penaltySeconds}s.
                   </span>
                 )}
@@ -144,7 +165,7 @@ export default function GameScreen({
               <div className="flex w-full flex-col items-center justify-between gap-2 sm:flex-row">
                 <span>
                   {lastResult.playerName} finished in {formatTime(lastResult.finalTimeMs)}
-                  {autoContinue && <span className="ml-2 text-muted-foreground">Next screen is coming...</span>}
+                  {autoContinue && <span className="ml-2 text-muted-foreground">Auto next is on.</span>}
                 </span>
                 <Button size="sm" className="min-w-32 rounded-2xl" onClick={onContinue}>Continue</Button>
               </div>
