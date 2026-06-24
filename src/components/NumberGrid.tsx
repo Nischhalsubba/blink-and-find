@@ -41,19 +41,31 @@ function getScatterSeed(scatterKey: string | number | undefined): number {
 
 function getTileSize(count: number): number {
   if (count <= 25) {
-    return 9.5;
+    return 10.75;
   }
 
   if (count <= 100) {
-    return 5.35;
+    return 6.15;
   }
 
-  return 4.3;
+  return 4.75;
+}
+
+function getBoardDensity(count: number) {
+  if (count <= 25) {
+    return "comfortable";
+  }
+
+  if (count <= 100) {
+    return "dense";
+  }
+
+  return "compact";
 }
 
 function overlaps(candidate: PlacedTile, placed: PlacedTile[]): boolean {
   return placed.some((tile) => {
-    const minDistance = (candidate.size + tile.size) * 0.52;
+    const minDistance = (candidate.size + tile.size) * 0.5;
     const dx = Math.abs(candidate.centerX - tile.centerX);
     const dy = Math.abs(candidate.centerY - tile.centerY);
 
@@ -97,7 +109,7 @@ function getScatteredStyles(numbers: number[], scatterKey?: string | number): Ma
     let bestCandidate = createCandidate(number, index, 0, tileSize, scatterSeed);
     let bestScore = -1;
 
-    for (let attempt = 0; attempt < 90; attempt += 1) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
       const candidate = createCandidate(number, index, attempt, tileSize, scatterSeed);
       const candidateScore = scoreCandidate(candidate, placed);
 
@@ -114,7 +126,7 @@ function getScatteredStyles(numbers: number[], scatterKey?: string | number): Ma
 
     placed.push(bestCandidate);
 
-    const rotation = (seededFraction(number * 7 + index * 13 + scatterSeed * 19) - 0.5) * 16;
+    const rotation = (seededFraction(number * 7 + index * 13 + scatterSeed * 19) - 0.5) * 10;
     styles.set(number, {
       left: `${bestCandidate.centerX - tileSize / 2}%`,
       top: `${bestCandidate.centerY - tileSize / 2}%`,
@@ -148,6 +160,7 @@ export default function NumberGrid({
   onSelect,
 }: NumberGridProps) {
   const scatteredStyles = getScatteredStyles(numbers, scatterKey);
+  const density = getBoardDensity(numbers.length);
 
   function getTileState(number: number) {
     const isSelected = selectedNumber === number;
@@ -198,7 +211,7 @@ export default function NumberGrid({
 
   return (
     <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center">
-      <div className="number-grid" role="group" aria-label="Scattered number board">
+      <div className="number-grid" data-density={density} role="group" aria-label="Scattered number board">
         {numbers.map((number, index) => {
           const tile = getTileState(number);
 
@@ -214,7 +227,7 @@ export default function NumberGrid({
               onKeyDown={(event) => handleKeyDown(event, index)}
               onClick={() => onSelect?.(number)}
             >
-              {number}
+              <span className="number-tile-label">{number}</span>
             </Button>
           );
         })}
