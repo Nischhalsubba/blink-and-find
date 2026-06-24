@@ -1,4 +1,4 @@
-import { generateSeededZigZagBoard } from "@/engine/board";
+import { generateSeededCustomZigZagBoard } from "@/engine/board";
 import { supabase } from "@/lib/supabase";
 import { assertValidTurnResultForSubmission } from "@/lib/scoreValidation";
 import type { GameConfig, Player, TurnResult } from "@/types/game";
@@ -19,12 +19,17 @@ export function getLiveRaceStartsAt(): string {
   return new Date(Date.now() + LIVE_RACE_COUNTDOWN_MS).toISOString();
 }
 
-export function getOnlineBoard(boardSize: number, seed: number): number[] {
-  return generateSeededZigZagBoard(boardSize, seed);
+export function getOnlineBoard(settingsOrBoardSize: GameConfig | number, seed: number): number[] {
+  const settings = typeof settingsOrBoardSize === "number" ? null : settingsOrBoardSize;
+  const boardSize = settings?.boardSize ?? settingsOrBoardSize as number;
+  const customNumbers = settings?.customNumbers ?? [];
+
+  return generateSeededCustomZigZagBoard(boardSize, seed, customNumbers);
 }
 
-export function pickTargetFromSeededBoard(boardSize: number, seed: number): number {
-  const board = getOnlineBoard(boardSize, seed);
+export function pickTargetFromSeededBoard(settingsOrBoardSize: GameConfig | number, seed: number): number {
+  const board = getOnlineBoard(settingsOrBoardSize, seed);
+  const boardSize = typeof settingsOrBoardSize === "number" ? settingsOrBoardSize : settingsOrBoardSize.boardSize;
   const targetIndex = Math.abs(seed * 31 + boardSize * 17) % board.length;
   return board[targetIndex];
 }
@@ -270,7 +275,7 @@ export async function startOnlineRoom(room: OnlineRoom, players: OnlinePlayer[])
   const firstPlayer = players[0];
   const seed = createRoundSeed();
   const boardSize = room.settings.boardSize;
-  const targetNumber = pickTargetFromSeededBoard(boardSize, seed);
+  const targetNumber = pickTargetFromSeededBoard(room.settings, seed);
   const isLiveRace = room.game_type === "live_race";
   const startsAt = isLiveRace ? getLiveRaceStartsAt() : null;
 
@@ -525,7 +530,7 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
   const nextRound = room.current_round + 1;
   const seed = createRoundSeed();
   const boardSize = room.settings.boardSize;
-  const targetNumber = pickTargetFromSeededBoard(boardSize, seed);
+  const targetNumber = pickTargetFromSeededBoard(room.settings, seed);
   const isLiveRace = room.game_type === "live_race";
   const startsAt = isLiveRace ? getLiveRaceStartsAt() : null;
 
