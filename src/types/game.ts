@@ -36,6 +36,7 @@ export interface GameConfig {
   totalRounds: number;
   flashDurationMs: number;
   penaltySeconds: number;
+  customNumbers?: number[];
 }
 
 /**
