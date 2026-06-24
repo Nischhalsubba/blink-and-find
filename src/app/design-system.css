@@ -35,7 +35,7 @@
   --shadow-card: 0 10px 26px rgba(23, 32, 51, 0.08);
   --stage-max-width: 1180px;
   --stage-top-space: clamp(3.35rem, 7vh, 4.85rem);
-  --stage-bottom-space: clamp(4.5rem, 8vh, 5.75rem);
+  --stage-bottom-space: clamp(7rem, 12vh, 8.75rem);
   --stage-gap: clamp(0.75rem, 1.4vw, 1rem);
   --stage-card-radius: 2rem;
 }
@@ -126,13 +126,23 @@ h3,
 }
 
 .game-stage-actions {
+  position: fixed;
+  left: 50%;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 58;
   display: flex;
-  min-height: 5rem;
+  width: min(var(--stage-max-width), calc(100vw - 1rem));
+  min-height: 4.75rem;
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
-  border-top: 1px solid var(--border);
-  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(217, 228, 242, 0.92);
+  border-radius: 999px;
+  padding: 0.65rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(238, 246, 255, 0.88));
+  box-shadow: 0 18px 48px rgba(23, 32, 51, 0.14);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
 }
 
 .game-stage-actions > * {
@@ -251,7 +261,7 @@ h3,
 @media (max-width: 768px) {
   :root {
     --stage-top-space: clamp(3.2rem, 9vh, 4.25rem);
-    --stage-bottom-space: clamp(4.4rem, 9vh, 5rem);
+    --stage-bottom-space: clamp(7.5rem, 14vh, 9.25rem);
   }
 
   .game-stage-shell {
@@ -267,12 +277,15 @@ h3,
   }
 
   .game-stage-actions {
+    width: min(100%, calc(100vw - 0.75rem));
     align-items: stretch;
-    flex-direction: column-reverse;
+    justify-content: center;
+    flex-wrap: wrap;
+    border-radius: 1.5rem;
   }
 
   .game-stage-actions > * {
-    width: 100%;
+    flex: 1 1 9rem;
     min-width: 0;
   }
 
