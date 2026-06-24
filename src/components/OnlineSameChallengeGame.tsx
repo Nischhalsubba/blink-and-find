@@ -100,7 +100,7 @@ export default function OnlineSameChallengeGame({
   const gamePlayers = onlinePlayersToGamePlayers(snapshot.players);
   const gameResults = onlineResultsToTurnResults(snapshot.results);
   const gameCurrentPlayer = activePlayer ? onlinePlayerToGamePlayer(activePlayer) : null;
-  const board = currentRound ? getOnlineBoard(currentRound.board_size, currentRound.seed) : [];
+  const board = currentRound ? getOnlineBoard(room.settings, currentRound.seed) : [];
   const targetNumber = currentRound?.target_number ?? null;
 
   function clearPreviewTimers() {
@@ -221,134 +221,100 @@ export default function OnlineSameChallengeGame({
       penaltySeconds: room.settings.penaltySeconds,
     });
 
-    clearPreviewTimers();
     setLastSelectionWasWrong(false);
-    setTurnStartedAt(null);
-    setElapsedMs(result.finalTimeMs);
     setLastResult(result);
-    setStatusMessage(`Correct. ${activePlayer.name} finished this turn.`);
+    setElapsedMs(result.finalTimeMs);
+    setTurnStartedAt(null);
+    setStatusMessage(`Correct. ${activePlayer.name} finished in ${(result.finalTimeMs / 1000).toFixed(2)} seconds.`);
     setPhase("turnSummary");
-
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([15, 35, 15]);
-    }
 
     try {
       await submitSameChallengeResult({ room, players: snapshot.players, result });
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not submit online result.");
+      setMessage(error instanceof Error ? error.message : "Could not submit result.");
     }
   }
 
-  async function handleNextRound() {
-    setMessage("");
-
+  async function nextRound() {
     try {
       await startNextOnlineRound(room, snapshot.players);
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start next online round.");
+      setMessage(error instanceof Error ? error.message : "Could not start next round.");
     }
   }
 
-  async function handleFinishGame() {
-    setMessage("");
-
+  async function finishRoom() {
     try {
-      await finishOnlineRoom(room);
+      await finishOnlineRoom(room.id);
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not finish online game.");
+      setMessage(error instanceof Error ? error.message : "Could not finish room.");
     }
   }
 
-  if (!currentRound && room.status !== "lobby") {
-    return (
-      <WaitingCard
-        title="Preparing online round"
-        description="The host has started the room. Waiting for the round to appear."
-        onBack={onBackToLobby}
-      />
-    );
+  if (!currentRound) {
+    return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} />;
+  }
+
+  if (!localIsActive && phase !== "roundSummary") {
+    return <WaitingCard title="Waiting for your turn" description={activePlayer ? `${activePlayer.name} is playing now.` : "Waiting for the host."} onBack={onBackToLobby} />;
   }
 
   if (room.status === "round_summary") {
-    if (localPlayer.is_host) {
-      return (
-        <main className="app-shell">
-          <RoundSummary
-            round={room.current_round}
-            totalRounds={room.settings.totalRounds}
-            players={gamePlayers}
-            results={gameResults}
-            onNextRound={handleNextRound}
-            onFinishGame={handleFinishGame}
-          />
-          {message && <p className="sr-only" role="status">{message}</p>}
-        </main>
-      );
-    }
-
     return (
-      <WaitingCard
-        title={`Round ${room.current_round} complete`}
-        description="Waiting for the host to start the next round."
-        onBack={onBackToLobby}
-      />
-    );
-  }
-
-  if (room.status === "finished") {
-    return (
-      <main className="app-shell">
-        <ResultScreen
-          players={gamePlayers}
-          results={gameResults}
-          bestScore={null}
-          latestScore={null}
-          isNewBest={false}
-          onPlayAgain={onBackToLobby}
-        />
-      </main>
-    );
-  }
-
-  if (!localIsActive) {
-    return (
-      <WaitingCard
-        title={`Waiting for ${activePlayer?.name ?? "next player"}`}
-        description="They are playing the same board and target on their own device. Your turn is coming."
-        onBack={onBackToLobby}
-      />
-    );
-  }
-
-  if (phase === "ready" && room.status === "playing") {
-    return (
-      <WaitingCard
-        title="Reconnect your turn"
-        description="Your browser refreshed during this turn. Restart the preview to continue with the same target and board. No result was submitted yet."
-        actionLabel="Restart Turn"
-        onAction={startTurn}
-        onBack={onBackToLobby}
+      <RoundSummary
+        round={room.current_round}
+        totalRounds={room.settings.totalRounds}
+        players={gamePlayers}
+        results={gameResults}
+        onNextRound={nextRound}
+        onFinishGame={finishRoom}
       />
     );
   }
 
   if (phase === "ready") {
     return (
-      <main className="app-shell">
-        <ReadyScreen
-          player={gameCurrentPlayer}
-          round={room.current_round}
-          totalPlayers={snapshot.players.length}
-          playerIndex={snapshot.players.findIndex((player) => player.id === activePlayer?.id)}
-          config={room.settings}
-          onStartTurn={startTurn}
-          onBackToSetup={onBackToLobby}
-        />
-      </main>
+      <ReadyScreen
+        player={gameCurrentPlayer}
+        round={room.current_round}
+        totalPlayers={snapshot.players.length}
+        playerIndex={snapshot.players.findIndex((player) => player.id === activePlayer?.id)}
+        config={room.settings}
+        onStartTurn={startTurn}
+        onBackToSetup={onBackToLobby}
+      />
+    );
+  }
+
+  if (phase === "turnSummary") {
+    return (
+      <GameScreen
+        phase={phase}
+        config={room.settings}
+        currentPlayer={gameCurrentPlayer}
+        currentRound={room.current_round}
+        board={board}
+        targetNumber={targetNumber}
+        targetHidden={true}
+        elapsedMs={elapsedMs}
+        previewCountdown={0}
+        currentWrongTaps={currentWrongTaps}
+        lastSelectedNumber={lastSelectedNumber}
+        lastSelectionWasWrong={lastSelectionWasWrong}
+        lastResult={lastResult}
+        statusMessage={message || statusMessage}
+        isMuted={isMuted}
+        autoContinue={autoContinue}
+        boardScatterKey={`${room.id}-${room.current_round}`}
+        onNumberSelect={handleNumberSelect}
+        onContinue={() => onRefresh()}
+        onBackToSetup={onBackToLobby}
+        onToggleMute={() => setIsMuted((current) => !current)}
+        onToggleAutoContinue={() => setAutoContinue((current) => !current)}
+      />
     );
   }
 
@@ -370,9 +336,9 @@ export default function OnlineSameChallengeGame({
       statusMessage={message || statusMessage}
       isMuted={isMuted}
       autoContinue={autoContinue}
-      boardScatterKey={currentRound ? `${currentRound.seed}-${room.current_round}` : room.current_round}
+      boardScatterKey={`${room.id}-${room.current_round}`}
       onNumberSelect={handleNumberSelect}
-      onContinue={onRefresh}
+      onContinue={() => onRefresh()}
       onBackToSetup={onBackToLobby}
       onToggleMute={() => setIsMuted((current) => !current)}
       onToggleAutoContinue={() => setAutoContinue((current) => !current)}
