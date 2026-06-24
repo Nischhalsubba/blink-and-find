@@ -35,6 +35,8 @@ interface StartScreenProps {
   onStart: (config: GameConfig) => void;
 }
 
+type LaunchTarget = "single" | "multiplayer" | "online";
+
 function ChoicePill({ active, children, compact = false, onClick }: { active: boolean; children: ReactNode; compact?: boolean; onClick: () => void }) {
   return (
     <button
@@ -123,6 +125,14 @@ function parseCustomNumbers(input: string, limit: number) {
   };
 }
 
+function clampNumber(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(Math.floor(value), max));
+}
+
 export default function StartScreen({
   mode,
   playerNames,
@@ -138,13 +148,21 @@ export default function StartScreen({
   onCustomNumbersInputChange,
   onStart,
 }: StartScreenProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
-  const normalDifficulty = DIFFICULTIES.find((item) => item.id === "normal") ?? selectedDifficulty;
+  const normalDifficulty = DIFFICULTIES.find((item) => item.id === "normal") ?? DIFFICULTIES[1];
   const easyDifficulty = DIFFICULTIES.find((item) => item.id === "easy") ?? normalDifficulty;
-  const customNumbers = parseCustomNumbers(customNumbersInput, selectedDifficulty.boardSize);
-  const remainingRandomSlots = Math.max(0, selectedDifficulty.boardSize - customNumbers.numbers.length);
-  const gridSize = Math.ceil(Math.sqrt(selectedDifficulty.boardSize));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [launchTarget, setLaunchTarget] = useState<LaunchTarget>(mode);
+  const [boardSize, setBoardSize] = useState(normalDifficulty.boardSize);
+  const [previewSeconds, setPreviewSeconds] = useState(Math.max(1, Math.round(normalDifficulty.flashDurationMs / 1000)));
+
+  const safeBoardSize = clampNumber(boardSize, 4, 225, normalDifficulty.boardSize);
+  const safePreviewSeconds = clampNumber(previewSeconds, 1, 15, 2);
+  const safeRounds = clampNumber(totalRounds, 1, 20, 5);
+  const safePenaltySeconds = clampNumber(penaltySeconds, 0, 10, 3);
+  const customNumbers = parseCustomNumbers(customNumbersInput, safeBoardSize);
+  const remainingRandomSlots = Math.max(0, safeBoardSize - customNumbers.numbers.length);
+  const gridSize = Math.ceil(Math.sqrt(safeBoardSize));
+  const difficultyForConfig = difficulty;
 
   function updatePlayerCount(count: number) {
     const nextNames = Array.from({ length: count }, (_, index) => playerNames[index] ?? `Player ${index + 1}`);
@@ -157,38 +175,63 @@ export default function StartScreen({
     onPlayerNamesChange(nextNames);
   }
 
-  function openSoloSetup() {
-    onModeChange("single");
-    onDifficultyChange(normalDifficulty.id);
-    onTotalRoundsChange(5);
-    onPenaltySecondsChange(3);
-    setSettingsOpen(true);
+  function applyPreset(item: typeof DIFFICULTIES[number]) {
+    onDifficultyChange(item.id);
+    setBoardSize(item.boardSize);
+    setPreviewSeconds(Math.max(1, Math.round(item.flashDurationMs / 1000)));
   }
 
-  function openGuidedSetup() {
-    onModeChange("single");
-    onDifficultyChange(easyDifficulty.id);
-    onTotalRoundsChange(3);
-    onPenaltySecondsChange(1);
+  function openSetup(target: LaunchTarget, guided = false) {
+    setLaunchTarget(target);
+
+    if (target !== "online") {
+      onModeChange(target);
+    }
+
+    if (guided) {
+      applyPreset(easyDifficulty);
+      onTotalRoundsChange(3);
+      onPenaltySecondsChange(1);
+    } else if (target === "single") {
+      applyPreset(normalDifficulty);
+      onTotalRoundsChange(5);
+      onPenaltySecondsChange(3);
+    }
+
+    if (target === "multiplayer") {
+      updatePlayerCount(Math.max(2, playerNames.length));
+    }
+
     setSettingsOpen(true);
   }
 
   function handleCustomStart() {
+    const localMode: GameMode = launchTarget === "multiplayer" ? "multiplayer" : "single";
+
     onStart({
-      mode,
-      difficulty,
-      boardSize: selectedDifficulty.boardSize,
-      totalRounds,
-      flashDurationMs: selectedDifficulty.flashDurationMs,
-      penaltySeconds,
+      mode: localMode,
+      difficulty: difficultyForConfig,
+      boardSize: safeBoardSize,
+      totalRounds: safeRounds,
+      flashDurationMs: safePreviewSeconds * 1000,
+      penaltySeconds: safePenaltySeconds,
       customNumbers: customNumbers.numbers,
     });
   }
 
-  function openSameDeviceSetup() {
-    onModeChange("multiplayer");
-    updatePlayerCount(Math.max(2, playerNames.length));
-    setSettingsOpen(true);
+  function buildOnlineHref() {
+    const params = new URLSearchParams({
+      board: String(safeBoardSize),
+      rounds: String(safeRounds),
+      preview: String(safePreviewSeconds),
+      penalty: String(safePenaltySeconds),
+    });
+
+    if (customNumbersInput.trim()) {
+      params.set("numbers", customNumbersInput.trim());
+    }
+
+    return `/online?${params.toString()}`;
   }
 
   if (settingsOpen) {
@@ -198,19 +241,21 @@ export default function StartScreen({
           <Card className="glass-panel overflow-hidden rounded-[2rem]">
             <CardHeader className="border-b p-6 sm:p-8">
               <Badge variant="secondary" className="mb-4 w-fit rounded-full px-3 py-1">Pre-match setup</Badge>
-              <CardTitle className="hero-title text-4xl sm:text-6xl">Choose the board. Add your numbers.</CardTitle>
+              <CardTitle className="hero-title text-4xl sm:text-6xl">Customize everything first.</CardTitle>
               <CardDescription className="hero-copy mt-4 text-base">
-                Select a board size first. Then enter the numbers that must appear before the match starts.
+                Choose the board, required numbers, preview timer, penalty timer, rounds, and then the mode.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 p-6 sm:p-8">
               <div className="rounded-[1.5rem] border bg-white/75 p-4">
-                <div className="text-sm font-black text-slate-950">Current board</div>
+                <div className="text-sm font-black text-slate-950">Current setup</div>
                 <div className="mt-2 text-4xl font-black tracking-[-0.05em] text-slate-950">{gridSize}x{gridSize}</div>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">{selectedDifficulty.boardSize} total slots. {customNumbers.numbers.length} chosen, {remainingRandomSlots} random.</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {safeBoardSize} slots · {customNumbers.numbers.length} chosen · {remainingRandomSlots} random · {safePreviewSeconds}s preview · +{safePenaltySeconds}s penalty
+                </p>
               </div>
               <div className="rounded-[1.5rem] border bg-white/75 p-4 text-sm leading-6 text-muted-foreground">
-                Example: on a 5x5 board, type <strong className="text-slate-950">1 to 20</strong>. The game will add 5 random unique numbers and reshuffle the 25-number board each round.
+                Example: choose <strong className="text-slate-950">5x5</strong>, type <strong className="text-slate-950">1 to 20</strong>, then start solo, same-device, or online. The game fills 5 random slots and reshuffles every round.
               </div>
               <Button variant="outline" className="h-14 rounded-2xl text-base font-bold" onClick={() => setSettingsOpen(false)}>Back to home</Button>
             </CardContent>
@@ -220,8 +265,8 @@ export default function StartScreen({
             <CardHeader className="border-b p-6 sm:p-8">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <Badge variant="outline" className="mb-2 w-fit rounded-full">Required before match</Badge>
-                  <CardTitle className="text-2xl font-black tracking-[-0.04em]">Board and number entry</CardTitle>
+                  <Badge variant="outline" className="mb-2 w-fit rounded-full">Before starting</Badge>
+                  <CardTitle className="text-2xl font-black tracking-[-0.04em]">Full match setup</CardTitle>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)}>Close</Button>
               </div>
@@ -229,21 +274,27 @@ export default function StartScreen({
 
             <CardContent className="grid gap-4 p-6 sm:p-8">
               <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
-                <Label>Step 1: Select board size</Label>
+                <Label>Step 1: Board size</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {DIFFICULTIES.map((item) => (
-                    <ChoicePill key={item.id} compact active={difficulty === item.id} onClick={() => onDifficultyChange(item.id)}>
+                    <ChoicePill key={item.id} compact active={safeBoardSize === item.boardSize} onClick={() => applyPreset(item)}>
                       {Math.ceil(Math.sqrt(item.boardSize))}x{Math.ceil(Math.sqrt(item.boardSize))}
                     </ChoicePill>
                   ))}
                 </div>
-                <p className="text-sm leading-6 text-muted-foreground">{selectedDifficulty.label}: {selectedDifficulty.description}, {selectedDifficulty.boardSize} total slots.</p>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div className="grid gap-2">
+                    <Label htmlFor="board-size">Custom total slots</Label>
+                    <Input id="board-size" className="h-12 rounded-2xl" min={4} max={225} type="number" value={boardSize} onChange={(event) => setBoardSize(clampNumber(Number(event.target.value), 4, 225, 100))} />
+                  </div>
+                  <Badge variant="outline" className="h-12 justify-center rounded-2xl px-4">Near {gridSize}x{gridSize}</Badge>
+                </div>
               </div>
 
               <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <Label htmlFor="custom-numbers">Step 2: Enter numbers that must appear</Label>
-                  <Badge variant="outline">{customNumbers.numbers.length}/{selectedDifficulty.boardSize}</Badge>
+                  <Label htmlFor="custom-numbers">Step 2: Numbers that must appear</Label>
+                  <Badge variant="outline">{customNumbers.numbers.length}/{safeBoardSize}</Badge>
                 </div>
                 <Input
                   id="custom-numbers"
@@ -255,49 +306,51 @@ export default function StartScreen({
                 />
                 <div className="rounded-2xl bg-white/80 p-3 text-sm leading-6 text-muted-foreground">
                   {customNumbers.numbers.length > 0 ? (
-                    <span>
-                      The board will include your {customNumbers.numbers.length} chosen number{customNumbers.numbers.length === 1 ? "" : "s"}. The remaining {remainingRandomSlots} slot{remainingRandomSlots === 1 ? "" : "s"} will be filled with random unique numbers. Every round reshuffles the full board.
-                    </span>
+                    <span>The board keeps your {customNumbers.numbers.length} chosen number{customNumbers.numbers.length === 1 ? "" : "s"}; {remainingRandomSlots} random unique slot{remainingRandomSlots === 1 ? "" : "s"} will be added. Every round reshuffles.</span>
                   ) : (
-                    <span>Leave empty to use a fully random board. You can type ranges like 1 to 20, 1-20, or 1..20.</span>
+                    <span>Leave empty for a fully random board. Ranges like 1 to 20, 1-20, and 1..20 are supported.</span>
                   )}
-                  {customNumbers.ignoredCount > 0 && <span className="mt-1 block font-bold text-destructive">Only the first {selectedDifficulty.boardSize} unique numbers will be used for this board size.</span>}
+                  {customNumbers.ignoredCount > 0 && <span className="mt-1 block font-bold text-destructive">Only the first {safeBoardSize} unique numbers will be used.</span>}
+                </div>
+              </div>
+
+              <div className="grid gap-3 rounded-[1.5rem] border bg-white/70 p-4">
+                <Label>Step 3: Timers and rounds</Label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="rounds">Rounds</Label>
+                    <Input id="rounds" className="h-12 rounded-2xl text-center text-base" min={1} max={20} type="number" value={safeRounds} onChange={(event) => onTotalRoundsChange(clampNumber(Number(event.target.value), 1, 20, 5))} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="preview">Preview timer</Label>
+                    <Input id="preview" className="h-12 rounded-2xl text-center text-base" min={1} max={15} type="number" value={safePreviewSeconds} onChange={(event) => setPreviewSeconds(clampNumber(Number(event.target.value), 1, 15, 2))} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="penalty">Penalty timer</Label>
+                    <Input id="penalty" className="h-12 rounded-2xl text-center text-base" min={0} max={10} type="number" value={safePenaltySeconds} onChange={(event) => onPenaltySecondsChange(clampNumber(Number(event.target.value), 0, 10, 3))} />
+                  </div>
                 </div>
               </div>
 
               <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
-                <Label>Step 3: Match type</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <ChoicePill compact active={mode === "single"} onClick={() => onModeChange("single")}>Solo</ChoicePill>
-                  <ChoicePill compact active={mode === "multiplayer"} onClick={() => onModeChange("multiplayer")}>Same device</ChoicePill>
+                <Label>Step 4: Choose mode</Label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <ChoicePill compact active={launchTarget === "single"} onClick={() => { setLaunchTarget("single"); onModeChange("single"); }}>Solo</ChoicePill>
+                  <ChoicePill compact active={launchTarget === "multiplayer"} onClick={() => { setLaunchTarget("multiplayer"); onModeChange("multiplayer"); updatePlayerCount(Math.max(2, playerNames.length)); }}>Same device</ChoicePill>
+                  <ChoicePill compact active={launchTarget === "online"} onClick={() => setLaunchTarget("online")}>Online</ChoicePill>
                 </div>
               </div>
 
-              <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
-                <Label>Players</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[1, 2, 3, 4].map((count) => (
-                    <ChoicePill key={count} compact active={(mode === "single" ? 1 : playerNames.length) === count} onClick={() => { onModeChange(count === 1 ? "single" : "multiplayer"); updatePlayerCount(count); }}>{count}</ChoicePill>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
-                  <Label htmlFor="rounds">Rounds</Label>
-                  <Input id="rounds" className="h-12 rounded-2xl text-center text-base" min={1} max={20} type="number" value={totalRounds} onChange={(event) => onTotalRoundsChange(Number(event.target.value))} />
-                </div>
-                <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
-                  <Label htmlFor="penalty">Penalty</Label>
-                  <Input id="penalty" className="h-12 rounded-2xl text-center text-base" min={0} max={10} type="number" value={penaltySeconds} onChange={(event) => onPenaltySecondsChange(Number(event.target.value))} />
-                </div>
-              </div>
-
-              {mode === "multiplayer" && (
+              {launchTarget === "multiplayer" && (
                 <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
                   <div className="flex items-center justify-between">
                     <Label>Player names</Label>
                     <Badge variant="outline">{playerNames.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[2, 3, 4, 5].map((count) => (
+                      <ChoicePill key={count} compact active={playerNames.length === count} onClick={() => updatePlayerCount(count)}>{count}</ChoicePill>
+                    ))}
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {playerNames.map((name, index) => (
@@ -309,7 +362,13 @@ export default function StartScreen({
             </CardContent>
 
             <CardFooter className="border-t p-6 sm:p-8">
-              <Button className="h-14 w-full rounded-2xl text-base font-black" onClick={handleCustomStart}>Start match</Button>
+              {launchTarget === "online" ? (
+                <Button asChild className="h-14 w-full rounded-2xl text-base font-black">
+                  <Link href={buildOnlineHref()}>Continue to Online Setup</Link>
+                </Button>
+              ) : (
+                <Button className="h-14 w-full rounded-2xl text-base font-black" onClick={handleCustomStart}>Start {launchTarget === "multiplayer" ? "Same-Device" : "Solo"} Match</Button>
+              )}
             </CardFooter>
           </Card>
         </div>
@@ -330,7 +389,7 @@ export default function StartScreen({
                   Blink & Find shows you a number, hides it, then challenges you to find the match on the board. Play solo, on one device, or online with someone far away.
                 </CardDescription>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-black" onClick={openSoloSetup}>Set up match</Button>
+                  <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-black" onClick={() => openSetup("single")}>Customize Match</Button>
                   <Button asChild size="lg" variant="outline" className="h-14 rounded-2xl px-8 text-base font-bold">
                     <Link href="/tutorial">Learn how it works</Link>
                   </Button>
@@ -346,7 +405,7 @@ export default function StartScreen({
               <CardDescription className="hero-copy mt-3">Best first route for ages 10-60: try a small board, understand the loop, then invite others.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 p-6 pt-0 sm:p-8 sm:pt-0">
-              <Button className="h-14 rounded-2xl text-base font-black" onClick={openGuidedSetup}>Set up guided game</Button>
+              <Button className="h-14 rounded-2xl text-base font-black" onClick={() => openSetup("single", true)}>Customize Guided Game</Button>
               <Link href="/comfort" className="flow-pill rounded-[1.35rem] p-4 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">
                 <span className="block text-sm font-black text-slate-950">Comfort mode</span>
                 <span className="mt-1 block text-sm leading-5 text-muted-foreground">Bigger tiles, easier pace, lower pressure.</span>
@@ -360,20 +419,20 @@ export default function StartScreen({
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <FlowCard number="01" title="Choose" description="Select the board size and enter any numbers that must appear." />
-          <FlowCard number="02" title="Watch" description="Remember the target number before it hides." />
-          <FlowCard number="03" title="Find" description="Scan the rearranged board and tap the matching number." />
+          <FlowCard number="01" title="Customize" description="Set board size, timers, penalty, rounds, and numbers first." />
+          <FlowCard number="02" title="Choose mode" description="Start solo, same-device, or continue into online room setup." />
+          <FlowCard number="03" title="Play" description="The board keeps your numbers and reshuffles every round." />
         </div>
 
         <div className="grid gap-4">
           <div>
             <h2 className="text-3xl font-black tracking-[-0.045em]">How do you want to play?</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">Set up the board first, then start the match.</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">Customize the setup first, then choose the mode before starting.</p>
           </div>
           <div className="grid gap-3 lg:grid-cols-3">
-            <PlayChoiceCard title="Play solo" description="Choose board size, add numbers, then beat your own best time." bestFor="first-time players and quick practice" action="Set up solo" tone="solo" onClick={openSoloSetup} />
-            <PlayChoiceCard title="Play together" description="Choose board size and required numbers before local multiplayer starts." bestFor="family, classroom, friends nearby" action="Set up players" tone="together" onClick={openSameDeviceSetup} />
-            <PlayChoiceCard title="Play online" description="Create a room and match with someone on another device." bestFor="friends away from you" action="Create room" tone="online" href="/online" />
+            <PlayChoiceCard title="Play solo" description="Customize everything, then beat your own best time." bestFor="first-time players and quick practice" action="Customize solo" tone="solo" onClick={() => openSetup("single")} />
+            <PlayChoiceCard title="Play together" description="Customize everything before local multiplayer starts." bestFor="family, classroom, friends nearby" action="Customize players" tone="together" onClick={() => openSetup("multiplayer")} />
+            <PlayChoiceCard title="Play online" description="Customize settings, then create a room for another device." bestFor="friends away from you" action="Customize online" tone="online" onClick={() => openSetup("online")} />
           </div>
         </div>
 
@@ -383,7 +442,7 @@ export default function StartScreen({
               <h2 className="text-3xl font-black tracking-[-0.045em]">Explore modes</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">Once the loop clicks, choose a mode by mood: learn, relax, race, or compete.</p>
             </div>
-            <Button variant="outline" className="h-11 rounded-2xl font-bold" onClick={() => setSettingsOpen(true)}>Customize setup</Button>
+            <Button variant="outline" className="h-11 rounded-2xl font-bold" onClick={() => openSetup("single")}>Customize setup</Button>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
