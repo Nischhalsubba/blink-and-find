@@ -23,11 +23,13 @@ export default function HomePage() {
           totalRounds={game.totalRounds}
           difficulty={game.difficulty}
           penaltySeconds={game.penaltySeconds}
+          customNumbersInput={game.customNumbersInput}
           onModeChange={game.setMode}
           onPlayerNamesChange={game.setPlayerNames}
           onTotalRoundsChange={game.setTotalRounds}
           onDifficultyChange={game.setDifficulty}
           onPenaltySecondsChange={game.setPenaltySeconds}
+          onCustomNumbersInputChange={game.setCustomNumbersInput}
           onStart={game.handleStart}
         />
       </main>
