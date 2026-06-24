@@ -21,8 +21,8 @@ create table if not exists public.online_game_invites (
   from_name text not null,
   to_device_id text not null,
   to_name text not null,
-  room_id uuid not null references public.online_rooms(id) on delete cascade,
-  room_code text not null,
+  room_id uuid references public.online_rooms(id) on delete cascade,
+  room_code text,
   game_type text not null check (game_type in ('same_challenge', 'live_race')),
   settings jsonb not null,
   status text not null default 'pending' check (status in ('pending', 'accepted', 'declined', 'cancelled', 'expired')),
@@ -30,6 +30,12 @@ create table if not exists public.online_game_invites (
   expires_at timestamptz not null default now() + interval '90 seconds',
   responded_at timestamptz
 );
+
+alter table public.online_game_invites
+  alter column room_id drop not null;
+
+alter table public.online_game_invites
+  alter column room_code drop not null;
 
 create index if not exists online_presence_available_idx
   on public.online_presence(available_to_play, last_seen_at desc);
