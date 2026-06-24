@@ -45,6 +45,10 @@ function saveAvailability(value: boolean) {
   }
 }
 
+function shortDeviceId(deviceId: string) {
+  return deviceId.slice(0, 8).toUpperCase();
+}
+
 export default function OnlineAvailablePlayers({
   playerName,
   gameType,
@@ -59,7 +63,11 @@ export default function OnlineAvailablePlayers({
   const [incomingInvites, setIncomingInvites] = useState<OnlineGameInvite[]>([]);
   const [sentInvites, setSentInvites] = useState<OnlineGameInvite[]>([]);
   const [unavailable, setUnavailable] = useState(false);
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<Date | null>(null);
+  const [statusMessage, setStatusMessage] = useState("Connecting to online presence...");
   const [isBusy, setIsBusy] = useState(false);
+
+  const isVisibleToOthers = availableToPlay && !currentRoomId && !unavailable;
 
   async function refreshPresenceData() {
     try {
@@ -72,9 +80,19 @@ export default function OnlineAvailablePlayers({
       setPlayers(availableResult.data);
       setIncomingInvites(incomingResult.data);
       setSentInvites(sentResult.data);
-      setUnavailable(availableResult.unavailable || incomingResult.unavailable || sentResult.unavailable);
+
+      const nextUnavailable = availableResult.unavailable || incomingResult.unavailable || sentResult.unavailable;
+      setUnavailable(nextUnavailable);
+
+      if (nextUnavailable) {
+        setStatusMessage("Presence tables are missing. Run supabase/presence_invites.sql.");
+      } else {
+        setStatusMessage(`Presence connected. Found ${availableResult.data.length} other available player${availableResult.data.length === 1 ? "" : "s"}.`);
+      }
     } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not refresh online players.");
+      const message = error instanceof Error ? error.message : "Could not refresh online players.";
+      setStatusMessage(message);
+      onMessage(message);
     }
   }
 
@@ -88,9 +106,19 @@ export default function OnlineAvailablePlayers({
       });
 
       setUnavailable(result.unavailable);
+      setLastHeartbeatAt(new Date());
+
+      if (result.unavailable) {
+        setStatusMessage("Presence tables are missing. Run supabase/presence_invites.sql.");
+        return;
+      }
+
+      setStatusMessage(availableToPlay ? "You are visible to other players." : "You are hidden from the online player list.");
       await refreshPresenceData();
     } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not update online availability.");
+      const message = error instanceof Error ? error.message : "Could not update online availability.";
+      setStatusMessage(message);
+      onMessage(message);
     }
   }
 
@@ -100,19 +128,30 @@ export default function OnlineAvailablePlayers({
 
     const timer = window.setInterval(() => {
       void heartbeat();
-    }, 15_000);
+    }, 5_000);
 
     let unsubscribe: (() => void) | undefined;
     subscribeToOnlinePresence(deviceId, () => {
-      void refreshPresenceData();
+      void heartbeat();
     }).then((cleanup) => {
       unsubscribe = cleanup;
     }).catch(() => {
       // Missing migration or realtime permissions should not break the online page.
     });
 
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void heartbeat();
+      }
+    }
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
     return () => {
       window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
       unsubscribe?.();
     };
   }, [availableToPlay, currentRoomId, deviceId, playerName]);
@@ -191,9 +230,21 @@ export default function OnlineAvailablePlayers({
       </CardHeader>
 
       <CardContent className="grid gap-3 p-3">
+        <div className="grid gap-2 rounded-xl border bg-background/70 p-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold text-foreground">Presence status</span>
+            <Badge variant={isVisibleToOthers ? "default" : "outline"}>{isVisibleToOthers ? "Visible" : "Not visible"}</Badge>
+          </div>
+          <div>{statusMessage}</div>
+          <div>
+            This browser: <span className="font-mono text-foreground">{shortDeviceId(deviceId)}</span>
+            {lastHeartbeatAt ? ` · Last heartbeat ${lastHeartbeatAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
+          </div>
+        </div>
+
         {unavailable && (
           <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
-            Online player discovery needs the new Supabase presence migration. The app still works with room codes until the database catches up, because naturally the database wants paperwork.
+            Online player discovery needs the new Supabase presence migration. Run <span className="font-mono text-foreground">supabase/presence_invites.sql</span> in Supabase SQL Editor. Room codes still work until the database catches up, because naturally the database wants paperwork.
           </div>
         )}
 
@@ -218,12 +269,12 @@ export default function OnlineAvailablePlayers({
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-bold">Available players</div>
-            <Button size="sm" variant="outline" onClick={() => void refreshPresenceData()} disabled={isBusy}>Refresh</Button>
+            <Button size="sm" variant="outline" onClick={() => void heartbeat()} disabled={isBusy}>{isBusy ? "Working..." : "Refresh"}</Button>
           </div>
 
           {players.length === 0 ? (
             <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
-              No one else is available right now. Tragic, but peaceful.
+              No other available players found yet. Open this page in another browser, keep both set to Available, then press Refresh on both. Because apparently even games need a seance sometimes.
             </div>
           ) : (
             players.map((player) => (
@@ -236,7 +287,7 @@ export default function OnlineAvailablePlayers({
               >
                 <div>
                   <div className="font-semibold">{player.display_name}</div>
-                  <div className="text-xs text-muted-foreground">Seen {new Date(player.last_seen_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                  <div className="text-xs text-muted-foreground">Seen {new Date(player.last_seen_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {shortDeviceId(player.device_id)}</div>
                 </div>
                 <Badge variant="secondary">Invite</Badge>
               </button>
