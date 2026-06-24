@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import GameScreen from "@/components/GameScreen";
 import ReadyScreen from "@/components/ReadyScreen";
 import ResultScreen from "@/components/ResultScreen";
 import RoundSummary from "@/components/RoundSummary";
 import StartScreen from "@/components/StartScreen";
 import { useGameController } from "@/hooks/useGameController";
+import { setPresenceForceBusy } from "@/lib/presencePreference";
 
 /**
  * Route component for Blink & Find.
@@ -13,6 +15,13 @@ import { useGameController } from "@/hooks/useGameController";
  */
 export default function HomePage() {
   const game = useGameController();
+
+  useEffect(() => {
+    const activePlay = game.phase !== "setup" && game.phase !== "finished";
+    setPresenceForceBusy(activePlay);
+
+    return () => setPresenceForceBusy(false);
+  }, [game.phase]);
 
   if (game.phase === "setup") {
     return (
