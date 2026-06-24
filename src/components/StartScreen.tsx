@@ -25,11 +25,13 @@ interface StartScreenProps {
   totalRounds: number;
   difficulty: Difficulty;
   penaltySeconds: number;
+  customNumbersInput: string;
   onModeChange: (mode: GameMode) => void;
   onPlayerNamesChange: (names: string[]) => void;
   onTotalRoundsChange: (rounds: number) => void;
   onDifficultyChange: (difficulty: Difficulty) => void;
   onPenaltySecondsChange: (seconds: number) => void;
+  onCustomNumbersInputChange: (input: string) => void;
   onStart: (config: GameConfig) => void;
 }
 
@@ -86,23 +88,47 @@ function PlayChoiceCard({ title, description, bestFor, action, href, tone, onCli
   return <button type="button" onClick={onClick} className="block h-full w-full rounded-[1.75rem] text-left focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-ring">{inner}</button>;
 }
 
+function parseCustomNumbers(input: string, limit: number) {
+  const rawNumbers = input.match(/\d+/g)?.map((value) => Number(value)) ?? [];
+  const seen = new Set<number>();
+  const unique = rawNumbers.filter((value) => {
+    if (!Number.isInteger(value) || value <= 0 || seen.has(value)) {
+      return false;
+    }
+
+    seen.add(value);
+    return true;
+  });
+
+  return {
+    numbers: unique.slice(0, Math.max(0, limit)),
+    rawCount: rawNumbers.length,
+    uniqueCount: unique.length,
+    ignoredCount: Math.max(0, unique.length - limit),
+  };
+}
+
 export default function StartScreen({
   mode,
   playerNames,
   totalRounds,
   difficulty,
   penaltySeconds,
+  customNumbersInput,
   onModeChange,
   onPlayerNamesChange,
   onTotalRoundsChange,
   onDifficultyChange,
   onPenaltySecondsChange,
+  onCustomNumbersInputChange,
   onStart,
 }: StartScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1];
   const normalDifficulty = DIFFICULTIES.find((item) => item.id === "normal") ?? selectedDifficulty;
   const easyDifficulty = DIFFICULTIES.find((item) => item.id === "easy") ?? normalDifficulty;
+  const customNumbers = parseCustomNumbers(customNumbersInput, selectedDifficulty.boardSize);
+  const remainingRandomSlots = Math.max(0, selectedDifficulty.boardSize - customNumbers.numbers.length);
 
   function updatePlayerCount(count: number) {
     const nextNames = Array.from({ length: count }, (_, index) => playerNames[index] ?? `Player ${index + 1}`);
@@ -123,6 +149,7 @@ export default function StartScreen({
       totalRounds: 5,
       flashDurationMs: normalDifficulty.flashDurationMs,
       penaltySeconds: 3,
+      customNumbers: [],
     });
   }
 
@@ -134,6 +161,7 @@ export default function StartScreen({
       totalRounds: 3,
       flashDurationMs: easyDifficulty.flashDurationMs,
       penaltySeconds: 1,
+      customNumbers: [],
     });
   }
 
@@ -145,6 +173,7 @@ export default function StartScreen({
       totalRounds,
       flashDurationMs: selectedDifficulty.flashDurationMs,
       penaltySeconds,
+      customNumbers: customNumbers.numbers,
     });
   }
 
@@ -163,7 +192,7 @@ export default function StartScreen({
               <Badge variant="secondary" className="mb-4 w-fit rounded-full px-3 py-1">Game setup</Badge>
               <CardTitle className="hero-title text-4xl sm:text-6xl">Tune the run before you start.</CardTitle>
               <CardDescription className="hero-copy mt-4 text-base">
-                Keep it simple for a first round, or adjust players, board difficulty, rounds, and penalty timing.
+                Keep it simple for a first round, or adjust players, board difficulty, rounds, penalty timing, and required board numbers.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 p-6 sm:p-8">
@@ -198,6 +227,31 @@ export default function StartScreen({
                   {DIFFICULTIES.map((item) => (
                     <ChoicePill key={item.id} compact active={difficulty === item.id} onClick={() => onDifficultyChange(item.id)}>{item.label}</ChoicePill>
                   ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-[1.5rem] border bg-white/70 p-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <Label htmlFor="custom-numbers">Required board numbers</Label>
+                  <Badge variant="outline">{customNumbers.numbers.length}/{selectedDifficulty.boardSize}</Badge>
+                </div>
+                <Input
+                  id="custom-numbers"
+                  className="h-12 rounded-2xl text-base"
+                  inputMode="numeric"
+                  placeholder="Example: 1, 2, 7, 25, 80"
+                  value={customNumbersInput}
+                  onChange={(event) => onCustomNumbersInputChange(event.target.value)}
+                />
+                <div className="rounded-2xl bg-white/80 p-3 text-sm leading-6 text-muted-foreground">
+                  {customNumbers.numbers.length > 0 ? (
+                    <span>
+                      Every round will include your {customNumbers.numbers.length} chosen number{customNumbers.numbers.length === 1 ? "" : "s"}. The remaining {remainingRandomSlots} slot{remainingRandomSlots === 1 ? "" : "s"} will be filled with random unique numbers and rearranged each round.
+                    </span>
+                  ) : (
+                    <span>Leave empty to use a fully random board. Add numbers separated by commas, spaces, or new lines.</span>
+                  )}
+                  {customNumbers.ignoredCount > 0 && <span className="mt-1 block font-bold text-destructive">Only the first {selectedDifficulty.boardSize} unique numbers will be used for this board size.</span>}
                 </div>
               </div>
 
