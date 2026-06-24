@@ -1,0 +1,261 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDeviceId } from "@/lib/device";
+import {
+  acceptOnlineInvite,
+  createOnlineInvite,
+  declineOnlineInvite,
+  fetchAvailableOnlinePlayers,
+  fetchIncomingInvites,
+  fetchSentInvites,
+  subscribeToOnlinePresence,
+  upsertOnlinePresence,
+  type OnlineGameInvite,
+  type OnlinePresence,
+} from "@/lib/onlinePresence";
+import type { GameConfig } from "@/types/game";
+import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
+
+interface OnlineAvailablePlayersProps {
+  playerName: string;
+  gameType: OnlineGameType;
+  settings: GameConfig;
+  currentRoomId?: string | null;
+  onEnterRoom: (result: OnlineRoomSnapshot & { localPlayer: OnlinePlayer }, message: string) => void;
+  onMessage: (message: string) => void;
+}
+
+const AVAILABILITY_KEY = "blink-and-find-available-to-play";
+
+function loadAvailability() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return window.localStorage.getItem(AVAILABILITY_KEY) !== "false";
+}
+
+function saveAvailability(value: boolean) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(AVAILABILITY_KEY, value ? "true" : "false");
+  }
+}
+
+export default function OnlineAvailablePlayers({
+  playerName,
+  gameType,
+  settings,
+  currentRoomId = null,
+  onEnterRoom,
+  onMessage,
+}: OnlineAvailablePlayersProps) {
+  const deviceId = useMemo(() => getDeviceId(), []);
+  const [availableToPlay, setAvailableToPlay] = useState(loadAvailability);
+  const [players, setPlayers] = useState<OnlinePresence[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<OnlineGameInvite[]>([]);
+  const [sentInvites, setSentInvites] = useState<OnlineGameInvite[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+
+  async function refreshPresenceData() {
+    try {
+      const [availableResult, incomingResult, sentResult] = await Promise.all([
+        fetchAvailableOnlinePlayers(deviceId),
+        fetchIncomingInvites(deviceId),
+        fetchSentInvites(deviceId),
+      ]);
+
+      setPlayers(availableResult.data);
+      setIncomingInvites(incomingResult.data);
+      setSentInvites(sentResult.data);
+      setUnavailable(availableResult.unavailable || incomingResult.unavailable || sentResult.unavailable);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not refresh online players.");
+    }
+  }
+
+  async function heartbeat() {
+    try {
+      const result = await upsertOnlinePresence({
+        deviceId,
+        displayName: playerName,
+        availableToPlay,
+        currentRoomId,
+      });
+
+      setUnavailable(result.unavailable);
+      await refreshPresenceData();
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not update online availability.");
+    }
+  }
+
+  useEffect(() => {
+    saveAvailability(availableToPlay);
+    void heartbeat();
+
+    const timer = window.setInterval(() => {
+      void heartbeat();
+    }, 15_000);
+
+    let unsubscribe: (() => void) | undefined;
+    subscribeToOnlinePresence(deviceId, () => {
+      void refreshPresenceData();
+    }).then((cleanup) => {
+      unsubscribe = cleanup;
+    }).catch(() => {
+      // Missing migration or realtime permissions should not break the online page.
+    });
+
+    return () => {
+      window.clearInterval(timer);
+      unsubscribe?.();
+    };
+  }, [availableToPlay, currentRoomId, deviceId, playerName]);
+
+  async function invitePlayer(player: OnlinePresence) {
+    setIsBusy(true);
+    onMessage(`Inviting ${player.display_name}...`);
+
+    try {
+      const result = await createOnlineInvite({
+        fromDeviceId: deviceId,
+        fromName: playerName,
+        toPlayer: player,
+        gameType,
+        settings,
+      });
+
+      if (result.unavailable) {
+        onMessage("Room created, but player invites need the latest Supabase migration.");
+      } else {
+        onMessage(`Invite sent to ${player.display_name}. Room ${result.data.room.code} is ready.`);
+      }
+
+      onEnterRoom(result.data, `Invite sent to ${player.display_name}. Waiting for them to accept.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not invite that player.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function acceptInvite(invite: OnlineGameInvite) {
+    setIsBusy(true);
+    onMessage(`Joining ${invite.from_name}'s room...`);
+
+    try {
+      const result = await acceptOnlineInvite({ invite, playerName, deviceId });
+      onEnterRoom(result, `Accepted ${invite.from_name}'s invite. You joined room ${result.room.code}.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not accept invite.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function declineInvite(invite: OnlineGameInvite) {
+    setIsBusy(true);
+
+    try {
+      await declineOnlineInvite(invite.id);
+      setIncomingInvites((current) => current.filter((item) => item.id !== invite.id));
+      onMessage(`Declined ${invite.from_name}'s invite.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not decline invite.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <Card className="overflow-hidden rounded-[1.5rem] border bg-muted/20">
+      <CardHeader className="border-b pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg font-black">Players online now</CardTitle>
+            <CardDescription>Turn availability on, tap a player, and send an invite.</CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant={availableToPlay ? "default" : "outline"}
+            onClick={() => setAvailableToPlay((current) => !current)}
+          >
+            {availableToPlay ? "Available" : "Hidden"}
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="grid gap-3 p-3">
+        {unavailable && (
+          <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+            Online player discovery needs the new Supabase presence migration. The app still works with room codes until the database catches up, because naturally the database wants paperwork.
+          </div>
+        )}
+
+        {incomingInvites.length > 0 && (
+          <div className="grid gap-2">
+            <div className="text-sm font-bold">Invites for you</div>
+            {incomingInvites.map((invite) => (
+              <div key={invite.id} className="grid gap-2 rounded-xl border bg-background/70 p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
+                <div>
+                  <div className="font-semibold">{invite.from_name} invited you</div>
+                  <div className="text-xs text-muted-foreground">Room {invite.room_code} · {invite.game_type === "same_challenge" ? "Same Challenge" : "Live Race"}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => acceptInvite(invite)} disabled={isBusy}>Accept</Button>
+                  <Button size="sm" variant="outline" onClick={() => declineInvite(invite)} disabled={isBusy}>Decline</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-bold">Available players</div>
+            <Button size="sm" variant="outline" onClick={() => void refreshPresenceData()} disabled={isBusy}>Refresh</Button>
+          </div>
+
+          {players.length === 0 ? (
+            <div className="rounded-xl border bg-background/70 p-3 text-sm text-muted-foreground">
+              No one else is available right now. Tragic, but peaceful.
+            </div>
+          ) : (
+            players.map((player) => (
+              <button
+                key={player.device_id}
+                type="button"
+                className="flex items-center justify-between gap-3 rounded-xl border bg-background/70 p-3 text-left text-sm transition hover:border-primary/50 hover:bg-background focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                onClick={() => invitePlayer(player)}
+                disabled={isBusy}
+              >
+                <div>
+                  <div className="font-semibold">{player.display_name}</div>
+                  <div className="text-xs text-muted-foreground">Seen {new Date(player.last_seen_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+                <Badge variant="secondary">Invite</Badge>
+              </button>
+            ))
+          )}
+        </div>
+
+        {sentInvites.length > 0 && (
+          <div className="grid gap-2">
+            <div className="text-sm font-bold">Recent invites</div>
+            {sentInvites.map((invite) => (
+              <div key={invite.id} className="flex items-center justify-between gap-2 rounded-xl border bg-background/70 p-3 text-sm">
+                <span>{invite.to_name}</span>
+                <Badge variant={invite.status === "accepted" ? "default" : "outline"}>{invite.status}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
