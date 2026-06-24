@@ -8,6 +8,8 @@ export const CREATOR_NAME = "Nischhal Subba";
 
 export const CREATOR_URL = "https://hinischalsubba.com.np/";
 
+export const CREATOR_ROLE_DESCRIPTION = "Nischhal Subba designed and coded Blink & Find.";
+
 export const SITE_DESCRIPTION =
   "Play Blink & Find, a free online number hunting memory game. Memorize a target number, find it on a scattered board, train focus, and race friends in Same Challenge or Live Race mode.";
 
@@ -186,6 +188,9 @@ const creatorPerson = {
   "@id": `${CREATOR_URL}#person`,
   name: CREATOR_NAME,
   url: CREATOR_URL,
+  jobTitle: "Product Designer and Web Game Developer",
+  description: CREATOR_ROLE_DESCRIPTION,
+  sameAs: [CREATOR_URL],
 };
 
 export function getGameJsonLd() {
@@ -200,6 +205,8 @@ export function getGameJsonLd() {
         description: SITE_DESCRIPTION,
         inLanguage: "en",
         creator: creatorPerson,
+        author: creatorPerson,
+        copyrightHolder: creatorPerson,
         publisher: creatorPerson,
         potentialAction: {
           "@type": "SearchAction",
@@ -224,6 +231,8 @@ export function getGameJsonLd() {
         creator: creatorPerson,
         author: creatorPerson,
         designer: creatorPerson,
+        developer: creatorPerson,
+        copyrightHolder: creatorPerson,
         publisher: creatorPerson,
         offers: {
           "@type": "Offer",
