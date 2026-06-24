@@ -33,46 +33,48 @@ export default function ReadyScreen({
   onBackToSetup,
 }: ReadyScreenProps) {
   return (
-    <section className="flex h-full items-center justify-center px-2">
-      <Card className="w-full max-w-xl overflow-hidden">
-        <CardHeader className="border-b pb-4">
-          <Badge variant="secondary" className="mb-3 w-fit">
-            Round {round} of {config.totalRounds}
-          </Badge>
-          <CardTitle className="text-3xl font-semibold tracking-tight">
-            {player?.name ?? "Player"}, your turn is ready
-          </CardTitle>
-          <CardDescription>
-            You are player {playerIndex + 1} of {totalPlayers}. First, memorize the target. Then find it on the scattered board.
-          </CardDescription>
-        </CardHeader>
+    <section className="game-stage">
+      <div className="game-stage-shell game-stage-shell--center">
+        <Card className="glass-panel game-stage-card game-stage-card--compact py-0">
+          <CardHeader className="game-stage-header">
+            <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full px-3 py-1">
+              Round {round} of {config.totalRounds}
+            </Badge>
+            <CardTitle className="hero-title text-4xl sm:text-5xl">
+              {player?.name ?? "Player"}, your turn is ready
+            </CardTitle>
+            <CardDescription className="hero-copy mx-auto mt-3 max-w-lg">
+              You are player {playerIndex + 1} of {totalPlayers}. First, memorize the target. Then find it on the scattered board.
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent className="grid gap-3 p-4 sm:p-5">
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-muted-foreground">Board</div>
-              <div className="font-semibold">{config.boardSize} numbers</div>
+          <CardContent className="game-stage-content grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
+                <div className="text-sm text-muted-foreground">Board</div>
+                <div className="text-lg font-black">{config.boardSize} numbers</div>
+              </div>
+              <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
+                <div className="text-sm text-muted-foreground">Preview</div>
+                <div className="text-lg font-black">{config.flashDurationMs / 1000}s</div>
+              </div>
+              <div className="rounded-[1.25rem] border bg-white/70 p-4 text-center">
+                <div className="text-sm text-muted-foreground">Mistake</div>
+                <div className="text-lg font-black">+{config.penaltySeconds}s</div>
+              </div>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-muted-foreground">Preview</div>
-              <div className="font-semibold">{config.flashDurationMs / 1000}s</div>
-            </div>
-            <div className="rounded-lg border bg-muted/20 p-3">
-              <div className="text-muted-foreground">Mistake</div>
-              <div className="font-semibold">+{config.penaltySeconds}s</div>
-            </div>
-          </div>
 
-          <p className="text-sm text-muted-foreground">
-            Take a breath. Accuracy matters more than frantic tapping, which is rude but mathematically true.
-          </p>
-        </CardContent>
+            <p className="rounded-[1.25rem] bg-white/70 p-4 text-center text-sm leading-6 text-muted-foreground">
+              Take a breath. Accuracy matters more than frantic tapping, which is rude but mathematically true.
+            </p>
+          </CardContent>
 
-        <CardFooter className="flex items-center justify-between gap-3 border-t p-4 sm:p-5">
-          <Button variant="outline" onClick={onBackToSetup}>Back</Button>
-          <Button onClick={onStartTurn}>Show Target</Button>
-        </CardFooter>
-      </Card>
+          <CardFooter className="game-stage-actions">
+            <Button className="h-12 rounded-2xl font-bold" variant="outline" onClick={onBackToSetup}>Back</Button>
+            <Button className="h-12 rounded-2xl font-black" onClick={onStartTurn}>Show Target</Button>
+          </CardFooter>
+        </Card>
+      </div>
     </section>
   );
 }
