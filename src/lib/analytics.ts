@@ -1,3 +1,4 @@
+import { logAppEventNow } from "@/lib/appLogger";
 import { getPlayerProfile } from "@/lib/playerProfile";
 
 export type AnalyticsEventName =
@@ -68,6 +69,12 @@ export function trackEvent(name: AnalyticsEventName, properties?: AnalyticsEvent
   const events = [...loadAnalyticsEvents(), event].slice(-MAX_EVENTS);
   window.localStorage.setItem(ANALYTICS_KEY, JSON.stringify(events));
   window.dispatchEvent(new CustomEvent("blink-and-find:analytics", { detail: event }));
+  logAppEventNow({
+    level: name === "error_reported" ? "error" : "info",
+    category: "analytics",
+    eventName: name,
+    metadata: properties,
+  });
 
   return event;
 }
