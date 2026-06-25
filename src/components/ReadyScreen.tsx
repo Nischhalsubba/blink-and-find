@@ -18,6 +18,7 @@ interface ReadyScreenProps {
   config: GameConfig;
   onStartTurn: () => void;
   onBackToSetup: () => void;
+  backLabel?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export default function ReadyScreen({
   config,
   onStartTurn,
   onBackToSetup,
+  backLabel = "Back",
 }: ReadyScreenProps) {
   const customCount = config.customNumbers?.length ?? 0;
 
@@ -78,7 +80,7 @@ export default function ReadyScreen({
           </CardContent>
 
           <CardFooter className="game-stage-actions">
-            <Button className="h-12 rounded-2xl font-bold" variant="outline" onClick={onBackToSetup}>Back</Button>
+            <Button className="h-12 rounded-2xl font-bold" variant="outline" onClick={onBackToSetup}>{backLabel}</Button>
             <Button className="h-12 rounded-2xl font-black" onClick={onStartTurn}>Show Target</Button>
           </CardFooter>
         </Card>
