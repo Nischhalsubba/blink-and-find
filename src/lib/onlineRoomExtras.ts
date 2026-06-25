@@ -14,6 +14,7 @@ export interface PublicLobbyResult {
 }
 
 const HOST_STALE_MS = 45_000;
+const MAX_ONLINE_PLAYERS = 1000;
 
 function requireSupabase() {
   if (!supabase) {
@@ -36,7 +37,7 @@ export function normalizeMaxPlayers(value: number, fallback = 2) {
     return fallback;
   }
 
-  return Math.max(1, Math.min(8, Math.floor(value)));
+  return Math.max(1, Math.min(MAX_ONLINE_PLAYERS, Math.floor(value)));
 }
 
 export function getMinimumPlayersToStart(maxPlayers?: number | null) {
