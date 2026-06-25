@@ -1,4 +1,5 @@
 import { generateSeededCustomZigZagBoard } from "@/engine/board";
+import { logAppEventNow, reportAppErrorNow } from "@/lib/appLogger";
 import { supabase } from "@/lib/supabase";
 import { assertValidTurnResultForSubmission } from "@/lib/scoreValidation";
 import type { GameConfig, Player, TurnResult } from "@/types/game";
@@ -92,6 +93,24 @@ function getSameChallengeProgressPlayers(players: OnlinePlayer[]) {
   return sortOnlinePlayers(activePlayers.length > 0 ? activePlayers : players);
 }
 
+function logOnlineRoomEvent(room: Pick<OnlineRoom, "id" | "code" | "status" | "current_round" | "current_player_id" | "game_type">, eventName: string, metadata?: Record<string, unknown>) {
+  logAppEventNow({
+    level: eventName.includes("error") || eventName.includes("failed") ? "error" : "info",
+    category: "online_room",
+    eventName,
+    roomId: room.id,
+    roomCode: room.code,
+    message: `${eventName} · ${room.code}`,
+    metadata: {
+      status: room.status,
+      currentRound: room.current_round,
+      currentPlayerId: room.current_player_id,
+      gameType: room.game_type,
+      ...metadata,
+    },
+  });
+}
+
 function shouldRepairSameChallengeProgress(snapshot: OnlineRoomSnapshot) {
   const room = snapshot.room;
 
@@ -144,6 +163,7 @@ async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlay
 
     if (roundResponse.error) throw roundResponse.error;
     if (roomResponse.error) throw roomResponse.error;
+    logOnlineRoomEvent(room, "same_challenge_finished_by_round_guard", { nextRound, players: players.length });
     return;
   }
 
@@ -179,6 +199,7 @@ async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlay
   if (currentRoundResponse.error) throw currentRoundResponse.error;
   if (nextRoundResponse.error) throw nextRoundResponse.error;
   if (roomResponse.error) throw roomResponse.error;
+  logOnlineRoomEvent(room, "same_challenge_next_round_started", { nextRound, nextPlayerId: firstPlayer.id, players: players.length });
 }
 
 async function writeSameChallengeRoomProgress(room: OnlineRoom, players: OnlinePlayer[], results: OnlineResult[]) {
@@ -204,6 +225,7 @@ async function writeSameChallengeRoomProgress(room: OnlineRoom, players: OnlineP
 
     if (roundResponse.error) throw roundResponse.error;
     if (roomResponse.error) throw roomResponse.error;
+    logOnlineRoomEvent(room, "same_challenge_turn_advanced", { nextPlayerId: nextPlayer.id, completedCount: completedPlayerIds.size, playerCount: sortedPlayers.length });
     return;
   }
 
@@ -233,6 +255,7 @@ async function writeSameChallengeRoomProgress(room: OnlineRoom, players: OnlineP
 
     if (roundResponse.error) throw roundResponse.error;
     if (roomResponse.error) throw roomResponse.error;
+    logOnlineRoomEvent(room, "same_challenge_finished", { finalRound: room.current_round, resultCount: results.length, playerCount: sortedPlayers.length });
     return;
   }
 
@@ -266,12 +289,15 @@ export async function createOnlineRoom(params: {
     }
 
     if (error?.code !== "23505") {
+      reportAppErrorNow(error, "online_room_create_failed", { gameType: params.gameType, attempt });
       throw error;
     }
   }
 
   if (!room) {
-    throw new Error("Could not create a unique room code. The alphabet has betrayed us.");
+    const error = new Error("Could not create a unique room code. The alphabet has betrayed us.");
+    reportAppErrorNow(error, "online_room_create_code_failed", { gameType: params.gameType });
+    throw error;
   }
 
   const { data: playerData, error: playerError } = await client
@@ -286,6 +312,7 @@ export async function createOnlineRoom(params: {
     .single();
 
   if (playerError) {
+    reportAppErrorNow(playerError, "online_host_insert_failed", { roomId: room.id, roomCode: room.code });
     throw playerError;
   }
 
@@ -298,8 +325,11 @@ export async function createOnlineRoom(params: {
     .single();
 
   if (roomError) {
+    reportAppErrorNow(roomError, "online_room_host_update_failed", { roomId: room.id, roomCode: room.code, hostPlayerId: localPlayer.id });
     throw roomError;
   }
+
+  logOnlineRoomEvent(updatedRoom as OnlineRoom, "online_room_created", { localPlayerId: localPlayer.id, playerName: localPlayer.name });
 
   return {
     room: updatedRoom as OnlineRoom,
@@ -325,13 +355,16 @@ export async function joinOnlineRoom(params: {
     .single();
 
   if (roomError) {
+    reportAppErrorNow(roomError, "online_room_lookup_failed", { roomCode: normalizedCode });
     throw roomError;
   }
 
   const room = roomData as OnlineRoom;
 
   if (room.status === "abandoned") {
-    throw new Error("That room is no longer active. Create a new room instead.");
+    const error = new Error("That room is no longer active. Create a new room instead.");
+    reportAppErrorNow(error, "online_join_abandoned_room", { roomId: room.id, roomCode: room.code });
+    throw error;
   }
 
   const { data: existingPlayer } = await client
@@ -344,7 +377,9 @@ export async function joinOnlineRoom(params: {
   let localPlayer = existingPlayer as OnlinePlayer | null;
 
   if (!localPlayer && room.status !== "lobby") {
-    throw new Error("That game already started. Ask the host to create a new room.");
+    const error = new Error("That game already started. Ask the host to create a new room.");
+    reportAppErrorNow(error, "online_join_started_room", { roomId: room.id, roomCode: room.code, status: room.status });
+    throw error;
   }
 
   if (!localPlayer) {
@@ -352,7 +387,9 @@ export async function joinOnlineRoom(params: {
     const maxPlayers = room.max_players ?? DEFAULT_MAX_ONLINE_PLAYERS;
 
     if (snapshot.players.length >= maxPlayers) {
-      throw new Error("That room is full. Even chaos needs capacity planning.");
+      const error = new Error("That room is full. Even chaos needs capacity planning.");
+      reportAppErrorNow(error, "online_join_room_full", { roomId: room.id, roomCode: room.code, playerCount: snapshot.players.length, maxPlayers });
+      throw error;
     }
 
     const { data: playerData, error: playerError } = await client
@@ -367,6 +404,7 @@ export async function joinOnlineRoom(params: {
       .single();
 
     if (playerError) {
+      reportAppErrorNow(playerError, "online_player_join_insert_failed", { roomId: room.id, roomCode: room.code });
       throw playerError;
     }
 
@@ -374,6 +412,7 @@ export async function joinOnlineRoom(params: {
   }
 
   const snapshot = await fetchOnlineRoomSnapshot(room.id);
+  logOnlineRoomEvent(room, "online_room_joined", { localPlayerId: localPlayer.id, playerName: localPlayer.name, playerCount: snapshot.players.length });
 
   return {
     ...snapshot,
@@ -412,9 +451,13 @@ export async function fetchOnlineRoomSnapshot(roomId: string): Promise<OnlineRoo
   }
 
   try {
+    logOnlineRoomEvent(snapshot.room, "same_challenge_repair_started", { playerCount: snapshot.players.length, resultCount: snapshot.results.length });
     await writeSameChallengeRoomProgress(snapshot.room, getSameChallengeProgressPlayers(snapshot.players), snapshot.results);
-    return fetchOnlineRoomSnapshotRaw(roomId);
-  } catch {
+    const repairedSnapshot = await fetchOnlineRoomSnapshotRaw(roomId);
+    logOnlineRoomEvent(repairedSnapshot.room, "same_challenge_repair_completed", { playerCount: repairedSnapshot.players.length, resultCount: repairedSnapshot.results.length });
+    return repairedSnapshot;
+  } catch (error) {
+    reportAppErrorNow(error, "same_challenge_repair_failed", { roomId, roomCode: snapshot.room.code, status: snapshot.room.status, currentRound: snapshot.room.current_round });
     return snapshot;
   }
 }
@@ -470,6 +513,7 @@ export async function startOnlineRoom(room: OnlineRoom, players: OnlinePlayer[])
     }, { onConflict: "room_id,round_number" });
 
   if (roundError) {
+    reportAppErrorNow(roundError, "online_start_round_upsert_failed", { roomId: room.id, roomCode: room.code, gameType: room.game_type });
     throw roundError;
   }
 
@@ -484,8 +528,11 @@ export async function startOnlineRoom(room: OnlineRoom, players: OnlinePlayer[])
     .eq("id", room.id);
 
   if (roomError) {
+    reportAppErrorNow(roomError, "online_start_room_update_failed", { roomId: room.id, roomCode: room.code, gameType: room.game_type });
     throw roomError;
   }
+
+  logOnlineRoomEvent(room, "online_room_started", { firstPlayerId: firstPlayer.id, playerCount: players.length, targetNumber, seed });
 }
 
 export async function markSameChallengeTurnPlaying(roomId: string, roundId: string): Promise<void> {
@@ -497,8 +544,14 @@ export async function markSameChallengeTurnPlaying(roomId: string, roundId: stri
     client.from("online_rounds").update({ status: "playing", start_at: startedAt }).eq("id", roundId),
   ]);
 
-  if (roomResponse.error) throw roomResponse.error;
-  if (roundResponse.error) throw roundResponse.error;
+  if (roomResponse.error) {
+    reportAppErrorNow(roomResponse.error, "same_challenge_mark_playing_room_failed", { roomId, roundId });
+    throw roomResponse.error;
+  }
+  if (roundResponse.error) {
+    reportAppErrorNow(roundResponse.error, "same_challenge_mark_playing_round_failed", { roomId, roundId });
+    throw roundResponse.error;
+  }
 }
 
 export async function submitSameChallengeResult(params: {
@@ -516,7 +569,9 @@ export async function submitSameChallengeResult(params: {
   });
 
   if (!currentPlayer) {
-    throw new Error("Could not find the current online player.");
+    const error = new Error("Could not find the current online player.");
+    reportAppErrorNow(error, "same_challenge_submit_missing_player", { roomId: params.room.id, roomCode: params.room.code, playerId: params.result.playerId });
+    throw error;
   }
 
   const { data: existingResult, error: existingError } = await client
@@ -528,6 +583,7 @@ export async function submitSameChallengeResult(params: {
     .maybeSingle();
 
   if (existingError) {
+    reportAppErrorNow(existingError, "same_challenge_existing_result_check_failed", { roomId: params.room.id, roomCode: params.room.code, playerId: params.result.playerId, round: params.result.round });
     throw existingError;
   }
 
@@ -548,6 +604,7 @@ export async function submitSameChallengeResult(params: {
       });
 
     if (resultError) {
+      reportAppErrorNow(resultError, "same_challenge_result_insert_failed", { roomId: params.room.id, roomCode: params.room.code, playerId: params.result.playerId, round: params.result.round });
       throw resultError;
     }
 
@@ -560,13 +617,19 @@ export async function submitSameChallengeResult(params: {
       .eq("id", currentPlayer.id);
 
     if (playerError) {
+      reportAppErrorNow(playerError, "same_challenge_player_score_update_failed", { roomId: params.room.id, roomCode: params.room.code, playerId: params.result.playerId, round: params.result.round });
       throw playerError;
     }
+
+    logOnlineRoomEvent(params.room, "same_challenge_result_submitted", { playerId: params.result.playerId, round: params.result.round, finalTimeMs: params.result.finalTimeMs, wrongTaps: params.result.wrongTaps });
+  } else {
+    logOnlineRoomEvent(params.room, "same_challenge_duplicate_result_ignored", { playerId: params.result.playerId, round: params.result.round });
   }
 
   const freshSnapshot = await fetchOnlineRoomSnapshotRaw(params.room.id);
 
   if (freshSnapshot.room.status === "finished" || freshSnapshot.room.status === "abandoned" || freshSnapshot.room.current_round !== params.result.round) {
+    logOnlineRoomEvent(freshSnapshot.room, "same_challenge_submit_skipped_stale_snapshot", { submittedRound: params.result.round, roomRound: freshSnapshot.room.current_round, status: freshSnapshot.room.status });
     return;
   }
 
@@ -704,6 +767,7 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
 
     if (roundResponse.error) throw roundResponse.error;
     if (roomResponse.error) throw roomResponse.error;
+    logOnlineRoomEvent(room, "same_challenge_manual_next_finished_room", { nextRound });
     return;
   }
 
@@ -720,6 +784,7 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
     }, { onConflict: "room_id,round_number" });
 
   if (roundError) {
+    reportAppErrorNow(roundError, "online_next_round_upsert_failed", { roomId: room.id, roomCode: room.code, nextRound });
     throw roundError;
   }
 
@@ -735,6 +800,9 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
     .eq("current_round", room.current_round);
 
   if (roomError) {
+    reportAppErrorNow(roomError, "online_next_round_room_update_failed", { roomId: room.id, roomCode: room.code, nextRound });
     throw roomError;
   }
+
+  logOnlineRoomEvent(room, "online_next_round_started", { nextRound, firstPlayerId: firstPlayer.id, playerCount: players.length });
 }
