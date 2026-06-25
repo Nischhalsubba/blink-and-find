@@ -317,7 +317,6 @@ export function useGameController() {
     }
 
     setLastSelectionWasWrong(false);
-
     const rawTimeMs = Date.now() - turnStartedAt;
     const result = createTurnResult({
       round: currentRound,
@@ -387,6 +386,23 @@ export function useGameController() {
     setPhase("finished");
     playTone("finish", isMuted);
   }
+
+  useEffect(() => {
+    if (phase !== "roundSummary" || !autoContinue || players.length === 0) {
+      return;
+    }
+
+    autoContinueTimeoutRef.current = window.setTimeout(() => {
+      if (currentRound >= config.totalRounds) {
+        finishGame();
+        return;
+      }
+
+      startNextRound();
+    }, 900);
+
+    return () => clearAutoContinueTimer();
+  }, [phase, autoContinue, currentRound, config, players, results]);
 
   function resetGame() {
     clearPreviewTimers();
