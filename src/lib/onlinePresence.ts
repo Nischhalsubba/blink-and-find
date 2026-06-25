@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type { GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
-const PRESENCE_STALE_SECONDS = 60;
+const PRESENCE_STALE_SECONDS = 8;
 const INVITE_EXPIRES_SECONDS = 90;
 
 export type PresenceStatus = "online" | "available" | "in_game" | "offline";
@@ -91,7 +91,7 @@ export async function setOnlinePresenceOffline(deviceId: string): Promise<void> 
 
 export async function fetchAvailableOnlinePlayers(deviceId: string): Promise<PresenceResult<OnlinePresence[]>> {
   const client = requireSupabase();
-  const { data, error } = await client.from("online_presence").select("*").neq("device_id", deviceId).neq("status", "offline").gte("last_seen_at", staleCutoffIso()).order("available_to_play", { ascending: false }).order("last_seen_at", { ascending: false }).limit(20);
+  const { data, error } = await client.from("online_presence").select("*").neq("device_id", deviceId).neq("status", "offline").gte("last_seen_at", staleCutoffIso()).order("available_to_play", { ascending: false }).order("last_seen_at", { ascending: false }).limit(50);
   if (isMissingPresenceTableError(error)) return { data: [], unavailable: true };
   if (error) throw error;
   return { data: (data ?? []) as OnlinePresence[], unavailable: false };
