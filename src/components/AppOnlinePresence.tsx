@@ -14,9 +14,9 @@ import { hasSupabaseConfig } from "@/lib/supabase";
 
 const POLL_MS = 5000;
 const STATUS_OPTIONS: Array<{ mode: UserPresenceMode; label: string; helper: string }> = [
-  { mode: "online", label: "Online", helper: "Visible and inviteable" },
-  { mode: "away", label: "Away", helper: "Visible, no invites" },
-  { mode: "busy", label: "Busy", helper: "Playing or unavailable" },
+  { mode: "online", label: "Online", helper: "Inviteable" },
+  { mode: "away", label: "Away", helper: "No invites" },
+  { mode: "busy", label: "Busy", helper: "Playing" },
   { mode: "offline", label: "Offline", helper: "Hidden" },
 ];
 
@@ -37,6 +37,7 @@ export default function AppOnlinePresence() {
   const [incomingInvites, setIncomingInvites] = useState<OnlineGameInvite[]>([]);
   const [statusMessage, setStatusMessage] = useState("Connecting");
   const [isBusy, setIsBusy] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   const isOnlineRoute = pathname?.startsWith("/online") ?? false;
   const showStatusControl = pathname === "/";
@@ -53,12 +54,9 @@ export default function AppOnlinePresence() {
   }
 
   async function joinAcceptedInvite(invite: OnlineGameInvite) {
-    if (handledAcceptedInviteIds.current.has(invite.id) || !invite.room_code) {
-      return;
-    }
-
+    if (handledAcceptedInviteIds.current.has(invite.id) || !invite.room_code) return;
     handledAcceptedInviteIds.current.add(invite.id);
-    setStatusMessage("Opening accepted invite");
+    setStatusMessage("Opening room");
 
     try {
       const result = await joinAcceptedOnlineInvite({ invite, playerName: profileName, deviceId });
@@ -79,35 +77,25 @@ export default function AppOnlinePresence() {
       const [incomingResult, sentResult] = await Promise.all([fetchIncomingInvites(deviceId), fetchSentInvites(deviceId)]);
       setIncomingInvites(incomingResult.data);
       const acceptedInvite = sentResult.data.find((invite) => invite.status === "accepted" && invite.room_code);
-      if (acceptedInvite) {
-        await joinAcceptedInvite(acceptedInvite);
-      }
+      if (acceptedInvite) await joinAcceptedInvite(acceptedInvite);
     } catch {
-      // Ignore global invite refresh failures.
+      // Ignore invite polling failures.
     }
   }
 
   async function heartbeat() {
-    if (!hasSupabaseConfig()) {
-      return;
-    }
-
+    if (!hasSupabaseConfig()) return;
     const nextMode = getEffectivePresenceMode();
     const profile = getPlayerProfile();
     setModeState(nextMode);
     setProfileName(profile.name);
 
-    if (isOnlineRoute) {
-      return;
-    }
+    if (isOnlineRoute) return;
 
     try {
       const result = await upsertOnlinePresence({ deviceId, displayName: profile.name, preferredMode: nextMode, currentRoomId: null });
-      if (result.unavailable) {
-        setStatusMessage("Migration missing");
-      } else if (result.data) {
-        setStatusMessage(databasePresenceToUserLabel(result.data.status, result.data.available_to_play));
-      }
+      if (result.unavailable) setStatusMessage("Migration missing");
+      else if (result.data) setStatusMessage(databasePresenceToUserLabel(result.data.status, result.data.available_to_play));
       await refreshInvites(nextMode);
     } catch {
       setStatusMessage("Offline");
@@ -166,25 +154,33 @@ export default function AppOnlinePresence() {
     <>
       {showStatusControl && (
         <div className="fixed left-3 top-3 z-40 max-w-[calc(100vw-1.5rem)] sm:left-4 sm:top-4">
-          <Card className="w-[20rem] max-w-full overflow-hidden rounded-2xl border bg-white/90 shadow-lg backdrop-blur">
-            <CardHeader className="p-3 pb-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle className="text-sm font-black">Online status</CardTitle>
-                  <CardDescription className="text-xs">{profileName} · {shortDeviceId(deviceId)}</CardDescription>
+          <button type="button" onClick={() => setStatusOpen((open) => !open)} className="flex items-center gap-2 rounded-full border bg-white/90 px-3 py-2 text-xs font-black shadow-lg backdrop-blur transition hover:-translate-y-0.5">
+            <span className={`h-2.5 w-2.5 rounded-full ${mode === "online" ? "bg-green-500" : mode === "away" ? "bg-amber-400" : mode === "busy" ? "bg-fuchsia-500" : "bg-slate-400"}`} />
+            <span>{mode === "offline" ? "Hidden" : statusMessage}</span>
+            <span className="text-slate-500">{shortDeviceId(deviceId)}</span>
+          </button>
+
+          {statusOpen && (
+            <Card className="mt-2 w-[19rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border bg-white/95 shadow-xl backdrop-blur">
+              <CardHeader className="p-3 pb-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-sm font-black">Online status</CardTitle>
+                    <CardDescription className="text-xs">{profileName}</CardDescription>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-full px-2" onClick={() => setStatusOpen(false)}>Close</Button>
                 </div>
-                <Badge variant={mode === "online" ? "default" : "outline"}>{mode === "offline" ? "Hidden" : statusMessage}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 p-3 pt-1">
-              {STATUS_OPTIONS.map((option) => (
-                <button key={option.mode} type="button" onClick={() => chooseMode(option.mode)} className={`rounded-xl border p-2 text-left text-xs transition ${mode === option.mode ? "border-primary bg-primary text-primary-foreground" : "border-slate-200 bg-white/70 text-slate-700 hover:bg-slate-50"}`}>
-                  <span className="block font-black">{option.label}</span>
-                  <span className="mt-0.5 block text-[0.68rem] opacity-80">{option.helper}</span>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-2 p-3 pt-1">
+                {STATUS_OPTIONS.map((option) => (
+                  <button key={option.mode} type="button" onClick={() => chooseMode(option.mode)} className={`rounded-xl border p-2 text-left text-xs transition ${mode === option.mode ? "border-primary bg-primary text-primary-foreground" : "border-slate-200 bg-white/70 text-slate-700 hover:bg-slate-50"}`}>
+                    <span className="block font-black">{option.label}</span>
+                    <span className="mt-0.5 block text-[0.68rem] opacity-80">{option.helper}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
