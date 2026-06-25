@@ -117,6 +117,10 @@ function shouldRepairSameChallengeProgress(snapshot: OnlineRoomSnapshot) {
   return players.every((player) => completedPlayerIds.has(player.id));
 }
 
+function currentRoundGuard(query: ReturnType<ReturnType<typeof requireSupabase>["from"]>["update"], room: OnlineRoom) {
+  return query.eq("id", room.id).eq("current_round", room.current_round);
+}
+
 async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlayer[]) {
   const client = requireSupabase();
   const firstPlayer = sortOnlinePlayers(players)[0];
@@ -138,7 +142,8 @@ async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlay
       client
         .from("online_rooms")
         .update({ status: "finished", current_player_id: null, round_start_at: null })
-        .eq("id", room.id),
+        .eq("id", room.id)
+        .eq("current_round", room.current_round),
     ]);
 
     if (roundResponse.error) throw roundResponse.error;
@@ -171,7 +176,8 @@ async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlay
         current_player_id: firstPlayer.id,
         round_start_at: null,
       })
-      .eq("id", room.id),
+      .eq("id", room.id)
+      .eq("current_round", room.current_round),
   ]);
 
   if (currentRoundResponse.error) throw currentRoundResponse.error;
@@ -196,7 +202,8 @@ async function writeSameChallengeRoomProgress(room: OnlineRoom, players: OnlineP
       client
         .from("online_rooms")
         .update({ status: "ready", current_player_id: nextPlayer.id, round_start_at: null })
-        .eq("id", room.id),
+        .eq("id", room.id)
+        .eq("current_round", room.current_round),
     ]);
 
     if (roundResponse.error) throw roundResponse.error;
@@ -224,7 +231,8 @@ async function writeSameChallengeRoomProgress(room: OnlineRoom, players: OnlineP
       client
         .from("online_rooms")
         .update({ status: "finished", current_player_id: null, round_start_at: null })
-        .eq("id", room.id),
+        .eq("id", room.id)
+        .eq("current_round", room.current_round),
     ]);
 
     if (roundResponse.error) throw roundResponse.error;
@@ -666,7 +674,7 @@ export async function submitLiveRaceResult(params: {
       status: isFinalRound ? "finished" : "round_summary",
       current_player_id: null,
       round_start_at: null,
-    }).eq("id", params.room.id),
+    }).eq("id", params.room.id).eq("current_round", params.room.current_round),
   ]);
 
   if (roundResponse.error) {
@@ -695,7 +703,7 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
   if (!isLiveRace && nextRound > room.settings.totalRounds) {
     const [roundResponse, roomResponse] = await Promise.all([
       client.from("online_rounds").update({ status: "complete", start_at: null }).eq("room_id", room.id).eq("round_number", room.current_round),
-      client.from("online_rooms").update({ status: "finished", current_player_id: null, round_start_at: null }).eq("id", room.id),
+      client.from("online_rooms").update({ status: "finished", current_player_id: null, round_start_at: null }).eq("id", room.id).eq("current_round", room.current_round),
     ]);
 
     if (roundResponse.error) throw roundResponse.error;
@@ -727,7 +735,8 @@ export async function startNextOnlineRound(room: OnlineRoom, players: OnlinePlay
       current_player_id: isLiveRace ? null : firstPlayer.id,
       round_start_at: startsAt,
     })
-    .eq("id", room.id);
+    .eq("id", room.id)
+    .eq("current_round", room.current_round);
 
   if (roomError) {
     throw roomError;
