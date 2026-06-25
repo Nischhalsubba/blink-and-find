@@ -238,6 +238,7 @@ function DisabledBoardView({
 export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefresh, onBackToLobby, onEndRoom }: OnlineSameChallengeGameProps) {
   const previewTimeoutRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
+  const submitInFlightRef = useRef(false);
   const wrongTapsRef = useRef(0);
   const [phase, setPhase] = useState<GamePhase>("ready");
   const [targetHidden, setTargetHidden] = useState(false);
@@ -258,6 +259,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const roomParticipants = getRoomParticipants(snapshot, localPlayer);
   const currentRound = getCurrentOnlineRound(snapshot);
   const activePlayer = roomParticipants.find((player) => player.id === room.current_player_id) ?? null;
+  const localRoundResult = getRoundResult(snapshot, localPlayer.id);
   const localIsActive = activePlayer?.id === localPlayer.id;
   const localIsHost = localPlayer.is_host;
   const gamePlayers = onlinePlayersToGamePlayers(roomParticipants);
@@ -306,6 +308,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   useEffect(() => {
     clearPreviewTimers();
     wrongTapsRef.current = 0;
+    submitInFlightRef.current = false;
     setPhase("ready");
     setTargetHidden(false);
     setTurnStartedAt(null);
@@ -315,6 +318,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setLastSelectedNumber(null);
     setLastSelectionWasWrong(false);
     setLastResult(null);
+    setMessage("");
     setStatusMessage(localIsActive ? "Your turn. Get ready." : "Watching the active player.");
   }, [room.current_player_id, room.current_round, localIsActive]);
 
@@ -332,10 +336,37 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     return () => window.clearInterval(timer);
   }, [phase, onRefresh]);
 
+  useEffect(() => {
+    if (!localIsActive || localRoundResult === null) return;
+    setMessage("You already finished this round. Resyncing the room...");
+    const timer = window.setTimeout(() => {
+      void onRefresh();
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [localIsActive, localRoundResult, onRefresh]);
+
+  useEffect(() => {
+    if (!localIsActive || phase !== "ready" || room.status !== "playing" || currentRound?.status !== "playing" || !currentRound.start_at || localRoundResult) {
+      return;
+    }
+
+    const startedAt = Date.parse(currentRound.start_at);
+    if (!Number.isFinite(startedAt)) return;
+
+    clearPreviewTimers();
+    setTargetHidden(true);
+    setPreviewCountdown(0);
+    setTurnStartedAt(startedAt);
+    setElapsedMs(Math.max(0, Date.now() - startedAt));
+    setStatusMessage("Reconnected to your active turn. Find the target on the board.");
+    setPhase("playing");
+  }, [localIsActive, phase, room.status, currentRound?.id, currentRound?.status, currentRound?.start_at, localRoundResult]);
+
   async function startTurn() {
-    if (!currentRound || targetNumber === null) return;
+    if (!currentRound || targetNumber === null || localRoundResult) return;
     clearPreviewTimers();
     wrongTapsRef.current = 0;
+    submitInFlightRef.current = false;
     setMessage("");
     setPhase("preview");
     setTargetHidden(false);
@@ -351,7 +382,9 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
       await markSameChallengeTurnPlaying(room.id, currentRound.id);
       await onRefresh();
     } catch (error) {
+      setPhase("ready");
       setMessage(error instanceof Error ? error.message : "Could not start online turn.");
+      return;
     }
 
     const previewEndsAt = Date.now() + room.settings.flashDurationMs;
@@ -371,7 +404,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }
 
   async function handleNumberSelect(value: number) {
-    if (phase !== "playing" || targetNumber === null || turnStartedAt === null || !activePlayer) return;
+    if (phase !== "playing" || targetNumber === null || turnStartedAt === null || !activePlayer || submitInFlightRef.current || localRoundResult) return;
     setLastSelectedNumber(value);
     if (value !== targetNumber) {
       wrongTapsRef.current += 1;
@@ -382,6 +415,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
       return;
     }
 
+    submitInFlightRef.current = true;
     const result = createTurnResult({ round: room.current_round, player: onlinePlayerToGamePlayer(activePlayer), targetNumber, rawTimeMs: Date.now() - turnStartedAt, wrongTaps: wrongTapsRef.current, penaltySeconds: room.settings.penaltySeconds });
 
     setLastSelectionWasWrong(false);
@@ -395,7 +429,8 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
       await submitSameChallengeResult({ room, players: snapshot.players, result });
       await onRefresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not submit result.");
+      submitInFlightRef.current = false;
+      setMessage(error instanceof Error ? error.message : "Could not submit result. Tap Continue to resync.");
     }
   }
 
@@ -410,6 +445,10 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }
 
   if (!currentRound) return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} onEndRoom={handleEndRoom} canEndRoom={localIsHost} />;
+
+  if (localRoundResult && localIsActive) {
+    return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
+  }
 
   if (!localIsActive) {
     return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={room.status === "round_summary" ? null : activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
