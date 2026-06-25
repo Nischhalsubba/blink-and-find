@@ -38,3 +38,36 @@ export async function finishOnlineRoom(room: OnlineRoom): Promise<void> {
     throw roomResponse.error;
   }
 }
+
+/**
+ * Ends a room intentionally so saved sessions stop reopening it.
+ */
+export async function endOnlineRoom(roomId: string): Promise<void> {
+  const client = requireSupabase();
+  const [roomResponse, playerResponse, roundResponse] = await Promise.all([
+    client
+      .from("online_rooms")
+      .update({ status: "abandoned", current_player_id: null })
+      .eq("id", roomId),
+    client
+      .from("online_players")
+      .update({ is_connected: false })
+      .eq("room_id", roomId),
+    client
+      .from("online_rounds")
+      .update({ status: "complete" })
+      .eq("room_id", roomId),
+  ]);
+
+  if (roomResponse.error) {
+    throw roomResponse.error;
+  }
+
+  if (playerResponse.error) {
+    throw playerResponse.error;
+  }
+
+  if (roundResponse.error) {
+    throw roundResponse.error;
+  }
+}
