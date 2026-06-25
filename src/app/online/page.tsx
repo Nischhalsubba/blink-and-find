@@ -36,6 +36,7 @@ import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
 const ONLINE_NAME_KEY = "blink-and-find-online-name";
+const ROOM_POLL_MS = 1000;
 
 const DEFAULT_CONFIG: GameConfig = {
   mode: "multiplayer",
@@ -148,6 +149,18 @@ export default function OnlinePage() {
     saveOnlineName(name);
   }
 
+  function markAvailable(name = localPlayer?.name ?? playerName) {
+    void upsertOnlinePresence({ deviceId: getDeviceId(), displayName: name, availableToPlay: true, currentRoomId: null });
+  }
+
+  function closeRoomView(nextMessage = "") {
+    clearOnlineRoomSession();
+    setSnapshot(null);
+    setLocalPlayer(null);
+    setMessage(nextMessage);
+    markAvailable();
+  }
+
   function enterOnlineRoom(result: OnlineRoomSnapshot & { localPlayer: OnlinePlayer }, nextMessage: string) {
     setSnapshot(result);
     setLocalPlayer(result.localPlayer);
@@ -158,6 +171,12 @@ export default function OnlinePage() {
 
   async function refreshRoom(roomId: string) {
     const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
+
+    if (nextSnapshot.room.status === "abandoned") {
+      closeRoomView("The host ended this room.");
+      return;
+    }
+
     const nextLocalPlayer = localPlayer ? nextSnapshot.players.find((player) => player.id === localPlayer.id) ?? localPlayer : null;
     setSnapshot(nextSnapshot);
     if (nextLocalPlayer) {
@@ -176,7 +195,7 @@ export default function OnlinePage() {
       const visibilityResult = await setOnlineRoomVisibility(result.room.id, roomVisibility, normalizedMaxPlayers);
       const nextSnapshot = visibilityResult.applied ? await fetchOnlineRoomSnapshot(result.room.id) : result;
       trackEvent("online_room_created", { gameType, visibility: roomVisibility, maxPlayers: normalizedMaxPlayers });
-      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, "Invite room created. Share the code or wait for invited players.");
+      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, "Room ready. Share the code or invite a live player.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -206,7 +225,7 @@ export default function OnlinePage() {
   }
 
   async function handleStartRoom() {
-    if (!snapshot) return;
+    if (!snapshot || !localPlayer?.is_host) return;
     setIsBusy(true);
     setMessage("Starting game...");
     try {
@@ -220,7 +239,7 @@ export default function OnlinePage() {
   }
 
   async function handleRemovePlayer(player: OnlinePlayer) {
-    if (!snapshot || !localPlayer) return;
+    if (!snapshot || !localPlayer?.is_host) return;
     setIsBusy(true);
     try {
       await removeOnlinePlayer(snapshot.room.id, localPlayer.id, player.id);
@@ -233,29 +252,21 @@ export default function OnlinePage() {
     }
   }
 
-  function closeRoomView() {
-    const name = localPlayer?.name ?? playerName;
-    clearOnlineRoomSession();
-    setSnapshot(null);
-    setLocalPlayer(null);
-    setMessage("");
-    void upsertOnlinePresence({ deviceId: getDeviceId(), displayName: name, availableToPlay: true, currentRoomId: null });
-  }
-
   async function handleEndRoom() {
     if (!snapshot) {
       closeRoomView();
       return;
     }
+
+    if (!localPlayer?.is_host) {
+      closeRoomView("You left the room.");
+      return;
+    }
+
     setIsBusy(true);
     try {
       await endOnlineRoom(snapshot.room.id);
-      const name = localPlayer?.name ?? playerName;
-      clearOnlineRoomSession();
-      setSnapshot(null);
-      setLocalPlayer(null);
-      setMessage("Room ended.");
-      void upsertOnlinePresence({ deviceId: getDeviceId(), displayName: name, availableToPlay: true, currentRoomId: null });
+      closeRoomView("Room ended for everyone.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not end room.");
     } finally {
@@ -301,11 +312,20 @@ export default function OnlinePage() {
 
   useEffect(() => {
     if (!snapshot?.room.id) return;
+    const roomId = snapshot.room.id;
     let unsubscribe: (() => void) | undefined;
-    subscribeToOnlineRoom(snapshot.room.id, () => { refreshRoom(snapshot.room.id).catch((error) => setMessage(error.message)); })
+    const poller = window.setInterval(() => {
+      refreshRoom(roomId).catch((error) => setMessage(error.message));
+    }, ROOM_POLL_MS);
+
+    subscribeToOnlineRoom(roomId, () => { refreshRoom(roomId).catch((error) => setMessage(error.message)); })
       .then((cleanup) => { unsubscribe = cleanup; })
       .catch((error) => setMessage(error.message));
-    return () => { unsubscribe?.(); };
+
+    return () => {
+      window.clearInterval(poller);
+      unsubscribe?.();
+    };
   }, [snapshot?.room.id, localPlayer?.id]);
 
   if (!hasSupabaseConfig()) {
@@ -334,22 +354,16 @@ export default function OnlinePage() {
     const canStartRoom = snapshot.players.length >= minimumPlayersToStart;
     const startLabel = !canStartRoom ? "Waiting for Friend" : roomCapacity === 1 ? "Start Solo Online Game" : "Start Game";
 
-    if (roomStatus === "abandoned") {
-      clearOnlineRoomSession();
-      setSnapshot(null);
-      setLocalPlayer(null);
-    }
-
     if (roomStatus === "finished") {
       return <main className="app-shell"><ResultScreen players={onlinePlayersToGamePlayers(snapshot.players)} results={onlineResultsToTurnResults(snapshot.results)} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={closeRoomView} playAgainLabel="Back to Online" /></main>;
     }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
-      return <OnlineSameChallengeGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={closeRoomView} onEndRoom={handleEndRoom} />;
+      return <OnlineSameChallengeGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={() => closeRoomView("You left the room.")} onEndRoom={handleEndRoom} />;
     }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "live_race") {
-      return <OnlineLiveRaceGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={closeRoomView} />;
+      return <OnlineLiveRaceGame snapshot={snapshot} localPlayer={localPlayer} onRefresh={() => refreshRoom(snapshot.room.id)} onBackToLobby={() => closeRoomView("You left the room.")} />;
     }
 
     return (
@@ -359,7 +373,7 @@ export default function OnlinePage() {
             <CardHeader className="border-b pb-4 text-center">
               <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Room ready</Badge>
               <CardTitle className="text-4xl font-black tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
-              <CardDescription>{isHost ? "Share the code, wait for players, then start." : "You joined. Wait for the host to start."}</CardDescription>
+              <CardDescription>{isHost ? "You are admin. Invite players, then start." : "You joined. The admin will start the game."}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -376,11 +390,11 @@ export default function OnlinePage() {
                   </div>
                 ))}
               </div>
-              {isHost ? <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} /> : <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">Keep this screen open. The game starts when the host taps Start.</div>}
+              {isHost ? <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} /> : <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">You are a player in this room. The admin controls Start and End Room.</div>}
               {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
             <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={closeRoomView}>Leave Room</Button><Button variant="destructive" onClick={handleEndRoom} disabled={isBusy}>End Room</Button><Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button></div>
+              <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => closeRoomView("You left the room.")}>Leave Room</Button>{isHost && <Button variant="destructive" onClick={handleEndRoom} disabled={isBusy}>End Room</Button>}<Button variant="ghost" onClick={() => refreshRoom(snapshot.room.id)}>Refresh</Button></div>
               {isHost && roomStatus === "lobby" && <Button onClick={handleStartRoom} disabled={isBusy || !canStartRoom}>{startLabel}</Button>}
             </CardFooter>
           </Card>
