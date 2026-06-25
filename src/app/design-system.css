@@ -182,6 +182,19 @@ h3,
   border-radius: 1.5rem;
 }
 
+.online-watch-shell {
+  max-width: min(100%, 64rem);
+}
+
+.online-watch-board {
+  min-height: clamp(22rem, 52dvh, 36rem);
+}
+
+.online-live-panel {
+  overflow: hidden;
+  border-radius: 1.5rem;
+}
+
 .hero-title {
   font-family: var(--font-display);
   letter-spacing: -0.055em;
@@ -254,34 +267,59 @@ h3,
 
 @media (max-width: 768px) {
   :root {
-    --stage-top-space: clamp(3.25rem, 8vh, 4.25rem);
-    --stage-bottom-space: clamp(1rem, 3vh, 1.75rem);
-    --stage-card-radius: 1.5rem;
+    --stage-top-space: 0.5rem;
+    --stage-bottom-space: 0.75rem;
+    --stage-gap: 0.55rem;
+    --stage-card-radius: 1.15rem;
+  }
+
+  .app-shell {
+    padding: 0.45rem !important;
+  }
+
+  .app-shell > section.min-h-full {
+    padding-top: 0.5rem;
+    padding-bottom: 0.75rem;
   }
 
   .game-stage {
-    padding-inline: 0;
+    min-height: calc(100dvh - 0.9rem);
+    padding: 0;
+  }
+
+  .game-stage-shell {
+    min-height: calc(100dvh - 0.9rem);
+    gap: 0.55rem;
   }
 
   .game-stage-card {
     border-radius: var(--stage-card-radius);
   }
 
+  .game-stage-card--compact {
+    max-width: 100%;
+  }
+
   .game-stage-header {
     min-height: auto;
-    padding: 1.1rem;
+    padding: 0.9rem;
   }
 
   .game-stage-content {
-    padding: 0.9rem;
+    padding: 0.75rem;
   }
 
   .game-stage-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
     align-items: stretch;
     justify-content: center;
     flex-direction: column-reverse;
-    gap: 0.6rem;
-    padding: 0.9rem;
+    gap: 0.5rem;
+    min-height: auto;
+    padding: 0.7rem;
+    border-radius: 0 0 var(--stage-card-radius) var(--stage-card-radius);
   }
 
   .game-stage-actions > * {
@@ -290,31 +328,93 @@ h3,
   }
 
   .game-play-shell {
-    padding-top: var(--stage-top-space);
-    padding-bottom: var(--stage-bottom-space);
+    min-height: calc(100dvh - 0.9rem);
+    padding: 0;
+    gap: 0.55rem;
   }
 
   .game-play-topbar {
     min-height: auto;
-    border-radius: 1.25rem;
+    border-radius: 1rem;
+  }
+
+  .game-play-topbar [data-slot="card-content"] {
+    padding: 0.75rem !important;
+  }
+
+  .game-play-topbar h1 {
+    font-size: clamp(1.25rem, 7vw, 1.75rem);
+    line-height: 1.03;
   }
 
   .game-play-meta {
     min-height: auto;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+    gap: 0.55rem;
   }
 
   .game-play-board-card {
-    min-height: clamp(20rem, 48dvh, 30rem);
+    min-height: min(55dvh, calc(100dvw - 0.9rem));
+    max-height: 57dvh;
+    border-radius: 1rem;
+  }
+
+  .game-play-board-card [data-slot="card-content"] {
+    padding: 0.35rem !important;
   }
 
   .game-play-status {
     min-height: auto;
+    border-radius: 1rem;
+  }
+
+  .game-play-status [data-slot="card-content"] {
+    padding: 0.75rem !important;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .online-watch-shell {
+    min-height: calc(100dvh - 0.9rem);
+  }
+
+  .online-watch-board {
+    min-height: min(52dvh, calc(100dvw - 0.9rem));
+    max-height: 54dvh;
+  }
+
+  .online-live-panel {
+    max-height: 36dvh;
+    overflow-y: auto;
+    border-radius: 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .online-live-panel [data-slot="card-content"] {
+    padding: 0.7rem !important;
   }
 }
 
 @media (max-width: 576px) {
   .hero-title {
     letter-spacing: -0.045em;
+  }
+
+  .game-play-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .game-play-board-card,
+  .online-watch-board {
+    min-height: calc(100dvw - 0.9rem);
+    max-height: 48dvh;
+  }
+
+  .game-play-topbar .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .online-live-panel {
+    max-height: 38dvh;
   }
 }
