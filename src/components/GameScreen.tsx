@@ -26,6 +26,10 @@ interface GameScreenProps {
   isMuted: boolean;
   autoContinue: boolean;
   boardScatterKey?: string | number;
+  quitLabel?: string;
+  quitTitle?: string;
+  quitDescription?: string;
+  quitConfirmLabel?: string;
   onNumberSelect: (value: number) => void;
   onContinue: () => void;
   onBackToSetup: () => void;
@@ -67,6 +71,10 @@ export default function GameScreen({
   isMuted,
   autoContinue,
   boardScatterKey,
+  quitLabel,
+  quitTitle,
+  quitDescription,
+  quitConfirmLabel,
   onNumberSelect,
   onContinue,
   onBackToSetup,
@@ -170,7 +178,13 @@ export default function GameScreen({
         </Card>
 
         <div className="game-stage-actions" aria-label="Game actions">
-          <QuitGameDialog onConfirm={onBackToSetup} />
+          <QuitGameDialog
+            onConfirm={onBackToSetup}
+            triggerLabel={quitLabel}
+            title={quitTitle}
+            description={quitDescription}
+            confirmLabel={quitConfirmLabel}
+          />
           {phase === "turnSummary" && lastResult && (
             <Button className="h-12 rounded-2xl font-black" onClick={onContinue}>Continue</Button>
           )}
