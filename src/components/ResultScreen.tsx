@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import LeaderboardSaveButton from "@/components/LeaderboardSaveButton";
 import ShareableResultCard from "@/components/ShareableResultCard";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,18 @@ interface ResultScreenProps {
   isNewBest: boolean;
   onPlayAgain: () => void;
   playAgainLabel?: string;
+  localPlayerId?: string;
+}
+
+function getPlayerResults(results: TurnResult[], playerId: string) {
+  return results
+    .filter((result) => result.playerId === playerId)
+    .sort((a, b) => a.round - b.round);
+}
+
+function getPlacement(ranking: Player[], playerId: string) {
+  const placement = ranking.findIndex((player) => player.id === playerId);
+  return placement >= 0 ? placement + 1 : null;
 }
 
 export default function ResultScreen({
@@ -40,10 +55,23 @@ export default function ResultScreen({
   isNewBest,
   onPlayAgain,
   playAgainLabel = "Play Again",
+  localPlayerId,
 }: ResultScreenProps) {
   const ranking = [...players].sort((a, b) => a.totalTimeMs - b.totalTimeMs);
-  const stats = calculateGameStats(results);
+  const gameStats = calculateGameStats(results);
   const winner = ranking[0] ?? null;
+  const localPlayer = localPlayerId ? ranking.find((player) => player.id === localPlayerId) ?? null : null;
+  const focusPlayer = localPlayer ?? winner;
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(focusPlayer?.id ?? null);
+  const selectedPlayer = ranking.find((player) => player.id === selectedPlayerId) ?? focusPlayer ?? winner;
+  const focusResults = focusPlayer ? getPlayerResults(results, focusPlayer.id) : [];
+  const focusStats = calculateGameStats(focusResults);
+  const selectedResults = selectedPlayer ? getPlayerResults(results, selectedPlayer.id) : [];
+  const selectedStats = calculateGameStats(selectedResults);
+  const localWon = Boolean(localPlayer && winner?.id === localPlayer.id);
+  const hasPersonalContext = Boolean(localPlayer);
+  const focusPlacement = focusPlayer ? getPlacement(ranking, focusPlayer.id) : null;
+  const selectedPlacement = selectedPlayer ? getPlacement(ranking, selectedPlayer.id) : null;
   const history = [...results].sort((a, b) => {
     if (a.round !== b.round) {
       return a.round - b.round;
@@ -51,13 +79,22 @@ export default function ResultScreen({
 
     return a.finalTimeMs - b.finalTimeMs;
   });
+  const resultTitle = hasPersonalContext
+    ? localWon ? "You win" : "You lose"
+    : `${winner?.name ?? "Nobody"} wins`;
+  const resultDescription = hasPersonalContext && focusPlayer
+    ? `${focusPlayer.name} placed #${focusPlacement ?? "-"} of ${ranking.length}. ${localWon ? "Nice. You beat the tiny number goblins." : `${winner?.name ?? "Someone"} won this run.`}`
+    : isNewBest ? "New personal best saved." : "Game complete. Review the run.";
 
   function copyResult() {
-    if (!winner || typeof navigator === "undefined" || !navigator.clipboard) {
+    if (!focusPlayer || typeof navigator === "undefined" || !navigator.clipboard) {
       return;
     }
 
-    const text = `I played Blink & Find. Winner: ${winner.name}, time: ${formatTime(winner.totalTimeMs)}, accuracy: ${stats.accuracyPercent.toFixed(0)}%, wrong taps: ${stats.totalWrongTaps}.`;
+    const outcome = hasPersonalContext
+      ? localWon ? "I won" : `I lost. ${winner?.name ?? "Someone"} won`
+      : `${winner?.name ?? focusPlayer.name} won`;
+    const text = `I played Blink & Find. ${outcome}. My time: ${formatTime(focusPlayer.totalTimeMs)}, accuracy: ${focusStats.accuracyPercent.toFixed(0)}%, wrong taps: ${focusStats.totalWrongTaps}.`;
     void navigator.clipboard.writeText(text);
   }
 
@@ -67,9 +104,9 @@ export default function ResultScreen({
         <Card className="glass-panel game-stage-card game-stage-card--wide py-0">
           <CardHeader className="game-stage-header relative overflow-hidden">
             <div className="relative">
-              <CardDescription className="hero-copy">{isNewBest ? "New personal best saved." : "Game complete. Review the run."}</CardDescription>
+              <CardDescription className="hero-copy">{resultDescription}</CardDescription>
               <CardTitle className="hero-title mt-2 text-5xl sm:text-7xl">
-                {winner?.name ?? "Nobody"} wins
+                {resultTitle}
               </CardTitle>
             </div>
           </CardHeader>
@@ -77,63 +114,126 @@ export default function ResultScreen({
           <CardContent className="game-stage-content">
             <div className="grid gap-3 sm:grid-cols-4">
               <Card className="gap-1 rounded-[1.5rem] border-blue-100 bg-white/85 p-4 text-center shadow-none">
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Average</div>
-                <div className="text-xl font-black">{formatTime(stats.averageTurnMs)}</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{hasPersonalContext ? "Your avg" : "Average"}</div>
+                <div className="text-xl font-black">{formatTime(focusStats.averageTurnMs)}</div>
               </Card>
               <Card className="gap-1 rounded-[1.5rem] border-emerald-100 bg-white/85 p-4 text-center shadow-none">
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Accuracy</div>
-                <div className="text-xl font-black">{stats.accuracyPercent.toFixed(0)}%</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{hasPersonalContext ? "Your accuracy" : "Accuracy"}</div>
+                <div className="text-xl font-black">{focusStats.accuracyPercent.toFixed(0)}%</div>
               </Card>
               <Card className="gap-1 rounded-[1.5rem] border-indigo-100 bg-white/85 p-4 text-center shadow-none">
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Fastest</div>
-                <div className="text-xl font-black">{stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-"}</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{hasPersonalContext ? "Your fastest" : "Fastest"}</div>
+                <div className="text-xl font-black">{focusStats.fastestTurn ? formatTime(focusStats.fastestTurn.finalTimeMs) : "-"}</div>
               </Card>
               <Card className="gap-1 rounded-[1.5rem] border-amber-100 bg-white/85 p-4 text-center shadow-none">
-                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Penalty</div>
-                <div className="text-xl font-black">{formatTime(stats.totalPenaltyMs)}</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{hasPersonalContext ? "Your penalty" : "Penalty"}</div>
+                <div className="text-xl font-black">{formatTime(focusStats.totalPenaltyMs)}</div>
               </Card>
             </div>
 
             <div className="mt-4 rounded-[1.5rem] border bg-white/85 p-4 text-sm shadow-sm">
               <div className="flex flex-col justify-between gap-1 sm:flex-row">
                 <span className="text-muted-foreground">
-                  {isNewBest ? "Personal best updated" : "Best saved result"}
+                  {hasPersonalContext ? "Your result" : isNewBest ? "Personal best updated" : "Best saved result"}
                 </span>
                 <strong>
-                  {bestScore ? `${bestScore.winnerName} - ${formatTime(bestScore.winnerTimeMs)}` : "No saved score yet."}
+                  {focusPlayer ? `${focusPlayer.name} - ${formatTime(focusPlayer.totalTimeMs)}${focusPlacement ? ` · #${focusPlacement}` : ""}` : "No result yet."}
                 </strong>
               </div>
-              {latestScore && !isNewBest && (
+              {!hasPersonalContext && latestScore && !isNewBest && (
                 <div className="mt-1 text-muted-foreground">
                   This run: {latestScore.winnerName} - {formatTime(latestScore.winnerTimeMs)}
                 </div>
               )}
+              {!hasPersonalContext && bestScore && (
+                <div className="mt-1 text-muted-foreground">
+                  Best saved: {bestScore.winnerName} - {formatTime(bestScore.winnerTimeMs)}
+                </div>
+              )}
             </div>
 
-            {winner && (
+            {focusPlayer && (
               <ShareableResultCard
                 eyebrow="Blink & Find Result"
-                title={`${winner.name} wins`}
-                subtitle={`${ranking.length} player${ranking.length === 1 ? "" : "s"} · ${results.length} turn${results.length === 1 ? "" : "s"}`}
-                primaryLabel="Winning time"
-                primaryValue={formatTime(winner.totalTimeMs)}
+                title={hasPersonalContext ? resultTitle : `${winner?.name ?? focusPlayer.name} wins`}
+                subtitle={`${focusPlayer.name} · ${ranking.length} player${ranking.length === 1 ? "" : "s"} · ${results.length} turn${results.length === 1 ? "" : "s"}`}
+                primaryLabel={hasPersonalContext ? "Your total time" : "Winning time"}
+                primaryValue={formatTime(focusPlayer.totalTimeMs)}
                 metrics={[
-                  { label: "Accuracy", value: `${stats.accuracyPercent.toFixed(0)}%` },
-                  { label: "Wrong taps", value: String(stats.totalWrongTaps) },
-                  { label: "Fastest find", value: stats.fastestTurn ? formatTime(stats.fastestTurn.finalTimeMs) : "-" },
-                  { label: "Penalty", value: formatTime(stats.totalPenaltyMs) },
+                  { label: "Accuracy", value: `${focusStats.accuracyPercent.toFixed(0)}%` },
+                  { label: "Wrong taps", value: String(focusStats.totalWrongTaps) },
+                  { label: "Fastest find", value: focusStats.fastestTurn ? formatTime(focusStats.fastestTurn.finalTimeMs) : "-" },
+                  { label: "Penalty", value: formatTime(focusStats.totalPenaltyMs) },
                 ]}
                 footer="Play the free number hunting memory game"
-                filename={`blink-find-${winner.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-result.svg`}
-                shareText={`I played Blink & Find. ${winner.name} won with ${formatTime(winner.totalTimeMs)}, ${stats.accuracyPercent.toFixed(0)}% accuracy, and ${stats.totalWrongTaps} wrong taps.`}
+                filename={`blink-find-${focusPlayer.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-result.svg`}
+                shareText={`I played Blink & Find. ${hasPersonalContext ? resultTitle : `${winner?.name ?? focusPlayer.name} won`} with ${formatTime(focusPlayer.totalTimeMs)}, ${focusStats.accuracyPercent.toFixed(0)}% accuracy, and ${focusStats.totalWrongTaps} wrong taps.`}
               />
+            )}
+
+            {selectedPlayer && (
+              <Card className="mt-4 gap-3 rounded-[1.75rem] bg-white/85 py-4 shadow-none">
+                <CardHeader className="px-4">
+                  <CardTitle className="text-base font-black">{selectedPlayer.id === focusPlayer?.id ? "Your breakdown" : `${selectedPlayer.name}'s breakdown`}</CardTitle>
+                  <CardDescription>Tap any player in the ranking to inspect their run. Finally, useful curiosity.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 px-4 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                    <div className="rounded-2xl border bg-muted/20 p-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Placement</div>
+                      <div className="text-2xl font-black">#{selectedPlacement ?? "-"}</div>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 p-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total time</div>
+                      <div className="text-2xl font-black">{formatTime(selectedPlayer.totalTimeMs)}</div>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 p-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Average turn</div>
+                      <div className="text-2xl font-black">{formatTime(selectedStats.averageTurnMs)}</div>
+                    </div>
+                    <div className="rounded-2xl border bg-muted/20 p-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Mistakes</div>
+                      <div className="text-2xl font-black">{selectedStats.totalWrongTaps}</div>
+                    </div>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Round</TableHead>
+                          <TableHead>Target</TableHead>
+                          <TableHead>Raw</TableHead>
+                          <TableHead>Penalty</TableHead>
+                          <TableHead>Final</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedResults.map((result) => (
+                          <TableRow key={result.id}>
+                            <TableCell>{result.round}</TableCell>
+                            <TableCell>{result.targetNumber}</TableCell>
+                            <TableCell>{formatTime(result.rawTimeMs)}</TableCell>
+                            <TableCell>{formatTime(result.penaltyMs)}</TableCell>
+                            <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
+                          </TableRow>
+                        ))}
+                        {selectedResults.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground">No completed turns for this player.</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
               <Card className="gap-3 rounded-[1.75rem] bg-white/85 py-4 shadow-none">
                 <CardHeader className="px-4">
                   <CardTitle className="text-base font-black">Final ranking</CardTitle>
-                  <CardDescription>Lowest total time wins.</CardDescription>
+                  <CardDescription>Tap a player to see their breakdown.</CardDescription>
                 </CardHeader>
                 <CardContent className="px-4">
                   <Table>
@@ -147,9 +247,21 @@ export default function ResultScreen({
                     </TableHeader>
                     <TableBody>
                       {ranking.map((player, index) => (
-                        <TableRow key={player.id}>
+                        <TableRow
+                          key={player.id}
+                          tabIndex={0}
+                          role="button"
+                          className={`cursor-pointer transition hover:bg-primary/10 ${selectedPlayer?.id === player.id ? "bg-primary/10" : ""}`}
+                          onClick={() => setSelectedPlayerId(player.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedPlayerId(player.id);
+                            }
+                          }}
+                        >
                           <TableCell>{index + 1}</TableCell>
-                          <TableCell>{player.name}</TableCell>
+                          <TableCell>{player.id === localPlayerId ? "You" : player.name}</TableCell>
                           <TableCell>{formatTime(player.totalTimeMs)}</TableCell>
                           <TableCell>{player.wrongTaps}</TableCell>
                         </TableRow>
@@ -179,7 +291,7 @@ export default function ResultScreen({
                       {history.map((result) => (
                         <TableRow key={result.id}>
                           <TableCell>{result.round}</TableCell>
-                          <TableCell>{result.playerName}</TableCell>
+                          <TableCell>{result.playerId === localPlayerId ? "You" : result.playerName}</TableCell>
                           <TableCell>{result.targetNumber}</TableCell>
                           <TableCell>{formatTime(result.finalTimeMs)}</TableCell>
                           <TableCell>{result.wrongTaps}</TableCell>
@@ -193,12 +305,12 @@ export default function ResultScreen({
           </CardContent>
 
           <CardFooter className="game-stage-actions flex-wrap">
-            {winner && (
+            {focusPlayer && (
               <LeaderboardSaveButton
-                playerName={winner.name}
-                scoreMs={winner.totalTimeMs}
-                wrongTaps={winner.wrongTaps}
-                accuracyPercent={stats.accuracyPercent}
+                playerName={focusPlayer.name}
+                scoreMs={focusPlayer.totalTimeMs}
+                wrongTaps={focusPlayer.wrongTaps}
+                accuracyPercent={focusStats.accuracyPercent}
               />
             )}
             <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><a href="/">Back Home</a></Button>
