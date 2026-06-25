@@ -31,7 +31,19 @@ interface OnlineSameChallengeGameProps {
   onEndRoom?: () => void;
 }
 
-function WaitingCard({ title, description, onBack, onEndRoom }: { title: string; description: string; onBack: () => void; onEndRoom: () => void; }) {
+function WaitingCard({
+  title,
+  description,
+  onBack,
+  onEndRoom,
+  canEndRoom,
+}: {
+  title: string;
+  description: string;
+  onBack: () => void;
+  onEndRoom: () => void;
+  canEndRoom: boolean;
+}) {
   return (
     <main className="app-shell">
       <section className="flex h-full items-center justify-center px-2">
@@ -46,7 +58,7 @@ function WaitingCard({ title, description, onBack, onEndRoom }: { title: string;
           </CardContent>
           <CardFooter className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-between sm:p-5">
             <Button variant="outline" onClick={onBack}>Leave Room</Button>
-            <Button variant="destructive" onClick={onEndRoom}>End Room</Button>
+            {canEndRoom && <Button variant="destructive" onClick={onEndRoom}>End Room</Button>}
           </CardFooter>
         </Card>
       </section>
@@ -155,7 +167,7 @@ function DisabledBoardView({
                 <Badge variant="outline" className="rounded-full px-3 py-1">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge>
               </div>
               <h1 className="mt-2 text-2xl font-black tracking-[-0.05em] text-slate-950 sm:text-3xl">{activeCopy}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. Finally, waiting without sensory deprivation.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn.</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <Button variant="outline" className="rounded-2xl" onClick={onLeave}>Leave Room</Button>
@@ -202,6 +214,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const currentRound = getCurrentOnlineRound(snapshot);
   const activePlayer = snapshot.players.find((player) => player.id === room.current_player_id) ?? null;
   const localIsActive = activePlayer?.id === localPlayer.id;
+  const localIsHost = localPlayer.is_host;
   const gamePlayers = onlinePlayersToGamePlayers(snapshot.players);
   const gameResults = onlineResultsToTurnResults(snapshot.results);
   const gameCurrentPlayer = activePlayer ? onlinePlayerToGamePlayer(activePlayer) : null;
@@ -209,6 +222,11 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const targetNumber = currentRound?.target_number ?? null;
 
   async function handleEndRoom() {
+    if (!localIsHost) {
+      onBackToLobby();
+      return;
+    }
+
     if (onEndRoom) {
       onEndRoom();
       return;
@@ -328,21 +346,31 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }
 
   async function nextRound() {
+    if (!localIsHost) return;
     try { await startNextOnlineRound(room, snapshot.players); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start next round."); }
   }
 
   async function finishRoom() {
+    if (!localIsHost) return;
     try { await finishOnlineRoom(room); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not finish room."); }
   }
 
-  if (!currentRound) return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} onEndRoom={handleEndRoom} />;
+  if (!currentRound) return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} onEndRoom={handleEndRoom} canEndRoom={localIsHost} />;
 
   if (!localIsActive && phase !== "roundSummary") {
-    return <DisabledBoardView snapshot={snapshot} localPlayer={localPlayer} board={board} activePlayer={activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
+    return <DisabledBoardView snapshot={snapshot} localPlayer={localPlayer} board={board} activePlayer={room.status === "round_summary" ? null : activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
   }
 
-  if (room.status === "round_summary") return <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={nextRound} onFinishGame={finishRoom} />;
-  if (phase === "ready") return <ReadyScreen player={gameCurrentPlayer} round={room.current_round} totalPlayers={snapshot.players.length} playerIndex={snapshot.players.findIndex((player) => player.id === activePlayer?.id)} config={room.settings} onStartTurn={startTurn} onBackToSetup={handleEndRoom} backLabel="End Room" />;
+  if (room.status === "round_summary") {
+    if (!localIsHost) {
+      return <DisabledBoardView snapshot={snapshot} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
+    }
+    return <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={nextRound} onFinishGame={finishRoom} />;
+  }
 
-  return <GameScreen phase={phase} config={room.settings} currentPlayer={gameCurrentPlayer} currentRound={room.current_round} board={board} targetNumber={targetNumber} targetHidden={phase === "turnSummary" ? true : targetHidden} elapsedMs={elapsedMs} previewCountdown={phase === "turnSummary" ? 0 : previewCountdown} currentWrongTaps={currentWrongTaps} lastSelectedNumber={lastSelectedNumber} lastSelectionWasWrong={lastSelectionWasWrong} lastResult={lastResult} statusMessage={message || statusMessage} isMuted={isMuted} autoContinue={autoContinue} boardScatterKey={`${room.id}-${room.current_round}`} onNumberSelect={handleNumberSelect} onContinue={() => onRefresh()} onBackToSetup={handleEndRoom} onToggleMute={() => setIsMuted((current) => !current)} onToggleAutoContinue={() => setAutoContinue((current) => !current)} quitLabel="End Room" quitTitle="End this online room?" quitDescription="This will close the room for every player. Use Leave Room from the lobby if you only want to step out." quitConfirmLabel="End Room" />;
+  if (phase === "ready") {
+    return <ReadyScreen player={gameCurrentPlayer} round={room.current_round} totalPlayers={snapshot.players.length} playerIndex={snapshot.players.findIndex((player) => player.id === activePlayer?.id)} config={room.settings} onStartTurn={startTurn} onBackToSetup={localIsHost ? handleEndRoom : onBackToLobby} backLabel={localIsHost ? "End Room" : "Leave Room"} />;
+  }
+
+  return <GameScreen phase={phase} config={room.settings} currentPlayer={gameCurrentPlayer} currentRound={room.current_round} board={board} targetNumber={targetNumber} targetHidden={phase === "turnSummary" ? true : targetHidden} elapsedMs={elapsedMs} previewCountdown={phase === "turnSummary" ? 0 : previewCountdown} currentWrongTaps={currentWrongTaps} lastSelectedNumber={lastSelectedNumber} lastSelectionWasWrong={lastSelectionWasWrong} lastResult={lastResult} statusMessage={message || statusMessage} isMuted={isMuted} autoContinue={autoContinue} boardScatterKey={`${room.id}-${room.current_round}`} onNumberSelect={handleNumberSelect} onContinue={() => onRefresh()} onBackToSetup={localIsHost ? handleEndRoom : onBackToLobby} onToggleMute={() => setIsMuted((current) => !current)} onToggleAutoContinue={() => setAutoContinue((current) => !current)} quitLabel={localIsHost ? "End Room" : "Leave Room"} quitTitle={localIsHost ? "End this online room?" : "Leave this online room?"} quitDescription={localIsHost ? "This will close the room for every player." : "You will leave the room. The host can keep playing or end it."} quitConfirmLabel={localIsHost ? "End Room" : "Leave Room"} />;
 }
