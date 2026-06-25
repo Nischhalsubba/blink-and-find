@@ -117,10 +117,6 @@ function shouldRepairSameChallengeProgress(snapshot: OnlineRoomSnapshot) {
   return players.every((player) => completedPlayerIds.has(player.id));
 }
 
-function currentRoundGuard(query: ReturnType<ReturnType<typeof requireSupabase>["from"]>["update"], room: OnlineRoom) {
-  return query.eq("id", room.id).eq("current_round", room.current_round);
-}
-
 async function writeSameChallengeNextRound(room: OnlineRoom, players: OnlinePlayer[]) {
   const client = requireSupabase();
   const firstPlayer = sortOnlinePlayers(players)[0];
