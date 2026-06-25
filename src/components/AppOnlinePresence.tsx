@@ -12,7 +12,7 @@ import { saveOnlineRoomSession } from "@/lib/onlineSession";
 import { getPlayerProfile } from "@/lib/playerProfile";
 import { hasSupabaseConfig } from "@/lib/supabase";
 
-const POLL_MS = 5000;
+const POLL_MS = 1000;
 const STATUS_OPTIONS: Array<{ mode: UserPresenceMode; label: string; helper: string }> = [
   { mode: "online", label: "Online", helper: "Inviteable" },
   { mode: "away", label: "Away", helper: "No invites" },
