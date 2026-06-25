@@ -1,4 +1,4 @@
-import { trackEvent } from "@/lib/analytics";
+import { clearAppLogs, loadAppLogs, reportAppError, type StoredAppLog } from "@/lib/appLogger";
 
 export interface ClientErrorReport {
   message: string;
@@ -8,44 +8,28 @@ export interface ClientErrorReport {
   context?: string;
 }
 
-const ERROR_KEY = "blink-and-find-error-reports";
-const MAX_ERRORS = 40;
+function toClientErrorReport(log: StoredAppLog): ClientErrorReport {
+  const error = log.metadata.error as { stack?: string } | undefined;
+
+  return {
+    message: log.message ?? log.eventName,
+    stack: typeof error?.stack === "string" ? error.stack : undefined,
+    path: log.path,
+    createdAt: log.createdAt,
+    context: log.eventName,
+  };
+}
 
 export function loadErrorReports(): ClientErrorReport[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(ERROR_KEY);
-    return rawValue ? JSON.parse(rawValue) as ClientErrorReport[] : [];
-  } catch {
-    return [];
-  }
+  return loadAppLogs()
+    .filter((log) => log.level === "error")
+    .map(toClientErrorReport);
 }
 
 export function clearErrorReports() {
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(ERROR_KEY);
-  }
+  clearAppLogs();
 }
 
 export function reportClientError(error: unknown, context?: string) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const report: ClientErrorReport = {
-    message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
-    path: window.location.pathname,
-    createdAt: new Date().toISOString(),
-    context,
-  };
-
-  const reports = [...loadErrorReports(), report].slice(-MAX_ERRORS);
-  window.localStorage.setItem(ERROR_KEY, JSON.stringify(reports));
-  trackEvent("error_reported", { context: context ?? null, message: report.message.slice(0, 140) });
-
-  return report;
+  return reportAppError(error, context ?? "client_error");
 }
