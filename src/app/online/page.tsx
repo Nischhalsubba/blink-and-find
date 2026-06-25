@@ -355,7 +355,7 @@ export default function OnlinePage() {
     const startLabel = !canStartRoom ? "Waiting for Friend" : roomCapacity === 1 ? "Start Solo Online Game" : "Start Game";
 
     if (roomStatus === "finished") {
-      return <main className="app-shell"><ResultScreen players={onlinePlayersToGamePlayers(snapshot.players)} results={onlineResultsToTurnResults(snapshot.results)} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={closeRoomView} playAgainLabel="Back to Online" /></main>;
+      return <main className="app-shell"><ResultScreen players={onlinePlayersToGamePlayers(snapshot.players)} results={onlineResultsToTurnResults(snapshot.results)} bestScore={null} latestScore={null} isNewBest={false} onPlayAgain={closeRoomView} playAgainLabel="Back to Online" localPlayerId={localPlayer.id} /></main>;
     }
 
     if (roomStatus !== "lobby" && snapshot.room.game_type === "same_challenge") {
