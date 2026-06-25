@@ -324,6 +324,14 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     return () => window.clearInterval(timer);
   }, [phase, turnStartedAt]);
 
+  useEffect(() => {
+    if (phase !== "turnSummary") return;
+    const timer = window.setInterval(() => {
+      void onRefresh();
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [phase, onRefresh]);
+
   async function startTurn() {
     if (!currentRound || targetNumber === null) return;
     clearPreviewTimers();
@@ -375,24 +383,16 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     }
 
     const result = createTurnResult({ round: room.current_round, player: onlinePlayerToGamePlayer(activePlayer), targetNumber, rawTimeMs: Date.now() - turnStartedAt, wrongTaps: wrongTapsRef.current, penaltySeconds: room.settings.penaltySeconds });
-    const playerIndex = roomParticipants.findIndex((player) => player.id === result.playerId);
-    const isLastPlayerInRound = playerIndex >= 0 && playerIndex === roomParticipants.length - 1;
-    const isFinalRound = room.current_round >= room.settings.totalRounds;
 
     setLastSelectionWasWrong(false);
     setLastResult(result);
     setElapsedMs(result.finalTimeMs);
     setTurnStartedAt(null);
-    setStatusMessage(isLastPlayerInRound && !isFinalRound ? "Correct. Starting next round automatically..." : `Correct. ${activePlayer.name} finished in ${(result.finalTimeMs / 1000).toFixed(2)} seconds.`);
+    setStatusMessage(`Correct. ${activePlayer.name} finished in ${(result.finalTimeMs / 1000).toFixed(2)} seconds. Syncing next turn...`);
     setPhase("turnSummary");
 
     try {
-      await submitSameChallengeResult({ room, players: roomParticipants, result });
-
-      if (isLastPlayerInRound && !isFinalRound) {
-        await startNextOnlineRound(room, roomParticipants);
-      }
-
+      await submitSameChallengeResult({ room, players: snapshot.players, result });
       await onRefresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not submit result.");
@@ -411,7 +411,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
 
   if (!currentRound) return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} onEndRoom={handleEndRoom} canEndRoom={localIsHost} />;
 
-  if (!localIsActive && phase !== "roundSummary") {
+  if (!localIsActive) {
     return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={room.status === "round_summary" ? null : activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
   }
 
