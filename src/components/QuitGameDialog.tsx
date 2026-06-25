@@ -13,29 +13,37 @@ import { Button } from "@/components/ui/button";
 
 interface QuitGameDialogProps {
   onConfirm: () => void;
+  triggerLabel?: string;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
 }
 
 /**
  * Confirmation dialog for leaving an active game.
  */
-export default function QuitGameDialog({ onConfirm }: QuitGameDialogProps) {
+export default function QuitGameDialog({
+  onConfirm,
+  triggerLabel = "Back to Setup",
+  title = "Leave this game?",
+  description = "Current round progress will be lost. Saved best scores and settings stay on this device.",
+  confirmLabel = "Leave Game",
+}: QuitGameDialogProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button variant="outline" className="h-12 rounded-2xl font-bold">
-          Back to Setup
+          {triggerLabel}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Leave this game?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Current round progress will be lost. Saved best scores and settings stay on this device.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Leave Game</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
