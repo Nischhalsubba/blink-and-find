@@ -178,14 +178,27 @@ body {
 
 @media (max-width: 640px) {
   .site-breadcrumb {
-    top: max(0.55rem, env(safe-area-inset-top));
-    left: max(0.55rem, env(safe-area-inset-left));
-    max-width: min(22rem, calc(100vw - 1rem));
-    font-size: 0.7rem;
+    top: max(0.5rem, env(safe-area-inset-top));
+    left: max(0.5rem, env(safe-area-inset-left));
+    max-width: min(11rem, calc(100vw - 8rem));
+    padding: 0.4rem 0.52rem;
+    font-size: 0.68rem;
+  }
+
+  .site-breadcrumb ol {
+    gap: 0.22rem;
+  }
+
+  .site-breadcrumb li {
+    gap: 0.22rem;
   }
 
   .site-breadcrumb a,
   .site-breadcrumb span[aria-current="page"] {
-    max-width: 8.5rem;
+    max-width: 5.1rem;
+  }
+
+  .site-breadcrumb li:not(:first-child):not(:last-child) {
+    display: none;
   }
 }
