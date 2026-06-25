@@ -153,34 +153,36 @@ export default function AppOnlinePresence() {
   return (
     <>
       {showStatusControl && (
-        <div className="fixed left-3 top-3 z-40 max-w-[calc(100vw-1.5rem)] sm:left-4 sm:top-4">
-          <button type="button" onClick={() => setStatusOpen((open) => !open)} className="flex items-center gap-2 rounded-full border bg-white/90 px-3 py-2 text-xs font-black shadow-lg backdrop-blur transition hover:-translate-y-0.5">
-            <span className={`h-2.5 w-2.5 rounded-full ${mode === "online" ? "bg-green-500" : mode === "away" ? "bg-amber-400" : mode === "busy" ? "bg-fuchsia-500" : "bg-slate-400"}`} />
-            <span>{mode === "offline" ? "Hidden" : statusMessage}</span>
-            <span className="text-slate-500">{shortDeviceId(deviceId)}</span>
-          </button>
+        <div className="fixed right-2 top-2 z-[70] flex max-w-[calc(50vw-0.35rem)] justify-end sm:right-4 sm:top-4 sm:max-w-[19rem]">
+          <div className="relative flex justify-end">
+            <button type="button" onClick={() => setStatusOpen((open) => !open)} className="flex max-w-full items-center gap-1.5 rounded-full border bg-white/90 px-2.5 py-2 text-xs font-black shadow-lg backdrop-blur transition hover:-translate-y-0.5 sm:gap-2 sm:px-3">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${mode === "online" ? "bg-green-500" : mode === "away" ? "bg-amber-400" : mode === "busy" ? "bg-fuchsia-500" : "bg-slate-400"}`} />
+              <span className="max-w-[4.5rem] truncate sm:max-w-[7rem]">{mode === "offline" ? "Hidden" : statusMessage}</span>
+              <span className="hidden text-slate-500 sm:inline">{shortDeviceId(deviceId)}</span>
+            </button>
 
-          {statusOpen && (
-            <Card className="mt-2 w-[19rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border bg-white/95 shadow-xl backdrop-blur">
-              <CardHeader className="p-3 pb-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-sm font-black">Online status</CardTitle>
-                    <CardDescription className="text-xs">{profileName}</CardDescription>
+            {statusOpen && (
+              <Card className="absolute right-0 top-full mt-2 w-[19rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border bg-white/95 shadow-xl backdrop-blur">
+                <CardHeader className="p-3 pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-black">Online status</CardTitle>
+                      <CardDescription className="truncate text-xs">{profileName}</CardDescription>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 shrink-0 rounded-full px-2" onClick={() => setStatusOpen(false)}>Close</Button>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-full px-2" onClick={() => setStatusOpen(false)}>Close</Button>
-                </div>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 p-3 pt-1">
-                {STATUS_OPTIONS.map((option) => (
-                  <button key={option.mode} type="button" onClick={() => chooseMode(option.mode)} className={`rounded-xl border p-2 text-left text-xs transition ${mode === option.mode ? "border-primary bg-primary text-primary-foreground" : "border-slate-200 bg-white/70 text-slate-700 hover:bg-slate-50"}`}>
-                    <span className="block font-black">{option.label}</span>
-                    <span className="mt-0.5 block text-[0.68rem] opacity-80">{option.helper}</span>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-2 p-3 pt-1">
+                  {STATUS_OPTIONS.map((option) => (
+                    <button key={option.mode} type="button" onClick={() => chooseMode(option.mode)} className={`rounded-xl border p-2 text-left text-xs transition ${mode === option.mode ? "border-primary bg-primary text-primary-foreground" : "border-slate-200 bg-white/70 text-slate-700 hover:bg-slate-50"}`}>
+                      <span className="block font-black">{option.label}</span>
+                      <span className="mt-0.5 block text-[0.68rem] opacity-80">{option.helper}</span>
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
