@@ -176,6 +176,28 @@ export async function declineOnlineInvite(inviteId: string): Promise<void> {
   if (error && !isMissingPresenceTableError(error)) throw error;
 }
 
+export async function cancelOnlineInvite(invite: OnlineGameInvite): Promise<void> {
+  const client = requireSupabase();
+  const respondedAt = new Date().toISOString();
+  const { error } = await client
+    .from("online_game_invites")
+    .update({ status: "cancelled", responded_at: respondedAt })
+    .eq("id", invite.id)
+    .eq("status", "pending");
+
+  if (error && !isMissingPresenceTableError(error)) throw error;
+
+  if (invite.room_id) {
+    const { error: roomError } = await client
+      .from("online_rooms")
+      .update({ status: "abandoned", current_player_id: null, round_start_at: null })
+      .eq("id", invite.room_id)
+      .eq("status", "lobby");
+
+    if (roomError && !isMissingPresenceTableError(roomError)) throw roomError;
+  }
+}
+
 export async function subscribeToOnlinePresence(deviceId: string, onChange: () => void) {
   const client = requireSupabase();
   const channel = client
