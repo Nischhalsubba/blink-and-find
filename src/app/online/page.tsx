@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { trackEvent } from "@/lib/analytics";
 import { getDeviceId } from "@/lib/device";
 import { DIFFICULTIES } from "@/lib/gameDefaults";
+import { addAiPlayersToOnlineRoom, clampAiOpponentCount, createOnlineRoomWithAi, isOnlineAiPlayer } from "@/lib/onlineAi";
 import { setOnlinePresenceOffline, upsertOnlinePresence } from "@/lib/onlinePresence";
 import { getMinimumPlayersToStart, normalizeMaxPlayers, removeOnlinePlayer, setOnlineRoomVisibility, type OnlineRoomVisibility } from "@/lib/onlineRoomExtras";
 import { endOnlineRoom } from "@/lib/onlineRoomStatus";
@@ -114,6 +115,7 @@ export default function OnlinePage() {
   const [gameType, setGameType] = useState<OnlineGameType>("same_challenge");
   const [roomVisibility, setRoomVisibility] = useState<OnlineRoomVisibility>("private");
   const [maxPlayers, setMaxPlayers] = useState(2);
+  const [aiOpponentCount, setAiOpponentCount] = useState(1);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [boardSize, setBoardSize] = useState(100);
   const [rounds, setRounds] = useState(5);
@@ -129,6 +131,7 @@ export default function OnlinePage() {
   const safeRounds = clampNumber(rounds, 1, 20, 5);
   const safePreviewSeconds = clampNumber(previewSeconds, 1, 15, 2);
   const safePenaltySeconds = clampNumber(penaltySeconds, 0, 10, 3);
+  const safeAiOpponentCount = clampAiOpponentCount(aiOpponentCount);
   const customNumbers = parseCustomNumbers(customNumbersInput, safeBoardSize);
   const gridSize = Math.ceil(Math.sqrt(safeBoardSize));
 
@@ -198,6 +201,39 @@ export default function OnlinePage() {
       enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, "Room ready. Share the code or invite a live player.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create room.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function createAiMatch() {
+    setIsBusy(true);
+    setMessage("Creating AI match...");
+    saveOnlineName(playerName);
+    try {
+      const settings = buildSettings();
+      const result = await createOnlineRoomWithAi({ playerName, deviceId: getDeviceId(), gameType: "same_challenge", settings, aiCount: safeAiOpponentCount });
+      await setOnlineRoomVisibility(result.room.id, "private", safeAiOpponentCount + 1);
+      const nextSnapshot = await fetchOnlineRoomSnapshot(result.room.id);
+      trackEvent("online_room_created", { gameType: "same_challenge", visibility: "private", maxPlayers: safeAiOpponentCount + 1, aiOpponents: safeAiOpponentCount });
+      enterOnlineRoom({ ...nextSnapshot, localPlayer: result.localPlayer }, `AI match ready with ${safeAiOpponentCount} opponent${safeAiOpponentCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create AI match.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function addAiToCurrentRoom() {
+    if (!snapshot || !localPlayer?.is_host) return;
+    setIsBusy(true);
+    setMessage(`Adding ${safeAiOpponentCount} AI opponent${safeAiOpponentCount === 1 ? "" : "s"}...`);
+    try {
+      const nextSnapshot = await addAiPlayersToOnlineRoom(snapshot.room.id, safeAiOpponentCount);
+      const nextLocalPlayer = nextSnapshot.players.find((player) => player.id === localPlayer.id) ?? localPlayer;
+      enterOnlineRoom({ ...nextSnapshot, localPlayer: nextLocalPlayer }, `Added ${safeAiOpponentCount} AI opponent${safeAiOpponentCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not add AI opponents.");
     } finally {
       setIsBusy(false);
     }
@@ -373,7 +409,7 @@ export default function OnlinePage() {
             <CardHeader className="border-b pb-4 text-center">
               <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Room ready</Badge>
               <CardTitle className="text-4xl font-black tracking-tight sm:text-6xl">{snapshot.room.code}</CardTitle>
-              <CardDescription>{isHost ? "You are admin. Invite players, then start." : "You joined. The admin will start the game."}</CardDescription>
+              <CardDescription>{isHost ? "You are admin. Invite players, add AI opponents, then start." : "You joined. The admin will start the game."}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -383,13 +419,22 @@ export default function OnlinePage() {
                 <Badge variant="outline">{snapshot.room.settings.totalRounds} rounds</Badge>
               </div>
               <div className="grid gap-2">
-                {snapshot.players.map((player) => (
-                  <div key={player.id} className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
-                    <div><div className="font-medium">{player.name}</div><div className="text-xs text-muted-foreground">Joined {new Date(player.joined_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div>
-                    <div className="flex items-center gap-2"><OnlinePlayerPresence player={player} localPlayerId={localPlayer.id} snapshot={snapshot} />{isHost && !player.is_host && roomStatus === "lobby" && <Button size="sm" variant="ghost" onClick={() => handleRemovePlayer(player)} disabled={isBusy}>Remove</Button>}</div>
-                  </div>
-                ))}
+                {snapshot.players.map((player) => {
+                  const isAi = isOnlineAiPlayer(player);
+                  return (
+                    <div key={player.id} className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
+                      <div><div className="font-medium">{player.name}</div><div className="text-xs text-muted-foreground">{isAi ? "AI opponent" : `Joined ${new Date(player.joined_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}</div></div>
+                      <div className="flex items-center gap-2">{isAi ? <Badge variant="secondary">AI</Badge> : <OnlinePlayerPresence player={player} localPlayerId={localPlayer.id} snapshot={snapshot} />}{isHost && !player.is_host && roomStatus === "lobby" && <Button size="sm" variant="ghost" onClick={() => handleRemovePlayer(player)} disabled={isBusy}>Remove</Button>}</div>
+                    </div>
+                  );
+                })}
               </div>
+              {isHost && snapshot.room.game_type === "same_challenge" && (
+                <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div className="grid gap-2"><Label htmlFor="lobby-ai-count">AI opponents</Label><Input id="lobby-ai-count" min={1} max={24} type="number" value={safeAiOpponentCount} onChange={(event) => setAiOpponentCount(clampAiOpponentCount(Number(event.target.value)))} /></div>
+                  <Button className="rounded-2xl" onClick={addAiToCurrentRoom} disabled={isBusy}>Add AI</Button>
+                </div>
+              )}
               {isHost ? <InvitePanel roomCode={snapshot.room.code} inviteUrl={inviteUrl} onMessage={setMessage} /> : <div className="rounded-xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">You are a player in this room. The admin controls Start and End Room.</div>}
               {message && <div className="text-center text-sm text-muted-foreground" role="status">{message}</div>}
             </CardContent>
@@ -410,7 +455,7 @@ export default function OnlinePage() {
           <CardHeader className="border-b p-6 text-center sm:p-8">
             <Badge variant="secondary" className="mx-auto mb-3 w-fit rounded-full">Online Play</Badge>
             <CardTitle className="text-4xl font-black tracking-[-0.05em] sm:text-6xl">Online in 3 moves</CardTitle>
-            <CardDescription className="mx-auto max-w-2xl text-base leading-7">Pick someone online, create an invite room, or join a code. The advanced settings are tucked away where they belong.</CardDescription>
+            <CardDescription className="mx-auto max-w-2xl text-base leading-7">Pick someone online, add AI opponents, create an invite room, or join a code. The advanced settings are tucked away where they belong.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 p-4 sm:p-6">
             <div className="grid gap-2 rounded-[1.4rem] border bg-muted/20 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -420,6 +465,7 @@ export default function OnlinePage() {
             <div className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr]">
               <OnlineAvailablePlayers playerName={playerName} gameType={gameType} settings={buildSettings()} onEnterRoom={enterOnlineRoom} onMessage={setMessage} />
               <div className="grid gap-3">
+                <QuickActionCard title="Play AI opponents" badge="AI" description="No one online? Add bots and start a Same Challenge match."><div className="grid gap-3"><div className="grid gap-2"><Label htmlFor="ai-count">Number of AI</Label><Input id="ai-count" min={1} max={24} type="number" value={safeAiOpponentCount} onChange={(event) => setAiOpponentCount(clampAiOpponentCount(Number(event.target.value)))} /></div><Button className="h-14 w-full rounded-2xl text-base font-black" onClick={createAiMatch} disabled={isBusy}>{isBusy ? "Creating..." : "Create AI Match"}</Button></div></QuickActionCard>
                 <QuickActionCard title="Invite a friend" badge="2" description="Create a private room and share the code."><Button className="h-14 w-full rounded-2xl text-base font-black" onClick={createInviteRoom} disabled={isBusy}>{isBusy ? "Creating..." : "Create Invite Room"}</Button></QuickActionCard>
                 <QuickActionCard title="Join with code" badge="3" description="Paste the code your friend sent you."><div className="flex gap-2"><Input className="h-12 rounded-2xl" value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} placeholder="AB123" /><Button className="h-12 rounded-2xl" onClick={() => quickJoinRoom()} disabled={isBusy || roomCode.trim().length === 0}>Join</Button></div></QuickActionCard>
               </div>
