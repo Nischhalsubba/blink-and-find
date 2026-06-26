@@ -97,42 +97,20 @@ function getRoundResult(snapshot: OnlineRoomSnapshot, playerId: string) {
 
 function getLiveElapsedMs(snapshot: OnlineRoomSnapshot, liveNow: number) {
   const round = getCurrentOnlineRound(snapshot);
-  if (snapshot.room.status !== "playing" || !round?.start_at) {
-    return 0;
-  }
-
+  if (snapshot.room.status !== "playing" || !round?.start_at) return 0;
   return Math.max(0, liveNow - Date.parse(round.start_at));
 }
 
 function selectVisibleFeedPlayers(players: OnlinePlayer[], activePlayer: OnlinePlayer | null) {
   const visible = players.slice(0, MAX_VISIBLE_FEED_PLAYERS - 1);
-
-  if (activePlayer && !visible.some((player) => player.id === activePlayer.id)) {
-    visible.push(activePlayer);
-  } else if (players[MAX_VISIBLE_FEED_PLAYERS - 1]) {
-    visible.push(players[MAX_VISIBLE_FEED_PLAYERS - 1]);
-  }
-
+  if (activePlayer && !visible.some((player) => player.id === activePlayer.id)) visible.push(activePlayer);
+  else if (players[MAX_VISIBLE_FEED_PLAYERS - 1]) visible.push(players[MAX_VISIBLE_FEED_PLAYERS - 1]);
   return visible.slice(0, MAX_VISIBLE_FEED_PLAYERS);
 }
 
-function LiveRoomPanel({
-  snapshot,
-  players,
-  activePlayer,
-  liveNow,
-}: {
-  snapshot: OnlineRoomSnapshot;
-  players: OnlinePlayer[];
-  activePlayer: OnlinePlayer | null;
-  liveNow: number;
-}) {
+function LiveRoomPanel({ snapshot, players, activePlayer, liveNow }: { snapshot: OnlineRoomSnapshot; players: OnlinePlayer[]; activePlayer: OnlinePlayer | null; liveNow: number; }) {
   const liveElapsedMs = getLiveElapsedMs(snapshot, liveNow);
-  const completedPlayerIds = new Set(
-    snapshot.results
-      .filter((result) => result.round_number === snapshot.room.current_round)
-      .map((result) => result.player_id)
-  );
+  const completedPlayerIds = new Set(snapshot.results.filter((result) => result.round_number === snapshot.room.current_round).map((result) => result.player_id));
   const completedThisRound = players.filter((player) => completedPlayerIds.has(player.id)).length;
   const visiblePlayers = selectVisibleFeedPlayers(players, activePlayer);
   const hiddenCount = Math.max(0, players.length - visiblePlayers.length);
@@ -143,9 +121,7 @@ function LiveRoomPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-sm font-black text-slate-950">Live room feed</div>
-            <div className="text-xs text-muted-foreground">
-              {activePlayer ? `${activePlayer.name} is ${isOnlineAiPlayer(activePlayer) ? "thinking" : snapshot.room.status === "playing" ? "playing" : "getting ready"}` : "Round is moving automatically"}
-            </div>
+            <div className="text-xs text-muted-foreground">{activePlayer ? `${activePlayer.name} is ${isOnlineAiPlayer(activePlayer) ? "thinking" : snapshot.room.status === "playing" ? "playing" : "getting ready"}` : "Round is moving automatically"}</div>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="outline">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge>
@@ -160,18 +136,11 @@ function LiveRoomPanel({
             const isActive = activePlayer?.id === player.id;
             const isAi = isOnlineAiPlayer(player);
             const liveTotal = player.total_time_ms + (isActive && snapshot.room.status === "playing" ? liveElapsedMs : 0);
-            const statusLabel = roundResult
-              ? `Finished ${formatTime(roundResult.final_time_ms)}`
-              : isActive
-                ? isAi ? "AI thinking" : snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Ready"
-                : "Waiting";
-
+            const statusLabel = roundResult ? `Finished ${formatTime(roundResult.final_time_ms)}` : isActive ? isAi ? "AI thinking" : snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Ready" : "Waiting";
             return (
               <div key={player.id} className={`rounded-2xl border p-3 text-sm ${isActive ? "border-primary/60 bg-primary/10" : "bg-white/70"}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 font-black text-slate-950">
-                    <span className="truncate">{player.name}</span>
-                  </div>
+                  <div className="min-w-0 font-black text-slate-950"><span className="truncate">{player.name}</span></div>
                   <Badge variant={roundResult ? "default" : isActive ? "secondary" : "outline"}>{statusLabel}</Badge>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
@@ -184,71 +153,34 @@ function LiveRoomPanel({
           })}
         </div>
 
-        {hiddenCount > 0 && (
-          <div className="rounded-2xl border bg-white/70 p-3 text-center text-xs font-bold text-muted-foreground">
-            +{hiddenCount} more player{hiddenCount === 1 ? "" : "s"} in this room. Showing a compact feed so the page stays fast.
-          </div>
-        )}
+        {hiddenCount > 0 && <div className="rounded-2xl border bg-white/70 p-3 text-center text-xs font-bold text-muted-foreground">+{hiddenCount} more player{hiddenCount === 1 ? "" : "s"} in this room. Showing a compact feed so the page stays fast.</div>}
       </CardContent>
     </Card>
   );
 }
 
-function DisabledBoardView({
-  snapshot,
-  players,
-  localPlayer,
-  board,
-  activePlayer,
-  liveNow,
-  onLeave,
-  onEndRoom,
-}: {
-  snapshot: OnlineRoomSnapshot;
-  players: OnlinePlayer[];
-  localPlayer: OnlinePlayer;
-  board: number[];
-  activePlayer: OnlinePlayer | null;
-  liveNow: number;
-  onLeave: () => void;
-  onEndRoom: () => void;
-}) {
+function DisabledBoardView({ snapshot, players, localPlayer, board, activePlayer, liveNow, onLeave, onEndRoom }: { snapshot: OnlineRoomSnapshot; players: OnlinePlayer[]; localPlayer: OnlinePlayer; board: number[]; activePlayer: OnlinePlayer | null; liveNow: number; onLeave: () => void; onEndRoom: () => void; }) {
   const isHost = localPlayer.is_host;
-  const activeCopy = activePlayer
-    ? isOnlineAiPlayer(activePlayer)
-      ? `${activePlayer.name} is thinking...`
-      : `${activePlayer.name} is ${snapshot.room.status === "playing" ? "playing now" : "getting ready"}`
-    : "Round is advancing";
-
+  const activeCopy = activePlayer ? isOnlineAiPlayer(activePlayer) ? `${activePlayer.name} is thinking...` : `${activePlayer.name} is ${snapshot.room.status === "playing" ? "playing now" : "getting ready"}` : "Round is advancing";
   return (
     <main className="app-shell">
       <div className="game-play-shell online-watch-shell">
         <Card className="glass-panel game-play-topbar py-0">
           <CardContent className="grid gap-3 p-3 sm:flex sm:items-center sm:justify-between sm:p-4">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="rounded-full px-3 py-1">Watching</Badge>
-                <Badge variant="outline" className="rounded-full px-3 py-1">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge>
-              </div>
+              <div className="flex flex-wrap items-center gap-2"><Badge variant="secondary" className="rounded-full px-3 py-1">Watching</Badge><Badge variant="outline" className="rounded-full px-3 py-1">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge></div>
               <h1 className="mt-2 text-2xl font-black tracking-[-0.05em] text-slate-950 sm:text-3xl">{activeCopy}</h1>
               <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. AI opponents play automatically.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              <Button variant="outline" className="rounded-2xl" onClick={onLeave}>Leave Room</Button>
-              {isHost && <Button variant="destructive" className="rounded-2xl" onClick={onEndRoom}>End Room</Button>}
-            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex"><Button variant="outline" className="rounded-2xl" onClick={onLeave}>Leave Room</Button>{isHost && <Button variant="destructive" className="rounded-2xl" onClick={onEndRoom}>End Room</Button>}</div>
           </CardContent>
         </Card>
-
         <Card className="glass-panel game-play-board-card online-watch-board py-0">
           <CardContent className="relative flex h-full min-h-0 flex-col items-center justify-center gap-2 p-2 sm:p-4">
-            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full border bg-white/90 px-3 py-1 text-xs font-black text-slate-700 shadow-sm">
-              Board disabled
-            </div>
+            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full border bg-white/90 px-3 py-1 text-xs font-black text-slate-700 shadow-sm">Board disabled</div>
             <NumberGrid numbers={board} targetNumber={null} selectedNumber={null} isSelectionWrong={false} scatterKey={`${snapshot.room.id}-${snapshot.room.current_round}`} disabled />
           </CardContent>
         </Card>
-
         <LiveRoomPanel snapshot={snapshot} players={players} activePlayer={activePlayer} liveNow={liveNow} />
       </div>
     </main>
@@ -293,41 +225,20 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const turnResumeKey = getOnlineTurnResumeKey(room.id, room.current_round, localPlayer.id);
 
   async function handleEndRoom() {
-    if (!localIsHost) {
-      onBackToLobby();
-      return;
-    }
-
-    if (onEndRoom) {
-      onEndRoom();
-      return;
-    }
-
-    try {
-      await endOnlineRoom(room.id);
-      onBackToLobby();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not end room.");
-    }
+    if (!localIsHost) return onBackToLobby();
+    if (onEndRoom) return onEndRoom();
+    try { await endOnlineRoom(room.id); onBackToLobby(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not end room."); }
   }
 
   function clearPreviewTimers() {
-    if (previewTimeoutRef.current !== null) {
-      window.clearTimeout(previewTimeoutRef.current);
-      previewTimeoutRef.current = null;
-    }
-    if (countdownIntervalRef.current !== null) {
-      window.clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
+    if (previewTimeoutRef.current !== null) window.clearTimeout(previewTimeoutRef.current);
+    if (countdownIntervalRef.current !== null) window.clearInterval(countdownIntervalRef.current);
+    previewTimeoutRef.current = null;
+    countdownIntervalRef.current = null;
   }
 
   useEffect(() => () => clearPreviewTimers(), []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setLiveNow(Date.now()), 500);
-    return () => window.clearInterval(timer);
-  }, []);
+  useEffect(() => { const timer = window.setInterval(() => setLiveNow(Date.now()), 500); return () => window.clearInterval(timer); }, []);
 
   useEffect(() => {
     clearPreviewTimers();
@@ -346,43 +257,22 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setStatusMessage(localIsActive ? "Your turn. Tap Start Turn when you are ready." : activeIsAi ? "AI opponent is thinking." : "Watching the active player.");
   }, [room.current_player_id, room.current_round, localIsActive, activeIsAi]);
 
-  useEffect(() => {
-    if (phase !== "playing" || turnStartedAt === null) return;
-    const timer = window.setInterval(() => setElapsedMs(Date.now() - turnStartedAt), 80);
-    return () => window.clearInterval(timer);
-  }, [phase, turnStartedAt]);
-
-  useEffect(() => {
-    if (phase !== "turnSummary") return;
-    const timer = window.setInterval(() => {
-      void onRefresh();
-    }, 700);
-    return () => window.clearInterval(timer);
-  }, [phase, onRefresh]);
+  useEffect(() => { if (phase !== "playing" || turnStartedAt === null) return; const timer = window.setInterval(() => setElapsedMs(Date.now() - turnStartedAt), 80); return () => window.clearInterval(timer); }, [phase, turnStartedAt]);
+  useEffect(() => { if (phase !== "turnSummary") return; const timer = window.setInterval(() => { void onRefresh(); }, 700); return () => window.clearInterval(timer); }, [phase, onRefresh]);
 
   useEffect(() => {
     if (!localIsActive || localRoundResult === null) return;
     clearLocalTurnStarted(turnResumeKey);
     setMessage("You already finished this round. Resyncing the room...");
-    const timer = window.setTimeout(() => {
-      void onRefresh();
-    }, 300);
+    const timer = window.setTimeout(() => { void onRefresh(); }, 300);
     return () => window.clearTimeout(timer);
   }, [localIsActive, localRoundResult, onRefresh, turnResumeKey]);
 
   useEffect(() => {
-    if (!localIsActive || phase !== "ready" || room.status !== "playing" || currentRound?.status !== "playing" || !currentRound.start_at || localRoundResult) {
-      return;
-    }
-
-    if (!canResumeLocalTurn(turnResumeKey)) {
-      setStatusMessage("Your turn is ready. Tap Start Turn to begin.");
-      return;
-    }
-
+    if (!localIsActive || phase !== "ready" || room.status !== "playing" || currentRound?.status !== "playing" || !currentRound.start_at || localRoundResult) return;
+    if (!canResumeLocalTurn(turnResumeKey)) { setStatusMessage("Your turn is ready. Tap Start Turn to begin."); return; }
     const startedAt = Date.parse(currentRound.start_at);
     if (!Number.isFinite(startedAt)) return;
-
     clearPreviewTimers();
     setTargetHidden(true);
     setPreviewCountdown(0);
@@ -393,35 +283,24 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }, [localIsActive, phase, room.status, currentRound?.id, currentRound?.status, currentRound?.start_at, localRoundResult, turnResumeKey]);
 
   useEffect(() => {
-    if (!localIsHost || !activePlayer || !activeIsAi || !currentRound || targetNumber === null || activeRoundResult || room.status === "finished" || room.status === "abandoned") {
-      return;
-    }
-
+    if (!localIsHost || !activePlayer || !activeIsAi || !currentRound || targetNumber === null || activeRoundResult || room.status === "finished" || room.status === "abandoned") return;
     const aiTurnKey = `${room.id}:${room.current_round}:${activePlayer.id}`;
-    if (aiTurnInFlightRef.current === aiTurnKey) {
-      return;
-    }
-
+    if (aiTurnInFlightRef.current === aiTurnKey) return;
     aiTurnInFlightRef.current = aiTurnKey;
-    let cancelled = false;
-    let timer: number | null = null;
 
     async function playAiTurn() {
       try {
         setMessage(`${activePlayer.name} is thinking...`);
         await markSameChallengeTurnPlaying(room.id, currentRound.id);
-        await onRefresh();
         const delay = getAiThinkingDelayMs(activePlayer, room.current_round);
-        timer = window.setTimeout(() => {
-          if (cancelled) return;
+        window.setTimeout(() => {
+          if (aiTurnInFlightRef.current !== aiTurnKey) return;
           const playerIndex = roomParticipants.findIndex((player) => player.id === activePlayer.id);
           const result = createAiSameChallengeResult({ room, player: activePlayer, playerIndex: Math.max(0, playerIndex), targetNumber });
           submitSameChallengeResult({ room, players: snapshot.players, result })
             .then(() => onRefresh())
             .catch((error) => setMessage(error instanceof Error ? error.message : "AI could not submit its turn."))
-            .finally(() => {
-              aiTurnInFlightRef.current = null;
-            });
+            .finally(() => { aiTurnInFlightRef.current = null; });
         }, delay);
       } catch (error) {
         aiTurnInFlightRef.current = null;
@@ -430,12 +309,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     }
 
     void playAiTurn();
-
-    return () => {
-      cancelled = true;
-      if (timer !== null) window.clearTimeout(timer);
-    };
-  }, [localIsHost, activePlayer?.id, activeIsAi, activeRoundResult, currentRound?.id, targetNumber, room.id, room.current_round, room.status, onRefresh, roomParticipants, snapshot.players]);
+  }, [localIsHost, activePlayer?.id, activeIsAi, activeRoundResult, currentRound?.id, targetNumber, room.id, room.current_round, room.status, onRefresh]);
 
   async function startTurn() {
     if (!currentRound || targetNumber === null || localRoundResult || activeIsAi) return;
@@ -452,25 +326,12 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setLastSelectedNumber(null);
     setLastSelectionWasWrong(false);
     setStatusMessage(`Memorize target ${targetNumber}.`);
-
-    try {
-      await markSameChallengeTurnPlaying(room.id, currentRound.id);
-      markLocalTurnStarted(turnResumeKey);
-      await onRefresh();
-    } catch (error) {
-      clearLocalTurnStarted(turnResumeKey);
-      setPhase("ready");
-      setMessage(error instanceof Error ? error.message : "Could not start online turn.");
-      return;
-    }
-
+    try { await markSameChallengeTurnPlaying(room.id, currentRound.id); markLocalTurnStarted(turnResumeKey); await onRefresh(); } catch (error) { clearLocalTurnStarted(turnResumeKey); setPhase("ready"); setMessage(error instanceof Error ? error.message : "Could not start online turn."); return; }
     const previewEndsAt = Date.now() + room.settings.flashDurationMs;
     countdownIntervalRef.current = window.setInterval(() => setPreviewCountdown(Math.max(0, Math.ceil((previewEndsAt - Date.now()) / 1000))), 100);
     previewTimeoutRef.current = window.setTimeout(() => {
-      if (countdownIntervalRef.current !== null) {
-        window.clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
+      if (countdownIntervalRef.current !== null) window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
       previewTimeoutRef.current = null;
       setPreviewCountdown(0);
       setTargetHidden(true);
@@ -483,65 +344,28 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   async function handleNumberSelect(value: number) {
     if (phase !== "playing" || targetNumber === null || turnStartedAt === null || !activePlayer || submitInFlightRef.current || localRoundResult || activeIsAi) return;
     setLastSelectedNumber(value);
-    if (value !== targetNumber) {
-      wrongTapsRef.current += 1;
-      setCurrentWrongTaps(wrongTapsRef.current);
-      setLastSelectionWasWrong(true);
-      setStatusMessage(`${value} is wrong. ${room.settings.penaltySeconds} second penalty added.`);
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(35);
-      return;
-    }
-
+    if (value !== targetNumber) { wrongTapsRef.current += 1; setCurrentWrongTaps(wrongTapsRef.current); setLastSelectionWasWrong(true); setStatusMessage(`${value} is wrong. ${room.settings.penaltySeconds} second penalty added.`); if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(35); return; }
     submitInFlightRef.current = true;
     const result = createTurnResult({ round: room.current_round, player: onlinePlayerToGamePlayer(activePlayer), targetNumber, rawTimeMs: Date.now() - turnStartedAt, wrongTaps: wrongTapsRef.current, penaltySeconds: room.settings.penaltySeconds });
-
     setLastSelectionWasWrong(false);
     setLastResult(result);
     setElapsedMs(result.finalTimeMs);
     setTurnStartedAt(null);
     setStatusMessage(`Correct. ${activePlayer.name} finished in ${(result.finalTimeMs / 1000).toFixed(2)} seconds. Syncing next turn...`);
     setPhase("turnSummary");
-
-    try {
-      await submitSameChallengeResult({ room, players: snapshot.players, result });
-      clearLocalTurnStarted(turnResumeKey);
-      await onRefresh();
-    } catch (error) {
-      submitInFlightRef.current = false;
-      setMessage(error instanceof Error ? error.message : "Could not submit result. Tap Continue to resync.");
-    }
+    try { await submitSameChallengeResult({ room, players: snapshot.players, result }); clearLocalTurnStarted(turnResumeKey); await onRefresh(); } catch (error) { submitInFlightRef.current = false; setMessage(error instanceof Error ? error.message : "Could not submit result. Tap Continue to resync."); }
   }
 
-  async function nextRound() {
-    if (!localIsHost) return;
-    try { await startNextOnlineRound(room, roomParticipants); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start next round."); }
-  }
-
-  async function finishRoom() {
-    if (!localIsHost) return;
-    try { await finishOnlineRoom(room); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not finish room."); }
-  }
+  async function nextRound() { if (!localIsHost) return; try { await startNextOnlineRound(room, roomParticipants); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start next round."); } }
+  async function finishRoom() { if (!localIsHost) return; try { await finishOnlineRoom(room); await onRefresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Could not finish room."); } }
 
   if (!currentRound) return <WaitingCard title="Waiting for round" description="The host has not started the first round yet." onBack={onBackToLobby} onEndRoom={handleEndRoom} canEndRoom={localIsHost} />;
-
-  if (localRoundResult && localIsActive) {
-    return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
-  }
-
-  if (!localIsActive) {
-    return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={room.status === "round_summary" ? null : activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
-  }
-
+  if (localRoundResult && localIsActive) return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
+  if (!localIsActive) return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={room.status === "round_summary" ? null : activePlayer} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
   if (room.status === "round_summary") {
-    if (!localIsHost) {
-      return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
-    }
+    if (!localIsHost) return <DisabledBoardView snapshot={snapshot} players={roomParticipants} localPlayer={localPlayer} board={board} activePlayer={null} liveNow={liveNow} onLeave={onBackToLobby} onEndRoom={handleEndRoom} />;
     return <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={nextRound} onFinishGame={finishRoom} />;
   }
-
-  if (phase === "ready") {
-    return <ReadyScreen player={gameCurrentPlayer} round={room.current_round} totalPlayers={roomParticipants.length} playerIndex={roomParticipants.findIndex((player) => player.id === activePlayer?.id)} config={room.settings} onStartTurn={startTurn} onBackToSetup={localIsHost ? handleEndRoom : onBackToLobby} backLabel={localIsHost ? "End Room" : "Leave Room"} />;
-  }
-
+  if (phase === "ready") return <ReadyScreen player={gameCurrentPlayer} round={room.current_round} totalPlayers={roomParticipants.length} playerIndex={roomParticipants.findIndex((player) => player.id === activePlayer?.id)} config={room.settings} onStartTurn={startTurn} onBackToSetup={localIsHost ? handleEndRoom : onBackToLobby} backLabel={localIsHost ? "End Room" : "Leave Room"} />;
   return <GameScreen phase={phase} config={room.settings} currentPlayer={gameCurrentPlayer} currentRound={room.current_round} board={board} targetNumber={targetNumber} targetHidden={phase === "turnSummary" ? true : targetHidden} elapsedMs={elapsedMs} previewCountdown={phase === "turnSummary" ? 0 : previewCountdown} currentWrongTaps={currentWrongTaps} lastSelectedNumber={lastSelectedNumber} lastSelectionWasWrong={lastSelectionWasWrong} lastResult={lastResult} statusMessage={message || statusMessage} isMuted={isMuted} autoContinue={autoContinue} boardScatterKey={`${room.id}-${room.current_round}`} onNumberSelect={handleNumberSelect} onContinue={() => onRefresh()} onBackToSetup={localIsHost ? handleEndRoom : onBackToLobby} onToggleMute={() => setIsMuted((current) => !current)} onToggleAutoContinue={() => setAutoContinue((current) => !current)} quitLabel={localIsHost ? "End Room" : "Leave Room"} quitTitle={localIsHost ? "End this online room?" : "Leave this online room?"} quitDescription={localIsHost ? "This will close the room for every player." : "You will leave the room. The host can keep playing or end it."} quitConfirmLabel={localIsHost ? "End Room" : "Leave Room"} />;
 }
