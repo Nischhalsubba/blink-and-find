@@ -25,6 +25,22 @@ import type { OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
 const MAX_VISIBLE_FEED_PLAYERS = 24;
 
+function getOnlineTurnResumeKey(roomId: string, roundNumber: number, playerId: string) {
+  return `blink-find-online-turn-${roomId}-${roundNumber}-${playerId}`;
+}
+
+function markLocalTurnStarted(key: string) {
+  if (typeof window !== "undefined") window.sessionStorage.setItem(key, "playing");
+}
+
+function clearLocalTurnStarted(key: string) {
+  if (typeof window !== "undefined") window.sessionStorage.removeItem(key);
+}
+
+function canResumeLocalTurn(key: string) {
+  return typeof window !== "undefined" && window.sessionStorage.getItem(key) === "playing";
+}
+
 interface OnlineSameChallengeGameProps {
   snapshot: OnlineRoomSnapshot;
   localPlayer: OnlinePlayer;
@@ -145,7 +161,7 @@ function LiveRoomPanel({
             const statusLabel = roundResult
               ? `Finished ${formatTime(roundResult.final_time_ms)}`
               : isActive
-                ? snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Preparing"
+                ? snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Ready"
                 : "Waiting";
 
             return (
@@ -211,7 +227,7 @@ function DisabledBoardView({
                 <Badge variant="outline" className="rounded-full px-3 py-1">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge>
               </div>
               <h1 className="mt-2 text-2xl font-black tracking-[-0.05em] text-slate-950 sm:text-3xl">{activeCopy}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. The next round starts automatically when everyone finishes.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. The next player gets a ready screen before their turn starts.</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <Button variant="outline" className="rounded-2xl" onClick={onLeave}>Leave Room</Button>
@@ -267,6 +283,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const gameCurrentPlayer = activePlayer ? onlinePlayerToGamePlayer(activePlayer) : null;
   const board = currentRound ? getOnlineBoard(room.settings, currentRound.seed) : [];
   const targetNumber = currentRound?.target_number ?? null;
+  const turnResumeKey = getOnlineTurnResumeKey(room.id, room.current_round, localPlayer.id);
 
   async function handleEndRoom() {
     if (!localIsHost) {
@@ -319,7 +336,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setLastSelectionWasWrong(false);
     setLastResult(null);
     setMessage("");
-    setStatusMessage(localIsActive ? "Your turn. Get ready." : "Watching the active player.");
+    setStatusMessage(localIsActive ? "Your turn. Tap Start Turn when you are ready." : "Watching the active player.");
   }, [room.current_player_id, room.current_round, localIsActive]);
 
   useEffect(() => {
@@ -338,15 +355,21 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
 
   useEffect(() => {
     if (!localIsActive || localRoundResult === null) return;
+    clearLocalTurnStarted(turnResumeKey);
     setMessage("You already finished this round. Resyncing the room...");
     const timer = window.setTimeout(() => {
       void onRefresh();
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [localIsActive, localRoundResult, onRefresh]);
+  }, [localIsActive, localRoundResult, onRefresh, turnResumeKey]);
 
   useEffect(() => {
     if (!localIsActive || phase !== "ready" || room.status !== "playing" || currentRound?.status !== "playing" || !currentRound.start_at || localRoundResult) {
+      return;
+    }
+
+    if (!canResumeLocalTurn(turnResumeKey)) {
+      setStatusMessage("Your turn is ready. Tap Start Turn to begin.");
       return;
     }
 
@@ -360,7 +383,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setElapsedMs(Math.max(0, Date.now() - startedAt));
     setStatusMessage("Reconnected to your active turn. Find the target on the board.");
     setPhase("playing");
-  }, [localIsActive, phase, room.status, currentRound?.id, currentRound?.status, currentRound?.start_at, localRoundResult]);
+  }, [localIsActive, phase, room.status, currentRound?.id, currentRound?.status, currentRound?.start_at, localRoundResult, turnResumeKey]);
 
   async function startTurn() {
     if (!currentRound || targetNumber === null || localRoundResult) return;
@@ -380,8 +403,10 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
 
     try {
       await markSameChallengeTurnPlaying(room.id, currentRound.id);
+      markLocalTurnStarted(turnResumeKey);
       await onRefresh();
     } catch (error) {
+      clearLocalTurnStarted(turnResumeKey);
       setPhase("ready");
       setMessage(error instanceof Error ? error.message : "Could not start online turn.");
       return;
@@ -427,6 +452,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
 
     try {
       await submitSameChallengeResult({ room, players: snapshot.players, result });
+      clearLocalTurnStarted(turnResumeKey);
       await onRefresh();
     } catch (error) {
       submitInFlightRef.current = false;
