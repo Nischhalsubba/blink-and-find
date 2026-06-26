@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { createTurnResult, formatTime } from "@/engine/scoring";
+import { createAiSameChallengeResult, getAiThinkingDelayMs, isOnlineAiPlayer } from "@/lib/onlineAi";
 import {
   getCurrentOnlineRound,
   getOnlineBoard,
@@ -50,7 +51,7 @@ interface OnlineSameChallengeGameProps {
 }
 
 function getRoomParticipants(snapshot: OnlineRoomSnapshot, localPlayer: OnlinePlayer) {
-  const connectedPlayers = snapshot.players.filter((player) => player.is_connected || player.is_host || player.id === localPlayer.id);
+  const connectedPlayers = snapshot.players.filter((player) => player.is_connected || player.is_host || player.id === localPlayer.id || isOnlineAiPlayer(player));
   const participants = connectedPlayers.length > 0 ? connectedPlayers : snapshot.players;
   return [...participants].sort((a, b) => a.joined_at.localeCompare(b.joined_at));
 }
@@ -143,7 +144,7 @@ function LiveRoomPanel({
           <div>
             <div className="text-sm font-black text-slate-950">Live room feed</div>
             <div className="text-xs text-muted-foreground">
-              {activePlayer ? `${activePlayer.name} is ${snapshot.room.status === "playing" ? "playing" : "getting ready"}` : "Round is moving automatically"}
+              {activePlayer ? `${activePlayer.name} is ${isOnlineAiPlayer(activePlayer) ? "thinking" : snapshot.room.status === "playing" ? "playing" : "getting ready"}` : "Round is moving automatically"}
             </div>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -157,11 +158,12 @@ function LiveRoomPanel({
           {visiblePlayers.map((player) => {
             const roundResult = getRoundResult(snapshot, player.id);
             const isActive = activePlayer?.id === player.id;
+            const isAi = isOnlineAiPlayer(player);
             const liveTotal = player.total_time_ms + (isActive && snapshot.room.status === "playing" ? liveElapsedMs : 0);
             const statusLabel = roundResult
               ? `Finished ${formatTime(roundResult.final_time_ms)}`
               : isActive
-                ? snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Ready"
+                ? isAi ? "AI thinking" : snapshot.room.status === "playing" ? `Playing ${formatTime(liveElapsedMs)}` : "Ready"
                 : "Waiting";
 
             return (
@@ -175,7 +177,7 @@ function LiveRoomPanel({
                 <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                   <span>Total {formatTime(liveTotal)}</span>
                   <span>Wrong {player.wrong_taps + (roundResult?.wrong_taps ?? 0)}</span>
-                  <span>{player.is_connected ? "Live" : "Away"}</span>
+                  <span>{isAi ? "AI" : player.is_connected ? "Live" : "Away"}</span>
                 </div>
               </div>
             );
@@ -213,7 +215,9 @@ function DisabledBoardView({
 }) {
   const isHost = localPlayer.is_host;
   const activeCopy = activePlayer
-    ? `${activePlayer.name} is ${snapshot.room.status === "playing" ? "playing now" : "getting ready"}`
+    ? isOnlineAiPlayer(activePlayer)
+      ? `${activePlayer.name} is thinking...`
+      : `${activePlayer.name} is ${snapshot.room.status === "playing" ? "playing now" : "getting ready"}`
     : "Round is advancing";
 
   return (
@@ -227,7 +231,7 @@ function DisabledBoardView({
                 <Badge variant="outline" className="rounded-full px-3 py-1">Round {snapshot.room.current_round}/{snapshot.room.settings.totalRounds}</Badge>
               </div>
               <h1 className="mt-2 text-2xl font-black tracking-[-0.05em] text-slate-950 sm:text-3xl">{activeCopy}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. The next player gets a ready screen before their turn starts.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your board is locked while another player takes their turn. AI opponents play automatically.</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <Button variant="outline" className="rounded-2xl" onClick={onLeave}>Leave Room</Button>
@@ -255,6 +259,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const previewTimeoutRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const submitInFlightRef = useRef(false);
+  const aiTurnInFlightRef = useRef<string | null>(null);
   const wrongTapsRef = useRef(0);
   const [phase, setPhase] = useState<GamePhase>("ready");
   const [targetHidden, setTargetHidden] = useState(false);
@@ -276,8 +281,10 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const currentRound = getCurrentOnlineRound(snapshot);
   const activePlayer = roomParticipants.find((player) => player.id === room.current_player_id) ?? null;
   const localRoundResult = getRoundResult(snapshot, localPlayer.id);
+  const activeRoundResult = activePlayer ? getRoundResult(snapshot, activePlayer.id) : null;
   const localIsActive = activePlayer?.id === localPlayer.id;
   const localIsHost = localPlayer.is_host;
+  const activeIsAi = isOnlineAiPlayer(activePlayer);
   const gamePlayers = onlinePlayersToGamePlayers(roomParticipants);
   const gameResults = onlineResultsToTurnResults(snapshot.results);
   const gameCurrentPlayer = activePlayer ? onlinePlayerToGamePlayer(activePlayer) : null;
@@ -336,8 +343,8 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setLastSelectionWasWrong(false);
     setLastResult(null);
     setMessage("");
-    setStatusMessage(localIsActive ? "Your turn. Tap Start Turn when you are ready." : "Watching the active player.");
-  }, [room.current_player_id, room.current_round, localIsActive]);
+    setStatusMessage(localIsActive ? "Your turn. Tap Start Turn when you are ready." : activeIsAi ? "AI opponent is thinking." : "Watching the active player.");
+  }, [room.current_player_id, room.current_round, localIsActive, activeIsAi]);
 
   useEffect(() => {
     if (phase !== "playing" || turnStartedAt === null) return;
@@ -385,8 +392,53 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     setPhase("playing");
   }, [localIsActive, phase, room.status, currentRound?.id, currentRound?.status, currentRound?.start_at, localRoundResult, turnResumeKey]);
 
+  useEffect(() => {
+    if (!localIsHost || !activePlayer || !activeIsAi || !currentRound || targetNumber === null || activeRoundResult || room.status === "finished" || room.status === "abandoned") {
+      return;
+    }
+
+    const aiTurnKey = `${room.id}:${room.current_round}:${activePlayer.id}`;
+    if (aiTurnInFlightRef.current === aiTurnKey) {
+      return;
+    }
+
+    aiTurnInFlightRef.current = aiTurnKey;
+    let cancelled = false;
+    let timer: number | null = null;
+
+    async function playAiTurn() {
+      try {
+        setMessage(`${activePlayer.name} is thinking...`);
+        await markSameChallengeTurnPlaying(room.id, currentRound.id);
+        await onRefresh();
+        const delay = getAiThinkingDelayMs(activePlayer, room.current_round);
+        timer = window.setTimeout(() => {
+          if (cancelled) return;
+          const playerIndex = roomParticipants.findIndex((player) => player.id === activePlayer.id);
+          const result = createAiSameChallengeResult({ room, player: activePlayer, playerIndex: Math.max(0, playerIndex), targetNumber });
+          submitSameChallengeResult({ room, players: snapshot.players, result })
+            .then(() => onRefresh())
+            .catch((error) => setMessage(error instanceof Error ? error.message : "AI could not submit its turn."))
+            .finally(() => {
+              aiTurnInFlightRef.current = null;
+            });
+        }, delay);
+      } catch (error) {
+        aiTurnInFlightRef.current = null;
+        setMessage(error instanceof Error ? error.message : "AI could not start its turn.");
+      }
+    }
+
+    void playAiTurn();
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [localIsHost, activePlayer?.id, activeIsAi, activeRoundResult, currentRound?.id, targetNumber, room.id, room.current_round, room.status, onRefresh, roomParticipants, snapshot.players]);
+
   async function startTurn() {
-    if (!currentRound || targetNumber === null || localRoundResult) return;
+    if (!currentRound || targetNumber === null || localRoundResult || activeIsAi) return;
     clearPreviewTimers();
     wrongTapsRef.current = 0;
     submitInFlightRef.current = false;
@@ -429,7 +481,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }
 
   async function handleNumberSelect(value: number) {
-    if (phase !== "playing" || targetNumber === null || turnStartedAt === null || !activePlayer || submitInFlightRef.current || localRoundResult) return;
+    if (phase !== "playing" || targetNumber === null || turnStartedAt === null || !activePlayer || submitInFlightRef.current || localRoundResult || activeIsAi) return;
     setLastSelectedNumber(value);
     if (value !== targetNumber) {
       wrongTapsRef.current += 1;
