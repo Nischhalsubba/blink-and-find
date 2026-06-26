@@ -56,19 +56,7 @@ function getRoomParticipants(snapshot: OnlineRoomSnapshot, localPlayer: OnlinePl
   return [...participants].sort((a, b) => a.joined_at.localeCompare(b.joined_at));
 }
 
-function WaitingCard({
-  title,
-  description,
-  onBack,
-  onEndRoom,
-  canEndRoom,
-}: {
-  title: string;
-  description: string;
-  onBack: () => void;
-  onEndRoom: () => void;
-  canEndRoom: boolean;
-}) {
+function WaitingCard({ title, description, onBack, onEndRoom, canEndRoom }: { title: string; description: string; onBack: () => void; onEndRoom: () => void; canEndRoom: boolean; }) {
   return (
     <main className="app-shell">
       <section className="flex h-full items-center justify-center px-2">
@@ -284,20 +272,28 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
 
   useEffect(() => {
     if (!localIsHost || !activePlayer || !activeIsAi || !currentRound || targetNumber === null || activeRoundResult || room.status === "finished" || room.status === "abandoned") return;
-    const aiTurnKey = `${room.id}:${room.current_round}:${activePlayer.id}`;
+
+    const aiPlayer = activePlayer;
+    const aiRound = currentRound;
+    const aiTargetNumber = targetNumber;
+    const aiRoom = room;
+    const aiPlayers = snapshot.players;
+    const aiParticipants = roomParticipants;
+    const aiTurnKey = `${aiRoom.id}:${aiRoom.current_round}:${aiPlayer.id}`;
+
     if (aiTurnInFlightRef.current === aiTurnKey) return;
     aiTurnInFlightRef.current = aiTurnKey;
 
     async function playAiTurn() {
       try {
-        setMessage(`${activePlayer.name} is thinking...`);
-        await markSameChallengeTurnPlaying(room.id, currentRound.id);
-        const delay = getAiThinkingDelayMs(activePlayer, room.current_round);
+        setMessage(`${aiPlayer.name} is thinking...`);
+        await markSameChallengeTurnPlaying(aiRoom.id, aiRound.id);
+        const delay = getAiThinkingDelayMs(aiPlayer, aiRoom.current_round);
         window.setTimeout(() => {
           if (aiTurnInFlightRef.current !== aiTurnKey) return;
-          const playerIndex = roomParticipants.findIndex((player) => player.id === activePlayer.id);
-          const result = createAiSameChallengeResult({ room, player: activePlayer, playerIndex: Math.max(0, playerIndex), targetNumber });
-          submitSameChallengeResult({ room, players: snapshot.players, result })
+          const playerIndex = aiParticipants.findIndex((player) => player.id === aiPlayer.id);
+          const result = createAiSameChallengeResult({ room: aiRoom, player: aiPlayer, playerIndex: Math.max(0, playerIndex), targetNumber: aiTargetNumber });
+          submitSameChallengeResult({ room: aiRoom, players: aiPlayers, result })
             .then(() => onRefresh())
             .catch((error) => setMessage(error instanceof Error ? error.message : "AI could not submit its turn."))
             .finally(() => { aiTurnInFlightRef.current = null; });
@@ -309,7 +305,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
     }
 
     void playAiTurn();
-  }, [localIsHost, activePlayer?.id, activeIsAi, activeRoundResult, currentRound?.id, targetNumber, room.id, room.current_round, room.status, onRefresh]);
+  }, [localIsHost, activePlayer, activeIsAi, activeRoundResult, currentRound, targetNumber, room, onRefresh, roomParticipants, snapshot.players]);
 
   async function startTurn() {
     if (!currentRound || targetNumber === null || localRoundResult || activeIsAi) return;
