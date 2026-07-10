@@ -1,0 +1,56 @@
+# Blink & Find
+
+Blink & Find is a free browser-based number hunting memory game. Players memorize a target number, find it on a scattered board, and compete for the lowest total time.
+
+## Main game modes
+
+- Local single-player and same-device multiplayer
+- Same Challenge online rooms
+- Live Race online rooms
+- Daily Challenge
+- Shared Challenge links
+- Time Attack
+- Streak Mode
+- Practice Mode
+- Comfort Mode
+- Zen Mode
+
+## Core rules
+
+1. Memorize the target number during the preview.
+2. Find the matching number after the target hides.
+3. Wrong taps add penalty time.
+4. The lowest total time wins.
+
+## Product features
+
+- Seeded boards for fair online challenges
+- Shared countdowns for Live Race
+- QR-code and link invitations
+- Local and online result history
+- Leaderboards and personal statistics
+- Keyboard navigation and ARIA status updates
+- Reduced-motion support
+- Installable PWA manifest
+
+## Technical summary
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Supabase for online rooms and results
+- Playwright end-to-end tests
+- Cloudflare deployment
+
+## Website
+
+https://blink-and-find.hinischalsubba.workers.dev
+
+## Repository
+
+https://github.com/Nischhalsubba/blink-and-find
+
+## Fairness note
+
+Live Race uses shared timestamps and deterministic boards for casual play. It is not designed as a cheat-resistant competitive platform.
