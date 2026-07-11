@@ -5,8 +5,8 @@ import { createClient } from "@supabase/supabase-js";
  * Environment variables still take priority, while the fallback keeps
  * browser deployments working when runtime variable injection is unavailable.
  */
-const FALLBACK_SUPABASE_URL = "https://swvezxnpzlwgttqkjccz.supabase.co";
-const FALLBACK_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Ur5uw-qmrQKX9uag29JeEA_vl6CSTFB";
+const FALLBACK_SUPABASE_URL = "https://iqofwbiwujbbdynlyola.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_WyWbYlKlx9V7wcXDQWuEkQ_6aGppaES";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL;
 const supabaseKey =
