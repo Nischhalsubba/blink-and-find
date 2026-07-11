@@ -1,14 +1,17 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createOnlineRoom, joinOnlineRoom } from "@/lib/onlineRooms";
 import { modeToDatabasePresence, type UserPresenceMode } from "@/lib/presencePreference";
 import { supabase } from "@/lib/supabase";
 import type { GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
-const PRESENCE_STALE_SECONDS = 8;
+const PRESENCE_STALE_SECONDS = 90;
 const INVITE_EXPIRES_SECONDS = 90;
+const GLOBAL_PRESENCE_CHANNEL = "blink-find-online-presence-v2";
 
 export type PresenceStatus = "online" | "available" | "in_game" | "offline";
 export type InviteStatus = "pending" | "accepted" | "declined" | "cancelled" | "expired";
+export type PresenceConnectionState = "connecting" | "live" | "reconnecting" | "offline";
 
 export interface OnlinePresence {
   id: string;
@@ -43,6 +46,20 @@ export interface PresenceResult<T> {
   unavailable: boolean;
 }
 
+export interface LivePresencePayload {
+  device_id: string;
+  display_name: string;
+  status: PresenceStatus;
+  available_to_play: boolean;
+  current_room_id: string | null;
+  online_at: string;
+}
+
+export interface LivePresenceSubscription {
+  update: (payload: LivePresencePayload) => Promise<unknown | null>;
+  cleanup: () => Promise<void>;
+}
+
 function requireSupabase() {
   if (!supabase) throw new Error("Supabase is not configured.");
   return supabase;
@@ -61,24 +78,138 @@ function inviteExpiryIso() {
   return new Date(Date.now() + INVITE_EXPIRES_SECONDS * 1000).toISOString();
 }
 
-export async function upsertOnlinePresence(params: { deviceId: string; displayName: string; availableToPlay?: boolean; currentRoomId?: string | null; preferredMode?: UserPresenceMode; }): Promise<PresenceResult<OnlinePresence | null>> {
-  const client = requireSupabase();
-  const displayName = params.displayName.trim() || "Player";
+function toOnlinePresence(payload: LivePresencePayload): OnlinePresence {
+  return {
+    id: payload.device_id,
+    device_id: payload.device_id,
+    display_name: payload.display_name,
+    status: payload.status,
+    available_to_play: payload.available_to_play,
+    current_room_id: payload.current_room_id,
+    last_seen_at: payload.online_at,
+    created_at: payload.online_at,
+    updated_at: payload.online_at,
+  };
+}
+
+function readLivePlayers(channel: RealtimeChannel, ownDeviceId: string): OnlinePresence[] {
+  const uniquePlayers = new Map<string, OnlinePresence>();
+  const state = channel.presenceState() as Record<string, Array<LivePresencePayload & { presence_ref?: string }>>;
+
+  for (const presences of Object.values(state)) {
+    const payload = presences.at(-1);
+    if (!payload || payload.device_id === ownDeviceId || payload.status === "offline") continue;
+    uniquePlayers.set(payload.device_id, toOnlinePresence(payload));
+  }
+
+  return [...uniquePlayers.values()].sort((a, b) => {
+    if (a.available_to_play !== b.available_to_play) return a.available_to_play ? -1 : 1;
+    return a.display_name.localeCompare(b.display_name);
+  });
+}
+
+export function createLivePresencePayload(params: {
+  deviceId: string;
+  displayName: string;
+  availableToPlay?: boolean;
+  currentRoomId?: string | null;
+  preferredMode?: UserPresenceMode;
+}): LivePresencePayload {
   const mapped = params.preferredMode
     ? modeToDatabasePresence(params.preferredMode)
     : { status: (params.currentRoomId ? "in_game" : params.availableToPlay ? "available" : "online") as PresenceStatus, availableToPlay: Boolean(params.availableToPlay) };
   const status = params.currentRoomId ? "in_game" : mapped.status;
-  const availableToPlay = status === "available" && !params.currentRoomId;
 
-  const { data, error } = await client.from("online_presence").upsert({
+  return {
     device_id: params.deviceId,
-    display_name: displayName,
+    display_name: params.displayName.trim() || "Player",
     status,
-    available_to_play: availableToPlay,
+    available_to_play: status === "available" && !params.currentRoomId,
     current_room_id: params.currentRoomId ?? null,
-    last_seen_at: new Date().toISOString(),
-  }, { onConflict: "device_id" }).select("*").single();
+    online_at: new Date().toISOString(),
+  };
+}
 
+export function subscribeToLivePresence(params: {
+  initialPayload: LivePresencePayload;
+  onPlayers?: (players: OnlinePresence[]) => void;
+  onConnectionState?: (state: PresenceConnectionState) => void;
+}): LivePresenceSubscription {
+  const client = requireSupabase();
+  let currentPayload = params.initialPayload;
+  let subscribed = false;
+  let closed = false;
+
+  const channel = client.channel(GLOBAL_PRESENCE_CHANNEL, {
+    config: { presence: { key: currentPayload.device_id } },
+  });
+
+  const syncPlayers = () => {
+    if (!closed) params.onPlayers?.(readLivePlayers(channel, currentPayload.device_id));
+  };
+
+  channel
+    .on("presence", { event: "sync" }, syncPlayers)
+    .on("presence", { event: "join" }, syncPlayers)
+    .on("presence", { event: "leave" }, syncPlayers)
+    .subscribe(async (status) => {
+      if (closed) return;
+
+      if (status === "SUBSCRIBED") {
+        subscribed = true;
+        params.onConnectionState?.("live");
+        await channel.track(currentPayload);
+        syncPlayers();
+        return;
+      }
+
+      subscribed = false;
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") params.onConnectionState?.("reconnecting");
+      if (status === "CLOSED") params.onConnectionState?.("offline");
+    });
+
+  params.onConnectionState?.("connecting");
+
+  return {
+    async update(payload) {
+      currentPayload = { ...payload, online_at: new Date().toISOString() };
+      if (!subscribed || closed) return null;
+      return channel.track(currentPayload);
+    },
+    async cleanup() {
+      if (closed) return;
+      closed = true;
+      if (subscribed) await channel.untrack();
+      await client.removeChannel(channel);
+      params.onConnectionState?.("offline");
+    },
+  };
+}
+
+export function subscribeToInviteChanges(deviceId: string, onChange: () => void): () => Promise<void> {
+  const client = requireSupabase();
+  const channel = client
+    .channel(`online-invites-${deviceId}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "online_game_invites", filter: `to_device_id=eq.${deviceId}` }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "online_game_invites", filter: `from_device_id=eq.${deviceId}` }, onChange)
+    .subscribe();
+
+  return async () => {
+    await client.removeChannel(channel);
+  };
+}
+
+export async function upsertOnlinePresence(params: { deviceId: string; displayName: string; availableToPlay?: boolean; currentRoomId?: string | null; preferredMode?: UserPresenceMode; }): Promise<PresenceResult<OnlinePresence | null>> {
+  const client = requireSupabase();
+  const payload = createLivePresencePayload(params);
+  const { data, error } = await client.from("online_presence").upsert({
+    device_id: payload.device_id,
+    display_name: payload.display_name,
+    status: payload.status,
+    available_to_play: payload.available_to_play,
+    current_room_id: payload.current_room_id,
+    last_seen_at: payload.online_at,
+  }, { onConflict: "device_id" }).select("*").single();
   if (isMissingPresenceTableError(error)) return { data: null, unavailable: true };
   if (error) throw error;
   return { data: data as OnlinePresence, unavailable: false };
@@ -124,10 +255,8 @@ async function findPendingInviteBetween(fromDeviceId: string, toDeviceId: string
 export async function createOnlineInvite(params: { fromDeviceId: string; fromName: string; toPlayer: OnlinePresence; gameType: OnlineGameType; settings: GameConfig; }): Promise<PresenceResult<OnlineGameInvite | null>> {
   const client = requireSupabase();
   if (!params.toPlayer.available_to_play || params.toPlayer.status !== "available") throw new Error(`${params.toPlayer.display_name} is not available for invites right now.`);
-
   const existingInvite = await findPendingInviteBetween(params.fromDeviceId, params.toPlayer.device_id);
   if (existingInvite) return { data: existingInvite, unavailable: false };
-
   const roomResult = await createOnlineRoom({ playerName: params.fromName, deviceId: params.fromDeviceId, gameType: params.gameType, settings: params.settings });
   const { data, error } = await client.from("online_game_invites").insert({
     from_device_id: params.fromDeviceId,
@@ -141,7 +270,6 @@ export async function createOnlineInvite(params: { fromDeviceId: string; fromNam
     status: "pending",
     expires_at: inviteExpiryIso(),
   }).select("*").single();
-
   if (isMissingPresenceTableError(error)) return { data: null, unavailable: true };
   if (error) throw error;
   return { data: data as OnlineGameInvite, unavailable: false };
@@ -179,32 +307,15 @@ export async function declineOnlineInvite(inviteId: string): Promise<void> {
 export async function cancelOnlineInvite(invite: OnlineGameInvite): Promise<void> {
   const client = requireSupabase();
   const respondedAt = new Date().toISOString();
-  const { error } = await client
-    .from("online_game_invites")
-    .update({ status: "cancelled", responded_at: respondedAt })
-    .eq("id", invite.id)
-    .eq("status", "pending");
-
+  const { error } = await client.from("online_game_invites").update({ status: "cancelled", responded_at: respondedAt }).eq("id", invite.id).eq("status", "pending");
   if (error && !isMissingPresenceTableError(error)) throw error;
-
   if (invite.room_id) {
-    const { error: roomError } = await client
-      .from("online_rooms")
-      .update({ status: "abandoned", current_player_id: null, round_start_at: null })
-      .eq("id", invite.room_id)
-      .eq("status", "lobby");
-
+    const { error: roomError } = await client.from("online_rooms").update({ status: "abandoned", current_player_id: null, round_start_at: null }).eq("id", invite.room_id).eq("status", "lobby");
     if (roomError && !isMissingPresenceTableError(roomError)) throw roomError;
   }
 }
 
+/** @deprecated Use subscribeToLivePresence and subscribeToInviteChanges. */
 export async function subscribeToOnlinePresence(deviceId: string, onChange: () => void) {
-  const client = requireSupabase();
-  const channel = client
-    .channel(`online-presence-${deviceId}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "online_presence" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "online_game_invites", filter: `to_device_id=eq.${deviceId}` }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "online_game_invites", filter: `from_device_id=eq.${deviceId}` }, onChange)
-    .subscribe();
-  return () => client.removeChannel(channel);
+  return subscribeToInviteChanges(deviceId, onChange);
 }
