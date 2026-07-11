@@ -108,6 +108,16 @@ function readLivePlayers(channel: RealtimeChannel, ownDeviceId: string): OnlineP
   });
 }
 
+function presenceFingerprint(payload: LivePresencePayload) {
+  return JSON.stringify({
+    deviceId: payload.device_id,
+    displayName: payload.display_name.trim(),
+    status: payload.status,
+    availableToPlay: payload.available_to_play,
+    currentRoomId: payload.current_room_id,
+  });
+}
+
 export function createLivePresencePayload(params: {
   deviceId: string;
   displayName: string;
@@ -137,6 +147,7 @@ export function subscribeToLivePresence(params: {
 }): LivePresenceSubscription {
   const client = requireSupabase();
   let currentPayload = params.initialPayload;
+  let lastTrackedFingerprint: string | null = null;
   let subscribed = false;
   let closed = false;
 
@@ -148,6 +159,15 @@ export function subscribeToLivePresence(params: {
     if (!closed) params.onPlayers?.(readLivePlayers(channel, currentPayload.device_id));
   };
 
+  async function trackCurrentPresence() {
+    const fingerprint = presenceFingerprint(currentPayload);
+    if (fingerprint === lastTrackedFingerprint) return null;
+
+    const result = await channel.track(currentPayload);
+    if (result === "ok") lastTrackedFingerprint = fingerprint;
+    return result;
+  }
+
   channel
     .on("presence", { event: "sync" }, syncPlayers)
     .on("presence", { event: "join" }, syncPlayers)
@@ -157,8 +177,9 @@ export function subscribeToLivePresence(params: {
 
       if (status === "SUBSCRIBED") {
         subscribed = true;
+        lastTrackedFingerprint = null;
         params.onConnectionState?.("live");
-        await channel.track(currentPayload);
+        await trackCurrentPresence();
         syncPlayers();
         return;
       }
@@ -174,7 +195,7 @@ export function subscribeToLivePresence(params: {
     async update(payload) {
       currentPayload = { ...payload, online_at: new Date().toISOString() };
       if (!subscribed || closed) return null;
-      return channel.track(currentPayload);
+      return trackCurrentPresence();
     },
     async cleanup() {
       if (closed) return;
