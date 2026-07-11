@@ -37,7 +37,6 @@ import type { Difficulty, GameConfig } from "@/types/game";
 import type { OnlineGameType, OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
 
 const ONLINE_NAME_KEY = "blink-and-find-online-name";
-const ROOM_POLL_MS = 1000;
 
 const DEFAULT_CONFIG: GameConfig = {
   mode: "multiplayer",
@@ -350,16 +349,40 @@ export default function OnlinePage() {
     if (!snapshot?.room.id) return;
     const roomId = snapshot.room.id;
     let unsubscribe: (() => void) | undefined;
-    const poller = window.setInterval(() => {
-      refreshRoom(roomId).catch((error) => setMessage(error.message));
-    }, ROOM_POLL_MS);
+    let refreshTimer: number | undefined;
+    let disposed = false;
 
-    subscribeToOnlineRoom(roomId, () => { refreshRoom(roomId).catch((error) => setMessage(error.message)); })
-      .then((cleanup) => { unsubscribe = cleanup; })
+    const requestRefresh = () => {
+      if (disposed || document.visibilityState === "hidden") return;
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = undefined;
+        refreshRoom(roomId).catch((error) => setMessage(error.message));
+      }, 150);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") requestRefresh();
+    };
+
+    subscribeToOnlineRoom(roomId, requestRefresh)
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup();
+          return;
+        }
+        unsubscribe = cleanup;
+      })
       .catch((error) => setMessage(error.message));
 
+    window.addEventListener("focus", requestRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
-      window.clearInterval(poller);
+      disposed = true;
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      window.removeEventListener("focus", requestRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribe?.();
     };
   }, [snapshot?.room.id, localPlayer?.id]);
