@@ -1,0 +1,163 @@
+name: Apply room quota fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-quota-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Patch excessive room polling
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/app/online/page.tsx')
+          source = path.read_text()
+
+          source = source.replace(
+              'const ROOM_POLL_MS = 1000;',
+              'const ROOM_FALLBACK_POLL_MS = 60_000;\nconst ROOM_REFRESH_DEBOUNCE_MS = 300;'
+          )
+
+          source = source.replace(
+              '  const autoActionStartedRef = useRef(false);',
+              '  const autoActionStartedRef = useRef(false);\n  const roomRefreshInFlightRef = useRef(false);\n  const roomRefreshQueuedRef = useRef(false);'
+          )
+
+          old_refresh = '''  async function refreshRoom(roomId: string) {
+            const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
+
+            if (nextSnapshot.room.status === "abandoned") {
+              closeRoomView("The host ended this room.");
+              return;
+            }
+
+            const nextLocalPlayer = localPlayer ? nextSnapshot.players.find((player) => player.id === localPlayer.id) ?? localPlayer : null;
+            setSnapshot(nextSnapshot);
+            if (nextLocalPlayer) {
+              setLocalPlayer(nextLocalPlayer);
+              saveOnlineRoomSession(nextSnapshot, nextLocalPlayer);
+            }
+          }'''
+
+          new_refresh = '''  async function refreshRoom(roomId: string) {
+            if (roomRefreshInFlightRef.current) {
+              roomRefreshQueuedRef.current = true;
+              return;
+            }
+
+            roomRefreshInFlightRef.current = true;
+            try {
+              const nextSnapshot = await fetchOnlineRoomSnapshot(roomId);
+
+              if (nextSnapshot.room.status === "abandoned") {
+                closeRoomView("The host ended this room.");
+                return;
+              }
+
+              const nextLocalPlayer = localPlayer ? nextSnapshot.players.find((player) => player.id === localPlayer.id) ?? localPlayer : null;
+              setSnapshot(nextSnapshot);
+              if (nextLocalPlayer) {
+                setLocalPlayer(nextLocalPlayer);
+                saveOnlineRoomSession(nextSnapshot, nextLocalPlayer);
+              }
+            } finally {
+              roomRefreshInFlightRef.current = false;
+              if (roomRefreshQueuedRef.current) {
+                roomRefreshQueuedRef.current = false;
+                void refreshRoom(roomId);
+              }
+            }
+          }'''
+
+          if old_refresh not in source:
+              raise SystemExit('refreshRoom block no longer matches expected source')
+          source = source.replace(old_refresh, new_refresh)
+
+          old_effect = '''  useEffect(() => {
+            if (!snapshot?.room.id) return;
+            const roomId = snapshot.room.id;
+            let unsubscribe: (() => void) | undefined;
+            const poller = window.setInterval(() => {
+              refreshRoom(roomId).catch((error) => setMessage(error.message));
+            }, ROOM_POLL_MS);
+
+            subscribeToOnlineRoom(roomId, () => { refreshRoom(roomId).catch((error) => setMessage(error.message)); })
+              .then((cleanup) => { unsubscribe = cleanup; })
+              .catch((error) => setMessage(error.message));
+
+            return () => {
+              window.clearInterval(poller);
+              unsubscribe?.();
+            };
+          }, [snapshot?.room.id, localPlayer?.id]);'''
+
+          new_effect = '''  useEffect(() => {
+            if (!snapshot?.room.id) return;
+            const roomId = snapshot.room.id;
+            let unsubscribe: (() => void) | undefined;
+            let refreshTimer: number | undefined;
+
+            const queueRefresh = () => {
+              if (document.visibilityState !== "visible") return;
+              if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+              refreshTimer = window.setTimeout(() => {
+                refreshTimer = undefined;
+                void refreshRoom(roomId).catch((error) => setMessage(error.message));
+              }, ROOM_REFRESH_DEBOUNCE_MS);
+            };
+
+            const fallbackPoller = window.setInterval(queueRefresh, ROOM_FALLBACK_POLL_MS);
+            const handleVisibilityChange = () => {
+              if (document.visibilityState === "visible") queueRefresh();
+            };
+
+            subscribeToOnlineRoom(roomId, queueRefresh)
+              .then((cleanup) => { unsubscribe = cleanup; })
+              .catch((error) => setMessage(error.message));
+            document.addEventListener("visibilitychange", handleVisibilityChange);
+
+            return () => {
+              if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+              window.clearInterval(fallbackPoller);
+              document.removeEventListener("visibilitychange", handleVisibilityChange);
+              unsubscribe?.();
+            };
+          }, [snapshot?.room.id, localPlayer?.id]);'''
+
+          if old_effect not in source:
+              raise SystemExit('room subscription effect no longer matches expected source')
+          source = source.replace(old_effect, new_effect)
+          path.write_text(source)
+          PY
+
+      - name: Install dependencies
+        run: npm install --no-fund
+
+      - name: Lint, typecheck, and build
+        run: npm run check
+
+      - name: Commit verified fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-quota-fix.yml
+          git add src/app/online/page.tsx
+          git commit -m "Reduce online room request volume"
+          git push origin main
