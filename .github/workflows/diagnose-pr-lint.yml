@@ -7,6 +7,10 @@ on:
     paths:
       - .github/workflows/diagnose-pr-lint.yml
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   diagnose:
     runs-on: ubuntu-latest
@@ -21,8 +25,7 @@ jobs:
         run: npm ci
       - name: Capture lint output
         run: npm run lint > lint-output.txt 2>&1 || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lint-output
-          path: lint-output.txt
-          retention-days: 1
+      - name: Post lint output to PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment 2 --body-file lint-output.txt
