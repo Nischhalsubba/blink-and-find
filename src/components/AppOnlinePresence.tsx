@@ -31,6 +31,8 @@ const STATUS_OPTIONS: Array<{ mode: UserPresenceMode; label: string; helper: str
   { mode: "offline", label: "Offline", helper: "Hidden" },
 ];
 
+const INVITE_REFRESH_COOLDOWN_MS = 10_000;
+
 function shortDeviceId(deviceId: string) {
   return deviceId.slice(0, 8).toUpperCase();
 }
@@ -47,12 +49,19 @@ function connectionLabel(state: PresenceConnectionState, mode: UserPresenceMode)
   return "Connecting";
 }
 
+function presenceFingerprint(mode: UserPresenceMode, profileName: string) {
+  return `${mode}:${profileName.trim()}`;
+}
+
 export default function AppOnlinePresence() {
   const pathname = usePathname();
   const deviceId = useMemo(() => getDeviceId(), []);
   const handledAcceptedInviteIds = useRef(new Set<string>());
   const presenceRef = useRef<LivePresenceSubscription | null>(null);
   const inviteRefreshInFlightRef = useRef(false);
+  const inviteRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInviteRefreshAtRef = useRef(0);
+  const lastPresenceFingerprintRef = useRef<string | null>(null);
   const [mode, setModeState] = useState<UserPresenceMode>(() => getEffectivePresenceMode());
   const [profileName, setProfileName] = useState("Player");
   const [incomingInvites, setIncomingInvites] = useState<OnlineGameInvite[]>([]);
@@ -85,18 +94,34 @@ export default function AppOnlinePresence() {
   }, [deviceId, openRoom]);
 
   const refreshInvites = useCallback(async (currentMode: UserPresenceMode, currentProfileName: string) => {
-    if (inviteRefreshInFlightRef.current || !hasSupabaseConfig() || !canReceiveInvites(currentMode)) {
+    if (!hasSupabaseConfig() || !canReceiveInvites(currentMode)) {
       if (!canReceiveInvites(currentMode)) setIncomingInvites([]);
       return;
     }
+
+    const now = Date.now();
+    const elapsed = now - lastInviteRefreshAtRef.current;
+
+    if (inviteRefreshInFlightRef.current || elapsed < INVITE_REFRESH_COOLDOWN_MS) {
+      if (!inviteRefreshTimeoutRef.current) {
+        const delay = Math.max(INVITE_REFRESH_COOLDOWN_MS - elapsed, 0);
+        inviteRefreshTimeoutRef.current = setTimeout(() => {
+          inviteRefreshTimeoutRef.current = null;
+          void refreshInvites(getEffectivePresenceMode(), getPlayerProfile().name);
+        }, delay);
+      }
+      return;
+    }
+
     inviteRefreshInFlightRef.current = true;
+    lastInviteRefreshAtRef.current = now;
     try {
       const [incomingResult, sentResult] = await Promise.all([fetchIncomingInvites(deviceId), fetchSentInvites(deviceId)]);
       setIncomingInvites(incomingResult.data);
       const acceptedInvite = sentResult.data.find((invite) => invite.status === "accepted" && invite.room_code);
       if (acceptedInvite) await joinAcceptedInvite(acceptedInvite, currentProfileName);
     } catch {
-      // Realtime changes plus focus/visibility refreshes cover transient failures.
+      // Realtime plus the queued cooldown refresh cover transient failures.
     } finally {
       inviteRefreshInFlightRef.current = false;
     }
@@ -105,14 +130,21 @@ export default function AppOnlinePresence() {
   const publishPresence = useCallback(async () => {
     const nextMode = getEffectivePresenceMode();
     const profile = getPlayerProfile();
+    const nextFingerprint = presenceFingerprint(nextMode, profile.name);
+
     setModeState(nextMode);
     setProfileName(profile.name);
-    await presenceRef.current?.update(createLivePresencePayload({
-      deviceId,
-      displayName: profile.name,
-      preferredMode: nextMode,
-      currentRoomId: null,
-    }));
+
+    if (lastPresenceFingerprintRef.current !== nextFingerprint) {
+      lastPresenceFingerprintRef.current = nextFingerprint;
+      await presenceRef.current?.update(createLivePresencePayload({
+        deviceId,
+        displayName: profile.name,
+        preferredMode: nextMode,
+        currentRoomId: null,
+      }));
+    }
+
     await refreshInvites(nextMode, profile.name);
   }, [deviceId, refreshInvites]);
 
@@ -162,6 +194,7 @@ export default function AppOnlinePresence() {
       },
     });
     presenceRef.current = presence;
+    lastPresenceFingerprintRef.current = presenceFingerprint(initialMode, profile.name);
 
     const unsubscribeInvites = subscribeToInviteChanges(deviceId, () => {
       void refreshInvites(getEffectivePresenceMode(), getPlayerProfile().name);
@@ -171,23 +204,29 @@ export default function AppOnlinePresence() {
       void publishPresence();
     }
 
+    function syncPresenceWhenVisible() {
+      if (document.visibilityState === "visible") void publishPresence();
+    }
+
     window.addEventListener(PRESENCE_MODE_EVENT, syncPresence);
     window.addEventListener("focus", syncPresence);
-    document.addEventListener("visibilitychange", syncPresence);
+    document.addEventListener("visibilitychange", syncPresenceWhenVisible);
+    void refreshInvites(initialMode, profile.name);
 
     return () => {
       window.removeEventListener(PRESENCE_MODE_EVENT, syncPresence);
       window.removeEventListener("focus", syncPresence);
-      document.removeEventListener("visibilitychange", syncPresence);
+      document.removeEventListener("visibilitychange", syncPresenceWhenVisible);
+      if (inviteRefreshTimeoutRef.current) {
+        clearTimeout(inviteRefreshTimeoutRef.current);
+        inviteRefreshTimeoutRef.current = null;
+      }
       void unsubscribeInvites();
       void presence.cleanup();
       presenceRef.current = null;
+      lastPresenceFingerprintRef.current = null;
     };
   }, [deviceId, isOnlineRoute, publishPresence, refreshInvites]);
-
-  useEffect(() => {
-    void publishPresence();
-  }, [mode, profileName, publishPresence]);
 
   return (
     <>
