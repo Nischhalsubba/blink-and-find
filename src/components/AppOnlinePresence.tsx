@@ -24,7 +24,6 @@ import { saveOnlineRoomSession } from "@/lib/onlineSession";
 import { getPlayerProfile } from "@/lib/playerProfile";
 import { hasSupabaseConfig } from "@/lib/supabase";
 
-const INVITE_FALLBACK_REFRESH_MS = 30_000;
 const STATUS_OPTIONS: Array<{ mode: UserPresenceMode; label: string; helper: string }> = [
   { mode: "online", label: "Online", helper: "Inviteable" },
   { mode: "away", label: "Away", helper: "No invites" },
@@ -97,7 +96,7 @@ export default function AppOnlinePresence() {
       const acceptedInvite = sentResult.data.find((invite) => invite.status === "accepted" && invite.room_code);
       if (acceptedInvite) await joinAcceptedInvite(acceptedInvite, currentProfileName);
     } catch {
-      // Realtime will retry. The fallback timer covers dropped events.
+      // Realtime changes plus focus/visibility refreshes cover transient failures.
     } finally {
       inviteRefreshInFlightRef.current = false;
     }
@@ -167,11 +166,6 @@ export default function AppOnlinePresence() {
     const unsubscribeInvites = subscribeToInviteChanges(deviceId, () => {
       void refreshInvites(getEffectivePresenceMode(), getPlayerProfile().name);
     });
-    void refreshInvites(initialMode, profile.name);
-
-    const fallbackTimer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshInvites(getEffectivePresenceMode(), getPlayerProfile().name);
-    }, INVITE_FALLBACK_REFRESH_MS);
 
     function syncPresence() {
       void publishPresence();
@@ -182,7 +176,6 @@ export default function AppOnlinePresence() {
     document.addEventListener("visibilitychange", syncPresence);
 
     return () => {
-      window.clearInterval(fallbackTimer);
       window.removeEventListener(PRESENCE_MODE_EVENT, syncPresence);
       window.removeEventListener("focus", syncPresence);
       document.removeEventListener("visibilitychange", syncPresence);
