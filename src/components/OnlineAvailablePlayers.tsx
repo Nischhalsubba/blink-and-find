@@ -35,7 +35,7 @@ interface OnlineAvailablePlayersProps {
 }
 
 const AVAILABILITY_KEY = "blink-and-find-available-to-play";
-const INVITE_FALLBACK_REFRESH_MS = 30_000;
+const INVITE_FALLBACK_REFRESH_MS = 120_000;
 
 function loadAvailability() {
   if (typeof window === "undefined") return true;
@@ -66,6 +66,8 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
   const handledAcceptedInviteIds = useRef(new Set<string>());
   const presenceRef = useRef<LivePresenceSubscription | null>(null);
   const inviteRefreshInFlightRef = useRef(false);
+  const refreshInvitesRef = useRef<() => Promise<void>>(async () => undefined);
+  const latestPresenceInputRef = useRef({ playerName, availableToPlay: loadAvailability(), currentRoomId });
   const [availableToPlay, setAvailableToPlay] = useState(loadAvailability);
   const [players, setPlayers] = useState<OnlinePresence[]>([]);
   const [incomingInvites, setIncomingInvites] = useState<OnlineGameInvite[]>([]);
@@ -74,6 +76,8 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
   const [connectionState, setConnectionState] = useState<PresenceConnectionState>("connecting");
   const [isBusy, setIsBusy] = useState(false);
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+
+  latestPresenceInputRef.current = { playerName, availableToPlay, currentRoomId };
 
   const isVisibleToOthers = availableToPlay && !currentRoomId && connectionState === "live";
 
@@ -114,24 +118,28 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
     }
   }, [deviceId, enterAcceptedInvite, onMessage]);
 
+  refreshInvitesRef.current = refreshInvites;
+
   useEffect(() => {
     saveAvailability(availableToPlay);
   }, [availableToPlay]);
 
   useEffect(() => {
+    const initialPresenceInput = latestPresenceInputRef.current;
     const presence = subscribeToLivePresence({
-      initialPayload: createLivePresencePayload({ deviceId, displayName: playerName, availableToPlay, currentRoomId }),
+      initialPayload: createLivePresencePayload({ deviceId, ...initialPresenceInput }),
       onPlayers: setPlayers,
       onConnectionState: setConnectionState,
     });
     presenceRef.current = presence;
-    const unsubscribeInvites = subscribeToInviteChanges(deviceId, () => void refreshInvites());
-    void refreshInvites();
+    const refreshCurrentInvites = () => void refreshInvitesRef.current();
+    const unsubscribeInvites = subscribeToInviteChanges(deviceId, refreshCurrentInvites);
+    refreshCurrentInvites();
     const fallbackTimer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshInvites();
+      if (document.visibilityState === "visible") refreshCurrentInvites();
     }, INVITE_FALLBACK_REFRESH_MS);
     function refreshWhenVisible() {
-      if (document.visibilityState === "visible") void refreshInvites();
+      if (document.visibilityState === "visible") refreshCurrentInvites();
     }
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -143,7 +151,7 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
       void presence.cleanup();
       presenceRef.current = null;
     };
-  }, [deviceId, refreshInvites]);
+  }, [deviceId]);
 
   useEffect(() => {
     void presenceRef.current?.update(createLivePresencePayload({ deviceId, displayName: playerName, availableToPlay, currentRoomId }));
