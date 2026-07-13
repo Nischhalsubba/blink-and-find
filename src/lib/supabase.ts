@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getDeviceSecret } from "@/lib/device";
 
 /**
  * These values are public browser config, not private service credentials.
@@ -18,6 +19,18 @@ export function hasSupabaseConfig(): boolean {
   return Boolean(supabaseUrl && supabaseKey);
 }
 
+const fetchWithWriteIdentity: typeof fetch = (input, init = {}) => {
+  const headers = new Headers(init.headers);
+
+  if (typeof window !== "undefined") {
+    headers.set("x-device-secret", getDeviceSecret());
+  }
+
+  return fetch(input, { ...init, headers });
+};
+
 export const supabase = hasSupabaseConfig()
-  ? createClient(supabaseUrl, supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey, {
+      global: { fetch: fetchWithWriteIdentity },
+    })
   : null;
