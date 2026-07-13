@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getDeviceSecret } from "@/lib/device";
+import { getDeviceId, getDeviceSecret } from "@/lib/device";
 
 /**
  * These values are public browser config, not private service credentials.
@@ -23,6 +23,7 @@ const fetchWithWriteIdentity: typeof fetch = (input, init = {}) => {
   const headers = new Headers(init.headers);
 
   if (typeof window !== "undefined") {
+    headers.set("x-device-id", getDeviceId());
     headers.set("x-device-secret", getDeviceSecret());
   }
 
