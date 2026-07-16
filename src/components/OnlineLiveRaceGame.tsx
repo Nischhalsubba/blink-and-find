@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { createTurnResult, formatTime } from "@/engine/scoring";
 import { LIVE_RACE_ROUND_TIMEOUT_MS, resolveLiveRaceTimeout } from "@/lib/liveRaceTimeout";
+import { submitOnlineResultAtomic } from "@/lib/onlineResultSubmission";
 import {
   getCurrentOnlineRound,
   getOnlineBoard,
@@ -16,7 +17,6 @@ import {
   onlinePlayerToGamePlayer,
   onlineResultsToTurnResults,
   startNextOnlineRound,
-  submitLiveRaceResult,
 } from "@/lib/onlineRooms";
 import type { GamePhase, TurnResult } from "@/types/game";
 import type { OnlinePlayer, OnlineRoomSnapshot } from "@/types/online";
@@ -77,23 +77,13 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   const localRoundResult = snapshot.results.find((result) => {
     return result.round_number === room.current_round && result.player_id === localPlayer.id;
   });
-  const roundResults = snapshot.results.filter((result) => result.round_number === room.current_round);
   const phase: GamePhase = hasStarted ? (localRoundResult ? "turnSummary" : "playing") : "preview";
   const elapsedMs = hasStarted ? (localRoundResult?.final_time_ms ?? Math.max(0, now - roundStartMs)) : 0;
 
   const liveStatus = useMemo(() => {
-    if (!hasStarted) {
-      return `Race starts in ${countdownSeconds}. Memorize the target.`;
-    }
-
-    if (localRoundResult) {
-      return `You finished in ${formatTime(localRoundResult.final_time_ms)}. Waiting for the others.`;
-    }
-
-    if (isTimedOut) {
-      return "This round timed out. Resolving unfinished players now.";
-    }
-
+    if (!hasStarted) return `Race starts in ${countdownSeconds}. Memorize the target.`;
+    if (localRoundResult) return `You finished in ${formatTime(localRoundResult.final_time_ms)}. Waiting for the others.`;
+    if (isTimedOut) return "This round timed out. Resolving unfinished players now.";
     return "Go. Find the hidden target before everyone else does.";
   }, [countdownSeconds, hasStarted, isTimedOut, localRoundResult]);
 
@@ -113,31 +103,18 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
   }, [room.current_round]);
 
   useEffect(() => {
-    if (!isTimedOut || room.status !== "playing" || timeoutCheckRef.current === room.current_round) {
-      return;
-    }
-
+    if (!isTimedOut || room.status !== "playing" || timeoutCheckRef.current === room.current_round) return;
     timeoutCheckRef.current = room.current_round;
     setMessage("Live Race timeout reached. Resolving the round so nobody is held hostage by one sleeping tab.");
-
     resolveLiveRaceTimeout(snapshot)
-      .then((changed) => {
-        if (changed) {
-          return onRefresh();
-        }
-
-        return undefined;
-      })
+      .then((changed) => changed ? onRefresh() : undefined)
       .catch((error) => setMessage(error instanceof Error ? error.message : "Could not resolve the live race timeout."));
   }, [isTimedOut, room.current_round, room.status, snapshot, onRefresh]);
 
   async function handleNumberSelect(value: number) {
-    if (!hasStarted || isTimedOut || isSubmitting || localRoundResult || targetNumber === null || !currentRound) {
-      return;
-    }
+    if (!hasStarted || isTimedOut || isSubmitting || localRoundResult || targetNumber === null || !currentRound) return;
 
     setLastSelectedNumber(value);
-
     if (value !== targetNumber) {
       wrongTapsRef.current += 1;
       setCurrentWrongTaps(wrongTapsRef.current);
@@ -146,12 +123,11 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
       return;
     }
 
-    const rawTimeMs = Date.now() - roundStartMs;
     const result = createTurnResult({
       round: room.current_round,
       player: gameCurrentPlayer,
       targetNumber,
-      rawTimeMs,
+      rawTimeMs: Date.now() - roundStartMs,
       wrongTaps: wrongTapsRef.current,
       penaltySeconds: room.settings.penaltySeconds,
     });
@@ -162,7 +138,7 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
     setMessage(`Correct. You finished in ${formatTime(result.finalTimeMs)}.`);
 
     try {
-      await submitLiveRaceResult({ room, players: snapshot.players, result });
+      await submitOnlineResultAtomic(room, result);
       await onRefresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not submit result.");
@@ -180,21 +156,10 @@ export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, o
     }
   }
 
-  if (!currentRound) {
-    return <WaitingCard title="Waiting for race" description="The host has not started the race yet." onBack={onBackToLobby} />;
-  }
+  if (!currentRound) return <WaitingCard title="Waiting for race" description="The host has not started the race yet." onBack={onBackToLobby} />;
 
   if (room.status === "round_summary") {
-    return (
-      <RoundSummary
-        round={room.current_round}
-        totalRounds={room.settings.totalRounds}
-        players={gamePlayers}
-        results={gameResults}
-        onNextRound={nextRound}
-        onFinishGame={() => onRefresh()}
-      />
-    );
+    return <RoundSummary round={room.current_round} totalRounds={room.settings.totalRounds} players={gamePlayers} results={gameResults} onNextRound={nextRound} onFinishGame={() => onRefresh()} />;
   }
 
   if (room.status === "finished") {
