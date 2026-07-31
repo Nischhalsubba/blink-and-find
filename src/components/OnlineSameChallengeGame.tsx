@@ -246,7 +246,13 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }, [room.current_player_id, room.current_round, localIsActive, activeIsAi]);
 
   useEffect(() => { if (phase !== "playing" || turnStartedAt === null) return; const timer = window.setInterval(() => setElapsedMs(Date.now() - turnStartedAt), 80); return () => window.clearInterval(timer); }, [phase, turnStartedAt]);
-  useEffect(() => { if (phase !== "turnSummary") return; const timer = window.setInterval(() => { void onRefresh(); }, 700); return () => window.clearInterval(timer); }, [phase, onRefresh]);
+  useEffect(() => {
+  if (phase !== "turnSummary") return;
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void onRefresh();
+  }, 10_000);
+  return () => window.clearInterval(timer);
+}, [phase, onRefresh]);
 
   useEffect(() => {
     if (!localIsActive || localRoundResult === null) return;
