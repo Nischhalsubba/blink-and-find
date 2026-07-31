@@ -1,0 +1,43 @@
+name: Apply turn summary polling patch
+
+on:
+  push:
+    branches: [agent/reduce-turn-summary-polling]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/reduce-turn-summary-polling
+      - name: Replace aggressive polling loop
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/OnlineSameChallengeGame.tsx')
+          text = path.read_text()
+          old = '  useEffect(() => { if (phase !== "turnSummary") return; const timer = window.setInterval(() => { void onRefresh(); }, 700); return () => window.clearInterval(timer); }, [phase, onRefresh]);'
+          new = '''  useEffect(() => {
+            if (phase !== "turnSummary") return;
+            const timer = window.setInterval(() => {
+              if (document.visibilityState === "visible") void onRefresh();
+            }, 10_000);
+            return () => window.clearInterval(timer);
+          }, [phase, onRefresh]);'''
+          if old not in text:
+              raise SystemExit('Expected polling loop was not found; refusing to modify the file.')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/OnlineSameChallengeGame.tsx
+          git commit -m "Reduce redundant turn summary polling"
+          git push origin HEAD:agent/reduce-turn-summary-polling
