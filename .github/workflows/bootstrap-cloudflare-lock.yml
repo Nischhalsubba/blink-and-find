@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - fix/complete-ci-cloudflare
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   package-lock:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'fix/complete-ci-cloudflare')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
