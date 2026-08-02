@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import LeaderboardSaveButton from "@/components/LeaderboardSaveButton";
 import ShareableResultCard from "@/components/ShareableResultCard";
@@ -58,7 +59,6 @@ export default function ResultScreen({
   localPlayerId,
 }: ResultScreenProps) {
   const ranking = [...players].sort((a, b) => a.totalTimeMs - b.totalTimeMs);
-  const gameStats = calculateGameStats(results);
   const winner = ranking[0] ?? null;
   const localPlayer = localPlayerId ? ranking.find((player) => player.id === localPlayerId) ?? null : null;
   const focusPlayer = localPlayer ?? winner;
@@ -313,7 +313,7 @@ export default function ResultScreen({
                 accuracyPercent={focusStats.accuracyPercent}
               />
             )}
-            <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><a href="/">Back Home</a></Button>
+            <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><Link href="/">Back Home</Link></Button>
             <Button className="h-12 rounded-2xl font-bold" variant="outline" onClick={copyResult}>Copy Result</Button>
             <Button className="h-12 rounded-2xl font-black" onClick={onPlayAgain}>{playAgainLabel}</Button>
           </CardFooter>

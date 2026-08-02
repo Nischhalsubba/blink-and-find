@@ -99,6 +99,8 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
     }
   }, [deviceId, onEnterRoom, onMessage, playerName]);
 
+  // The cooldown timeout intentionally re-enters the same memoized callback.
+  /* eslint-disable react-hooks/immutability */
   const refreshInvites = useCallback(async () => {
     const now = Date.now();
     const elapsed = now - lastInviteRefreshAtRef.current;
@@ -129,6 +131,7 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
       inviteRefreshInFlightRef.current = false;
     }
   }, [deviceId, enterAcceptedInvite, onMessage]);
+  /* eslint-enable react-hooks/immutability */
 
   useEffect(() => {
     saveAvailability(availableToPlay);
@@ -161,6 +164,8 @@ export default function OnlineAvailablePlayers({ playerName, gameType, settings,
       void presence.cleanup();
       presenceRef.current = null;
     };
+    // Presence changes are sent by the update effect below; this effect owns subscription lifecycle only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId, refreshInvites]);
 
   useEffect(() => {

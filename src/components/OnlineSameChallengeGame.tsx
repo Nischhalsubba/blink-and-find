@@ -194,7 +194,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const [isMuted, setIsMuted] = useState(false);
   const [autoContinue, setAutoContinue] = useState(true);
   const [message, setMessage] = useState("");
-  const [liveNow, setLiveNow] = useState(Date.now());
+  const [liveNow, setLiveNow] = useState(0);
 
   const room = snapshot.room;
   const roomParticipants = getRoomParticipants(snapshot, localPlayer);
