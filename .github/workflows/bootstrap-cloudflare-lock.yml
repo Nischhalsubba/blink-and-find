@@ -1,61 +1,363 @@
-name: Bootstrap Cloudflare dependencies
+name: Apply final CI and Cloudflare fixes
 
 on:
   push:
     branches:
       - fix/complete-ci-cloudflare
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
-  package-lock:
-    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'fix/complete-ci-cloudflare')
+  patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: fix/complete-ci-cloudflare
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Add pinned Cloudflare tooling and CI script aliases
+
+      - name: Apply reviewed fixes
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          python - <<'PY'
+          from pathlib import Path
+          import json
 
-          pkg.scripts = {
-            ...pkg.scripts,
-            check: 'npm run lint && npm run typecheck && npm run audit:prod',
-            'build:cloudflare': 'opennextjs-cloudflare build',
-            'preview:cloudflare': 'opennextjs-cloudflare preview',
-            'deploy:cloudflare': 'opennextjs-cloudflare deploy',
-            'test:e2e': 'playwright test',
-            'test:supabase-advisors': 'node scripts/check-supabase-advisors.mjs'
-          };
-          pkg.dependencies = {
-            ...pkg.dependencies,
-            next: '16.2.12',
-            '@opennextjs/cloudflare': '1.20.2'
-          };
-          pkg.devDependencies = {
-            ...pkg.devDependencies,
-            'eslint-config-next': '16.2.12',
-            wrangler: '4.114.0'
+          package_path = Path("package.json")
+          package = json.loads(package_path.read_text())
+          package["scripts"].update({
+              "check": "npm run lint && npm run typecheck && npm run audit:prod",
+              "verify": "npm run check && npm run build && npm run test:e2e",
+              "build:cloudflare": "opennextjs-cloudflare build",
+              "preview:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare preview",
+              "deploy:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare deploy",
+              "test:e2e": "playwright test",
+              "test:supabase-advisors": "node scripts/check-supabase-advisors.mjs",
+          })
+          package_path.write_text(json.dumps(package, indent=2) + "\n")
+
+          Path("next.config.ts").write_text('''import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+          import type { NextConfig } from "next";
+
+          const nextConfig: NextConfig = {
+            reactStrictMode: true,
           };
 
-          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-          NODE
-          npm install --package-lock-only --ignore-scripts
-      - name: Commit package manifest and lockfile
+          initOpenNextCloudflareForDev();
+
+          export default nextConfig;
+          '''.replace("          ", ""))
+
+          Path("open-next.config.ts").write_text('''import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+
+          export default defineCloudflareConfig();
+          '''.replace("          ", ""))
+
+          Path("wrangler.jsonc").write_text('''{
+            "$schema": "./node_modules/wrangler/config-schema.json",
+            "name": "blink-and-find",
+            "main": ".open-next/worker.js",
+            "compatibility_date": "2026-08-02",
+            "compatibility_flags": ["nodejs_compat"],
+            "assets": {
+              "directory": ".open-next/assets",
+              "binding": "ASSETS"
+            },
+            "observability": {
+              "enabled": true
+            }
+          }
+          '''.replace("          ", ""))
+
+          Path(".gitignore").write_text('''node_modules/
+          .next/
+          .open-next/
+          .wrangler/
+          playwright-report/
+          test-results/
+          .env
+          .env.*
+          .dev.vars
+          !.env.example
+          !.dev.vars.example
+          '''.replace("          ", ""))
+
+          Path(".dev.vars.example").write_text('''NEXTJS_ENV=development
+          NEXT_PUBLIC_SUPABASE_URL=your-project-url
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+          '''.replace("          ", ""))
+
+          headers_path = Path("public/_headers")
+          headers = headers_path.read_text()
+          static_headers = '''
+          /_next/static/*
+            Cache-Control: public,max-age=31536000,immutable
+          '''.replace("          ", "")
+          if "/_next/static/*" not in headers:
+              headers_path.write_text(headers.rstrip() + "\n" + static_headers)
+
+          for route_path in (
+              "src/app/opengraph-image.tsx",
+              "src/app/social-preview.png/route.tsx",
+          ):
+              path = Path(route_path)
+              text = path.read_text()
+              text = text.replace('export const runtime = "edge";\n', "")
+              path.write_text(text)
+
+          scripts_dir = Path("scripts")
+          scripts_dir.mkdir(exist_ok=True)
+          Path("scripts/check-supabase-advisors.mjs").write_text(r'''const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+          const projectRef = process.env.SUPABASE_PROJECT_REF;
+
+          if (!accessToken || !projectRef) {
+            throw new Error(
+              "SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF are required to check database advisors."
+            );
+          }
+
+          async function getAdvisors(kind) {
+            const response = await fetch(
+              `https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/advisors/${kind}`,
+              {
+                headers: {
+                  Accept: "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              }
+            );
+
+            const body = await response.text();
+            if (!response.ok) {
+              throw new Error(
+                `${kind} advisor request failed with HTTP ${response.status}: ${body.slice(0, 500)}`
+              );
+            }
+
+            const payload = JSON.parse(body);
+            return Array.isArray(payload.lints) ? payload.lints : [];
+          }
+
+          function printAdvisor(kind, lint) {
+            const level = String(lint.level ?? "UNKNOWN").toUpperCase();
+            const name = lint.name ?? lint.title ?? "unnamed_advisor";
+            const detail = lint.description ?? lint.detail ?? "No details provided.";
+            console.log(`[${kind}] ${level} ${name}: ${detail}`);
+          }
+
+          async function main() {
+            const kinds = ["security", "performance"];
+            const results = await Promise.all(
+              kinds.map(async (kind) => [kind, await getAdvisors(kind)])
+            );
+
+            const blocking = [];
+            for (const [kind, lints] of results) {
+              if (lints.length === 0) {
+                console.log(`[${kind}] No advisor findings.`);
+                continue;
+              }
+
+              for (const lint of lints) {
+                printAdvisor(kind, lint);
+                if (String(lint.level ?? "").toUpperCase() === "ERROR") {
+                  blocking.push({ kind, lint });
+                }
+              }
+            }
+
+            if (blocking.length > 0) {
+              throw new Error(
+                `${blocking.length} blocking Supabase advisor finding(s) must be resolved.`
+              );
+            }
+
+            console.log("Supabase advisor check passed with no ERROR-level findings.");
+          }
+
+          main().catch((error) => {
+            console.error(error instanceof Error ? error.message : error);
+            process.exit(1);
+          });
+          '''.replace("          ", ""))
+
+          secret_token = "$" + "{{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          secret_ref = "$" + "{{ secrets.SUPABASE_PROJECT_REF }}"
+          ci = f'''name: CI
+
+          on:
+            push:
+              branches: [main]
+            pull_request:
+              branches: [main]
+
+          permissions:
+            contents: read
+
+          jobs:
+            quality:
+              name: Lint, typecheck, builds, audit, and smoke tests
+              runs-on: ubuntu-latest
+              timeout-minutes: 35
+
+              steps:
+                - name: Checkout
+                  uses: actions/checkout@v6
+
+                - name: Setup Node
+                  uses: actions/setup-node@v6
+                  with:
+                    node-version-file: .nvmrc
+                    cache: npm
+                    cache-dependency-path: package-lock.json
+
+                - name: Install dependencies
+                  run: npm ci --no-fund
+
+                - name: Lint, typecheck, and production audit
+                  run: npm run check
+
+                - name: Build for Next.js hosts
+                  run: npm run build
+
+                - name: Build Cloudflare Worker
+                  run: npm run build:cloudflare
+
+                - name: Install Playwright Chromium
+                  run: npx playwright install --with-deps chromium
+
+                - name: Smoke tests
+                  run: npm run test:e2e
+
+            database-advisors:
+              name: Supabase security and performance advisors
+              runs-on: ubuntu-latest
+              timeout-minutes: 10
+              env:
+                SUPABASE_ACCESS_TOKEN: {secret_token}
+                SUPABASE_PROJECT_REF: {secret_ref}
+
+              steps:
+                - name: Checkout
+                  uses: actions/checkout@v6
+
+                - name: Setup Node
+                  uses: actions/setup-node@v6
+                  with:
+                    node-version-file: .nvmrc
+                    package-manager-cache: false
+
+                - name: Check Supabase advisors
+                  run: |
+                    if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+                      echo "::notice::Supabase advisor check skipped because repository secrets are not configured."
+                      exit 0
+                    fi
+                    npm run test:supabase-advisors
+          '''.replace("          ", "")
+          Path(".github/workflows/ci.yml").write_text(ci)
+
+          Path("DEPLOYMENT.md").write_text('''# Deployment Notes
+
+          ## Production Platform
+
+          Blink & Find deploys to Cloudflare Workers through the OpenNext Cloudflare adapter.
+
+          Production URL:
+
+          ```txt
+          https://blink-and-find.hinischalsubba.workers.dev/
+          ```
+
+          Vercel remains connected as a deployment preview and compatibility check, but Cloudflare Workers is the production target.
+
+          ## Reproducible Setup
+
+          Use the committed npm lockfile:
+
+          ```bash
+          npm ci
+          ```
+
+          The repository pins compatible versions of Next.js, `@opennextjs/cloudflare`, and Wrangler. Do not use `--force` or `--legacy-peer-deps` to hide dependency conflicts.
+
+          ## Cloudflare Configuration
+
+          The required deployment files are committed:
+
+          - `wrangler.jsonc` points to `.open-next/worker.js` and `.open-next/assets`.
+          - `open-next.config.ts` enables the Cloudflare adapter.
+          - `next.config.ts` initializes Cloudflare bindings for local development.
+          - `public/_headers` gives immutable caching to Next.js static assets.
+
+          Cloudflare Git integration should use Node.js 22 and the repository's npm scripts. The production deploy command is:
+
+          ```bash
+          npm run deploy:cloudflare
+          ```
+
+          To validate the Worker bundle without deploying:
+
+          ```bash
+          npm run build:cloudflare
+          ```
+
+          ## Environment Variables
+
+          Configure these values in Cloudflare Workers settings for preview and production environments:
+
+          ```bash
+          NEXT_PUBLIC_SUPABASE_URL=your-project-url
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+          ```
+
+          Use `.dev.vars.example` as the local template. Never commit real credentials.
+
+          ## Required Checks
+
+          Run the same gates used by GitHub Actions:
+
+          ```bash
+          npm ci
+          npm run check
+          npm run build
+          npm run build:cloudflare
+          npx playwright install chromium
+          npm run test:e2e
+          ```
+
+          `npm run check` runs ESLint with zero warnings allowed, TypeScript, and the production dependency audit.
+
+          ## Supabase Advisor Check
+
+          GitHub Actions can query Supabase security and performance advisors when these repository secrets are configured:
+
+          ```txt
+          SUPABASE_ACCESS_TOKEN
+          SUPABASE_PROJECT_REF
+          ```
+
+          The advisor gate fails only for `ERROR` findings. Informational findings are printed for review without blocking a release.
+
+          ## Release Verification
+
+          Before merging a deployment change, confirm:
+
+          - GitHub Actions quality and advisor jobs are green.
+          - The Cloudflare Worker preview/deployment succeeds.
+          - Both connected Vercel preview projects build successfully.
+          - `/`, `/online`, `/sitemap.xml`, and the social preview image routes return successful responses.
+          - A two-browser online match can create, join, start, submit results, and finish.
+          '''.replace("          ", ""))
+
+          Path(".github/workflows/bootstrap-cloudflare-lock.yml").unlink()
+          PY
+
+      - name: Commit final fixes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "Add reproducible Cloudflare build tooling"
+          git add -A
+          git commit -m "Complete CI and Cloudflare deployment setup"
           git push origin HEAD:fix/complete-ci-cloudflare
