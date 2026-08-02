@@ -40,10 +40,12 @@ jobs:
           };
           pkg.dependencies = {
             ...pkg.dependencies,
+            next: '16.2.12',
             '@opennextjs/cloudflare': '1.20.2'
           };
           pkg.devDependencies = {
             ...pkg.devDependencies,
+            'eslint-config-next': '16.2.12',
             wrangler: '4.114.0'
           };
 
