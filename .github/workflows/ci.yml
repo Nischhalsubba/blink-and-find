@@ -13,7 +13,7 @@ jobs:
   quality:
     name: Lint, typecheck, builds, audit, and smoke tests
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -37,6 +37,9 @@ jobs:
 
       - name: Build Cloudflare Worker
         run: npm run build:cloudflare
+
+      - name: Validate Wrangler deployment bundle
+        run: npx wrangler deploy --dry-run --outdir .wrangler/dry-run
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
