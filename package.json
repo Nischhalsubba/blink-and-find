@@ -4,8 +4,8 @@
   "private": true,
   "packageManager": "npm@10.9.3",
   "engines": {
-    "node": ">=20.9.0",
-    "npm": ">=10.0.0"
+    "node": "22.x",
+    "npm": "10.x"
   },
   "scripts": {
     "dev": "next dev",
@@ -54,5 +54,9 @@
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "wrangler": "4.114.0"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
   }
 }
