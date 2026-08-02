@@ -68,7 +68,7 @@ export default function Image() {
           </div>
         </div>
 
-        <div style={{ position: "absolute", right: 92, top: 86, width: 400, height: 460 }}>
+        <div style={{ position: "absolute", right: 92, top: 86, width: 400, height: 460, display: "flex" }}>
           {tiles.map((tile) => (
             <div
               key={tile.value}
