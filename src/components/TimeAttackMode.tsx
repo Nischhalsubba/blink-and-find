@@ -203,6 +203,8 @@ export default function TimeAttackMode() {
     }, 100);
 
     return () => window.clearInterval(timer);
+    // finishRun reads exactly the state listed here; keeping the function local avoids timer churn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, correct, wrong, accuracy, difficulty, best]);
 
   return (

@@ -363,7 +363,9 @@ export function useGameController() {
     }, 900);
 
     return () => clearAutoContinueTimer();
-  }, [phase, autoContinue, lastResult, currentPlayerIndex, players.length, targetNumber, board]);
+    // continueGame reads the state values listed here and intentionally remains local to the controller.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, autoContinue, lastResult, currentPlayerIndex, players.length, targetNumber, board, currentRound, isMuted]);
 
   function startNextRound() {
     const nextRound = currentRound + 1;
@@ -402,7 +404,9 @@ export function useGameController() {
     }, 900);
 
     return () => clearAutoContinueTimer();
-  }, [phase, autoContinue, currentRound, config, players, results]);
+    // finishGame and startNextRound read the state values listed here and intentionally remain local.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, autoContinue, currentRound, config, players, results, isMuted]);
 
   function resetGame() {
     clearPreviewTimers();

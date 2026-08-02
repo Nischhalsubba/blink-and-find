@@ -343,6 +343,8 @@ export default function OnlinePage() {
     }
     void initializeOnlinePage();
     return () => { void setOnlinePresenceOffline(getDeviceId()); };
+    // Mount-only hydration intentionally uses the initial URL and saved session snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -385,6 +387,8 @@ export default function OnlinePage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       unsubscribe?.();
     };
+    // Re-subscribe only when room and player identity change; refreshRoom uses the latest render state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot?.room.id, localPlayer?.id]);
 
   if (!hasSupabaseConfig()) {

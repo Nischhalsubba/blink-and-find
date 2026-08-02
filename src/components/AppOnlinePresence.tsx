@@ -93,6 +93,8 @@ export default function AppOnlinePresence() {
     }
   }, [deviceId, openRoom]);
 
+  // The cooldown timeout intentionally re-enters the same memoized callback.
+  /* eslint-disable react-hooks/immutability */
   const refreshInvites = useCallback(async (currentMode: UserPresenceMode, currentProfileName: string) => {
     if (!hasSupabaseConfig() || !canReceiveInvites(currentMode)) {
       if (!canReceiveInvites(currentMode)) setIncomingInvites([]);
@@ -126,6 +128,7 @@ export default function AppOnlinePresence() {
       inviteRefreshInFlightRef.current = false;
     }
   }, [deviceId, joinAcceptedInvite]);
+  /* eslint-enable react-hooks/immutability */
 
   const publishPresence = useCallback(async () => {
     const nextMode = getEffectivePresenceMode();

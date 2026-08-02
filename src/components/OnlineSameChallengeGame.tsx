@@ -194,7 +194,7 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   const [isMuted, setIsMuted] = useState(false);
   const [autoContinue, setAutoContinue] = useState(true);
   const [message, setMessage] = useState("");
-  const [liveNow, setLiveNow] = useState(Date.now());
+  const [liveNow, setLiveNow] = useState(0);
 
   const room = snapshot.room;
   const roomParticipants = getRoomParticipants(snapshot, localPlayer);
@@ -246,7 +246,13 @@ export default function OnlineSameChallengeGame({ snapshot, localPlayer, onRefre
   }, [room.current_player_id, room.current_round, localIsActive, activeIsAi]);
 
   useEffect(() => { if (phase !== "playing" || turnStartedAt === null) return; const timer = window.setInterval(() => setElapsedMs(Date.now() - turnStartedAt), 80); return () => window.clearInterval(timer); }, [phase, turnStartedAt]);
-  useEffect(() => { if (phase !== "turnSummary") return; const timer = window.setInterval(() => { void onRefresh(); }, 700); return () => window.clearInterval(timer); }, [phase, onRefresh]);
+  useEffect(() => {
+  if (phase !== "turnSummary") return;
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void onRefresh();
+  }, 10_000);
+  return () => window.clearInterval(timer);
+}, [phase, onRefresh]);
 
   useEffect(() => {
     if (!localIsActive || localRoundResult === null) return;

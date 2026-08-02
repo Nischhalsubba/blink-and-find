@@ -80,7 +80,7 @@ export default function PracticeMode() {
   const [message, setMessage] = useState("Start slowly. Find the target number with no timer pressure.");
   const [hintVisible, setHintVisible] = useState(false);
   const [roundComplete, setRoundComplete] = useState(false);
-  const [scatterKey, setScatterKey] = useState(() => Date.now());
+  const [scatterKey, setScatterKey] = useState(0);
 
   const accuracy = useMemo(() => {
     const total = foundCount + missCount;
@@ -98,7 +98,7 @@ export default function PracticeMode() {
     setSelectionWrong(false);
     setHintVisible(false);
     setRoundComplete(false);
-    setScatterKey(Date.now());
+    setScatterKey((current) => current + 1);
     setMessage("New practice board ready. Find the target at your own pace.");
   }
 

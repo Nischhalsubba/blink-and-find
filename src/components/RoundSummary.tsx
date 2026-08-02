@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -119,7 +120,7 @@ export default function RoundSummary({
           </CardContent>
 
           <CardFooter className="game-stage-actions">
-            <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><a href="/">Back Home</a></Button>
+            <Button asChild className="h-12 rounded-2xl font-bold" variant="outline"><Link href="/">Back Home</Link></Button>
             <Button className="h-12 rounded-2xl font-black" onClick={isFinalRound ? onFinishGame : onNextRound}>
               {isFinalRound ? "See Final Results" : "Start Next Round"}
             </Button>

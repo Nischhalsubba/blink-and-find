@@ -51,7 +51,7 @@ function WaitingCard({ title, description, children, onBack }: { title: string; 
 export default function OnlineLiveRaceGame({ snapshot, localPlayer, onRefresh, onBackToLobby }: OnlineLiveRaceGameProps) {
   const wrongTapsRef = useRef(0);
   const timeoutCheckRef = useRef(0);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const [lastSelectedNumber, setLastSelectedNumber] = useState<number | null>(null);
   const [lastSelectionWasWrong, setLastSelectionWasWrong] = useState(false);
   const [currentWrongTaps, setCurrentWrongTaps] = useState(0);
