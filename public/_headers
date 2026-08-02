@@ -9,3 +9,6 @@
 /google725901f3d8f1dfad.html
   Content-Type: text/html; charset=utf-8
   Cache-Control: public, max-age=3600
+
+/_next/static/*
+  Cache-Control: public,max-age=31536000,immutable
