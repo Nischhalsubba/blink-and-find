@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 import { SITE_NAME } from "@/lib/seo";
 
-export const runtime = "edge";
 export const alt = "Blink & Find colorful social preview showing scattered number tiles";
 export const size = {
   width: 1200,
@@ -69,7 +68,7 @@ export default function Image() {
           </div>
         </div>
 
-        <div style={{ position: "absolute", right: 92, top: 86, width: 400, height: 460 }}>
+        <div style={{ position: "absolute", right: 92, top: 86, width: 400, height: 460, display: "flex" }}>
           {tiles.map((tile) => (
             <div
               key={tile.value}

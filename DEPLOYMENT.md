@@ -1,8 +1,8 @@
 # Deployment Notes
 
-## Platform
+## Production Platform
 
-Current deployment target: Cloudflare Pages.
+Blink & Find deploys to Cloudflare Workers through the OpenNext Cloudflare adapter.
 
 Production URL:
 
@@ -10,94 +10,82 @@ Production URL:
 https://blink-and-find.hinischalsubba.workers.dev/
 ```
 
-## Build Settings
+Vercel remains connected as a deployment preview and compatibility check, but Cloudflare Workers is the production target.
 
-Use the Cloudflare Pages Next.js preset.
+## Reproducible Setup
 
-Recommended settings:
+Use the committed npm lockfile:
 
-- Framework preset: Next.js
-- Install command: `npm install`
-- Build command: `npm run build`
-- Output directory: use the default output from Cloudflare's Next.js preset
+```bash
+npm ci
+```
+
+The repository pins compatible versions of Next.js, `@opennextjs/cloudflare`, and Wrangler. It also pins patched `postcss` and `sharp` transitive versions through npm overrides so the production audit stays reproducible. Do not use `--force` or `--legacy-peer-deps` to hide dependency conflicts.
+
+## Cloudflare Configuration
+
+The required deployment files are committed:
+
+- `wrangler.jsonc` points to `.open-next/worker.js` and `.open-next/assets`.
+- `open-next.config.ts` enables the Cloudflare adapter.
+- `next.config.ts` initializes Cloudflare bindings for local development.
+- `public/_headers` gives immutable caching to Next.js static assets.
+
+Cloudflare Git integration should use Node.js 22 and the repository's npm scripts. The production deploy command is:
+
+```bash
+npm run deploy:cloudflare
+```
+
+To validate the Worker bundle without deploying:
+
+```bash
+npm run build:cloudflare
+```
 
 ## Environment Variables
 
-Add these in Cloudflare Pages Project Settings > Environment Variables:
+Configure these values in Cloudflare Workers settings for preview and production environments:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Do not commit real Supabase values to GitHub. Public keys belong in Cloudflare/local env config, not in the repo. The repo does not need to cosplay as a leak bucket.
+Use `.dev.vars.example` as the local template. Never commit real credentials.
 
-## Supabase Database
+## Required Checks
 
-Open the Supabase SQL Editor and run the contents of:
-
-```bash
-supabase/schema.sql
-```
-
-This creates online room tables, MVP Row Level Security policies, and Realtime publication entries.
-
-## Required Checks Before Deploy
-
-Run locally before production deployment:
+Run the same gates used by GitHub Actions:
 
 ```bash
-npm install
-npm run typecheck
+npm ci
+npm run check
 npm run build
+npm run build:cloudflare
+npx playwright install chromium
+npm run test:e2e
 ```
 
-## Dependency Notes
+`npm run check` runs ESLint with zero warnings allowed, TypeScript, and the production dependency audit.
 
-The project uses Tailwind CSS, shadcn/ui-style components, Radix UI primitives, Supabase, QR code generation, and Next.js. If Cloudflare fails after a package update, retry the deployment so the latest dependency graph is installed cleanly.
+## Supabase Advisor Check
 
-## PWA Assets
+GitHub Actions can query Supabase security and performance advisors when these repository secrets are configured:
 
-The app includes:
+```txt
+SUPABASE_ACCESS_TOKEN
+SUPABASE_PROJECT_REF
+```
 
-- `/manifest.json`
-- `/icon.svg`
-- `/og-image.svg`
-
-These are referenced from the Next.js metadata in `src/app/layout.tsx`.
-
-## Manual QA Checklist
-
-After deployment, test:
-
-- Setup screen opens cleanly on desktop and mobile
-- **Play Now** starts a local solo game immediately
-- **Play with Friend** opens `/online`
-- Online screen shows **Create** and **Join** pill choices
-- Host can create an online room from **Create Game**
-- Host sees room code, QR code, native share/copy buttons
-- Host can share invite through native share where supported
-- Host can copy invite link as fallback
-- Guest can auto-join from invite link
-- Guest can join manually by room code
-- Guest can scan QR code to join
-- Lobby updates when the second player joins
-- Host can start the online room
-- Same Challenge turn flow works on two devices
-- Board positions change on the next round
-- Single-player game starts
-- Same-device multiplayer game shows the ready screen for each player
-- Target preview hides correctly
-- Wrong taps add penalty
-- Correct tap ends the turn
-- Auto-continue can be toggled
-- Sound can be muted
-- Mobile vibration does not block play when unsupported
-- Keyboard arrow navigation moves focus between number tiles
-- Round summary appears after all local players finish
-- Final result screen shows ranking and history
-- Copy result works in browsers that support clipboard access
+The advisor gate fails only for `ERROR` findings. Informational findings are printed for review without blocking a release.
 
 ## Release Verification
 
-Before marking a deployment as good, confirm Cloudflare Pages is building the latest GitHub commit on `main`. If production is behind, trigger a new Cloudflare Pages deployment. Machines enjoy technicalities. Apparently this is culture now.
+Before merging a deployment change, confirm:
+
+- GitHub Actions quality and advisor jobs are green.
+- The Cloudflare Worker preview/deployment succeeds.
+- Both connected Vercel preview projects build successfully.
+- `/`, `/online`, `/sitemap.xml`, and the social preview image routes return successful responses.
+- A two-browser online match can create, join, start, submit results, and finish.
