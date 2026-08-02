@@ -20,7 +20,7 @@ Use the committed npm lockfile:
 npm ci
 ```
 
-The repository pins compatible versions of Next.js, `@opennextjs/cloudflare`, and Wrangler. Do not use `--force` or `--legacy-peer-deps` to hide dependency conflicts.
+The repository pins compatible versions of Next.js, `@opennextjs/cloudflare`, and Wrangler. It also pins patched `postcss` and `sharp` transitive versions through npm overrides so the production audit stays reproducible. Do not use `--force` or `--legacy-peer-deps` to hide dependency conflicts.
 
 ## Cloudflare Configuration
 
