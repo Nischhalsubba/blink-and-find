@@ -1,5 +1,109 @@
 # Blink & Find
 
+<!-- interactive-readme-standard:start -->
+
+> [!NOTE]
+> **Branch-specific documentation:** this section is maintained for [`agent/reduce-supabase-request-flood`](https://github.com/Nischhalsubba/blink-and-find/tree/agent/reduce-supabase-request-flood). It is generated from the files present on this branch and preserves the project-authored README below.
+
+<details open>
+<summary><strong>Interactive repository guide</strong></summary>
+
+## Branch overview
+
+| Item | Value |
+|---|---|
+| Repository | [`Nischhalsubba/blink-and-find`](https://github.com/Nischhalsubba/blink-and-find) |
+| Branch | [`agent/reduce-supabase-request-flood`](https://github.com/Nischhalsubba/blink-and-find/tree/agent/reduce-supabase-request-flood) |
+| Detected stack | Next.js, React, Tailwind CSS, TypeScript, CSS, JavaScript, HTML |
+| Detected manifests | package.json |
+| Documentation policy | Every maintained branch must explain purpose, setup, structure, architecture, flows, testing, delivery, security, and ownership. |
+
+## Repository structure
+
+```mermaid
+flowchart TD
+    ROOT["blink-and-find / agent/reduce-supabase-request-flood"]
+    ROOT --> P0[".github/"]
+    ROOT --> P1["docs/"]
+    ROOT --> P2["public/"]
+    ROOT --> P3["src/"]
+    ROOT --> P4["supabase/"]
+    ROOT --> P5["tests/"]
+    ROOT --> P6[".env.example"]
+    ROOT --> P7[".node-version"]
+    ROOT --> P8[".npmrc"]
+    ROOT --> P9[".nvmrc"]
+    ROOT --> P10["components.json"]
+    ROOT --> P11["DEPLOYMENT.md"]
+    ROOT --> P12["eslint.config.mjs"]
+    ROOT --> P13["next-env.d.ts"]
+    ROOT --> P14["next.config.ts"]
+    ROOT --> P15["package.json"]
+    ROOT --> P16["playwright.config.ts"]
+    ROOT --> P17["postcss.config.mjs"]
+    ROOT --> MORE["+ 1 more top-level entries"]
+```
+
+The diagram is generated from the branch's actual top-level files and directories. Use the branch link above for complete source navigation.
+
+## Website or application structure
+
+```mermaid
+flowchart TD
+    APP["blink-and-find"]
+    APP --> R0["src/app"]
+    APP --> R1["public"]
+    R0 --> F0["src/app/challenge/page.tsx"]
+    R0 --> F1["src/app/comfort/page.tsx"]
+    R0 --> F2["src/app/daily/page.tsx"]
+    R0 --> F3["src/app/error.tsx"]
+    R0 --> F4["src/app/faq/page.tsx"]
+    R0 --> F5["src/app/history/page.tsx"]
+    R0 --> F6["src/app/layout.tsx"]
+    R0 --> F7["src/app/leaderboard/page.tsx"]
+    R0 --> F8["src/app/modes/page.tsx"]
+    R0 --> F9["src/app/online/page.tsx"]
+    R0 --> F10["src/app/opengraph-image.tsx"]
+    R0 --> F11["src/app/page.tsx"]
+```
+
+## Application and responsibility flow
+
+```mermaid
+flowchart LR
+    ACTOR["User / contributor"]
+    ACTOR --> A0["Interface: public, src"]
+    A0 --> A1["Quality: tests"]
+    A1 --> A2["Documentation: docs"]
+    A2 --> A3["Delivery: .github"]
+    A3 --> DELIVERY["Delivery: GitHub Actions"]
+```
+
+## Change-to-delivery flow
+
+```mermaid
+flowchart LR
+    CHANGE["Change on agent/reduce-supabase-request-flood"]
+    CHECK["Validate: npm run dev, npm run start, npm run build, npm run lint, npm run typecheck"]
+    REVIEW["Review documentation and architecture impact"]
+    RELEASE["Merge, release, or deploy according to this branch"]
+    CHANGE --> CHECK --> REVIEW --> RELEASE
+```
+
+## README requirements for this branch
+
+- Explain what this branch contains and how it differs from the default branch.
+- Keep installation, configuration, usage, testing, deployment, security, support, and license information accurate.
+- Document repository, website or application, API, data, authentication, background-job, and deployment flows when they exist.
+- Prefer Mermaid diagrams and expandable `<details>` sections for visual navigation.
+- Link diagrams and modules to real source paths; never invent missing components.
+- Preserve project-specific documentation and update diagrams whenever architecture or major paths change.
+- Treat secrets, private infrastructure, customer data, and credentials as prohibited README content.
+
+</details>
+
+<!-- interactive-readme-standard:end -->
+
 Memorize. Hide. Hunt the scattered number.
 
 Blink & Find is a free online number hunting memory game where players memorize a target number, find it inside a scattered board, and race friends in Same Challenge or Live Race mode.
