@@ -4,6 +4,110 @@
 
 # Blink & Find
 
+<!-- interactive-readme-standard:start -->
+
+> [!NOTE]
+> **Branch-specific documentation:** this section is maintained for [`main`](https://github.com/Nischhalsubba/blink-and-find/tree/main). It is generated from the files present on this branch and preserves the project-authored README below.
+
+<details open>
+<summary><strong>Interactive repository guide</strong></summary>
+
+## Branch overview
+
+| Item | Value |
+|---|---|
+| Repository | [`Nischhalsubba/blink-and-find`](https://github.com/Nischhalsubba/blink-and-find) |
+| Branch | [`main`](https://github.com/Nischhalsubba/blink-and-find/tree/main) |
+| Detected stack | Next.js, React, Tailwind CSS, TypeScript, JavaScript, CSS, HTML |
+| Detected manifests | package.json |
+| Documentation policy | Every maintained branch must explain purpose, setup, structure, architecture, flows, testing, delivery, security, and ownership. |
+
+## Repository structure
+
+```mermaid
+flowchart TD
+    ROOT["blink-and-find / main"]
+    ROOT --> P0[".github/"]
+    ROOT --> P1["docs/"]
+    ROOT --> P2["public/"]
+    ROOT --> P3["scripts/"]
+    ROOT --> P4["src/"]
+    ROOT --> P5["supabase/"]
+    ROOT --> P6["tests/"]
+    ROOT --> P7[".dev.vars.example"]
+    ROOT --> P8[".env.example"]
+    ROOT --> P9[".gitignore"]
+    ROOT --> P10[".node-version"]
+    ROOT --> P11[".npmrc"]
+    ROOT --> P12[".nvmrc"]
+    ROOT --> P13["AGENTS.md"]
+    ROOT --> P14["components.json"]
+    ROOT --> P15["DEPLOYMENT.md"]
+    ROOT --> P16["eslint.config.mjs"]
+    ROOT --> P17["next-env.d.ts"]
+    ROOT --> MORE["+ 8 more top-level entries"]
+```
+
+The diagram is generated from the branch's actual top-level files and directories. Use the branch link above for complete source navigation.
+
+## Website or application structure
+
+```mermaid
+flowchart TD
+    APP["blink-and-find"]
+    APP --> R0["src/app"]
+    APP --> R1["public"]
+    R0 --> F0["src/app/challenge/page.tsx"]
+    R0 --> F1["src/app/comfort/page.tsx"]
+    R0 --> F2["src/app/daily/page.tsx"]
+    R0 --> F3["src/app/error.tsx"]
+    R0 --> F4["src/app/faq/page.tsx"]
+    R0 --> F5["src/app/history/page.tsx"]
+    R0 --> F6["src/app/layout.tsx"]
+    R0 --> F7["src/app/leaderboard/page.tsx"]
+    R0 --> F8["src/app/modes/page.tsx"]
+    R0 --> F9["src/app/online/page.tsx"]
+    R0 --> F10["src/app/opengraph-image.tsx"]
+    R0 --> F11["src/app/page.tsx"]
+```
+
+## Application and responsibility flow
+
+```mermaid
+flowchart LR
+    ACTOR["User / contributor"]
+    ACTOR --> A0["Interface: public, src"]
+    A0 --> A1["Quality: tests"]
+    A1 --> A2["Documentation: docs"]
+    A2 --> A3["Delivery: .github, scripts"]
+    A3 --> DELIVERY["Delivery: GitHub Actions"]
+```
+
+## Change-to-delivery flow
+
+```mermaid
+flowchart LR
+    CHANGE["Change on main"]
+    CHECK["Validate: npm run dev, npm run start, npm run build, npm run lint, npm run typecheck"]
+    REVIEW["Review documentation and architecture impact"]
+    RELEASE["Merge, release, or deploy according to this branch"]
+    CHANGE --> CHECK --> REVIEW --> RELEASE
+```
+
+## README requirements for this branch
+
+- Explain what this branch contains and how it differs from the default branch.
+- Keep installation, configuration, usage, testing, deployment, security, support, and license information accurate.
+- Document repository, website or application, API, data, authentication, background-job, and deployment flows when they exist.
+- Prefer Mermaid diagrams and expandable `<details>` sections for visual navigation.
+- Link diagrams and modules to real source paths; never invent missing components.
+- Preserve project-specific documentation and update diagrams whenever architecture or major paths change.
+- Treat secrets, private infrastructure, customer data, and credentials as prohibited README content.
+
+</details>
+
+<!-- interactive-readme-standard:end -->
+
 ### Memorize a number, hunt it across a scattered board, and race yourself or your friends
 
 A free browser-based number-hunting memory game with solo play, same-device multiplayer, seeded online challenges, live races, daily modes, accessibility controls, persistent stats, and Supabase-backed room history.
