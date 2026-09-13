@@ -1,8 +1,7 @@
 "use client";
 
-import type { MouseEvent } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ROUTES, SITE_NAME } from "@/lib/seo";
 
 const routeLabelByPath = new Map(ROUTES.map((route) => [route.path, route.label]));
@@ -15,6 +14,7 @@ function humanizeSegment(segment: string) {
 
 export default function SiteBreadcrumb() {
   const pathname = usePathname() || "/";
+  const router = useRouter();
   const cleanPath = pathname.split("?")[0] || "/";
   const segments = cleanPath.split("/").filter(Boolean);
 
@@ -34,15 +34,6 @@ export default function SiteBreadcrumb() {
     }),
   ];
 
-  function resetHome(event: MouseEvent<HTMLAnchorElement>) {
-    if (cleanPath !== "/") {
-      return;
-    }
-
-    event.preventDefault();
-    window.location.assign("/");
-  }
-
   return (
     <nav className="site-breadcrumb" aria-label={`${SITE_NAME} breadcrumb navigation`}>
       <ol>
@@ -50,7 +41,17 @@ export default function SiteBreadcrumb() {
           <li key={item.href}>
             {index > 0 && <span className="site-breadcrumb-separator" aria-hidden="true">/</span>}
             {item.href === "/" ? (
-              <Link href="/" aria-current={item.current ? "page" : undefined} onClick={resetHome}>
+              <Link
+                href="/"
+                aria-current={item.current ? "page" : undefined}
+                onClick={(event) => {
+                  if (!item.current) {
+                    return;
+                  }
+                  event.preventDefault();
+                  router.refresh();
+                }}
+              >
                 {item.label}
               </Link>
             ) : item.current ? (
