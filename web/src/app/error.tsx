@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { reportClientError } from "@/lib/errorReporting";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const router = useRouter();
+
   useEffect(() => {
     void reportClientError(error, "app_error_boundary");
   }, [error]);
@@ -33,7 +36,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             )}
           </CardContent>
           <CardFooter className="flex flex-col-reverse gap-2 border-t p-5 sm:flex-row sm:justify-between">
-            <Button variant="outline" onClick={() => { window.location.href = "/"; }}>Back Home</Button>
+            <Button variant="outline" onClick={() => router.push("/")}>Back Home</Button>
             <Button onClick={reset}>Try Again</Button>
           </CardFooter>
         </Card>
