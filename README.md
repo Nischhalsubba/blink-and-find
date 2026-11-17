@@ -61,12 +61,18 @@ blink-and-find/
 
 ## Getting started
 
+Install Node.js 22.x and npm 10.x (as declared in [`web/package.json`](./web/package.json)), then run the app from its `web/` workspace:
+
 ```bash
 git clone https://github.com/Nischhalsubba/blink-and-find.git
 cd blink-and-find/web
+npm ci
+npm run dev
 ```
 
-Use the package manager indicated by the committed lockfile, then run the scripts declared in `package.json`. Refer to [`web/README.md`](./web/README.md) for current project-specific commands.
+Open `http://localhost:3000` in a browser. Before submitting changes, run `npm run check` from `web/` to lint, type-check, and audit production dependencies; run `npm run build` to verify the production bundle. Any failed audit or build must be addressed before release.
+
+For additional app details, see [`web/README.md`](./web/README.md).
 
 ## Design quality
 
