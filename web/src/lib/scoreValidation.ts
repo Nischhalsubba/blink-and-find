@@ -14,6 +14,22 @@ export function validateTurnResultForSubmission({ result, penaltySeconds, boardS
   const expectedPenaltyMs = result.wrongTaps * penaltySeconds * 1000;
   const errors: string[] = [];
 
+  if (!Number.isInteger(boardSize) || boardSize < 1) {
+    errors.push("Board size is invalid.");
+  }
+
+  if (!Number.isFinite(penaltySeconds) || penaltySeconds < 0) {
+    errors.push("Penalty configuration is invalid.");
+  }
+
+  if (!Number.isSafeInteger(result.penaltyMs) || result.penaltyMs < 0) {
+    errors.push("Penalty time is invalid.");
+  }
+
+  if (!Number.isSafeInteger(result.finalTimeMs) || result.finalTimeMs < 0) {
+    errors.push("Final time is invalid.");
+  }
+
   if (!Number.isInteger(result.rawTimeMs) || result.rawTimeMs < MIN_HUMAN_RAW_TIME_MS) {
     errors.push("Raw time is unrealistically low.");
   }
